@@ -10,6 +10,7 @@ REPOSITORIES=(
     'external/tinycompress'
     'frameworks/av'
     'frameworks/opt/net/ims'
+    'hardware/interfaces'
     'hardware/libhardware'
     'hardware/qcom-caf/wlan'
     'hardware/qcom/display'
