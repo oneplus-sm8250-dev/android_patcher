@@ -1,0 +1,150 @@
+From 7b61ce191cdcc5a103c45e5e18fa9785df7a3c02 Mon Sep 17 00:00:00 2001
+From: Jeongik Cha <jeongik@google.com>
+Date: Sat, 25 Sep 2021 01:13:39 +0900
+Subject: [PATCH] [android-12.0.0_r18] An enum is initialized as zero if it
+ doesn't have default value
+
+In C++, NDK backend, an enum value hasn't been initialized if it doesn't
+have default value. In that case, initialize an enum with zero for the
+backends.
+
+Bug: 198346478
+Test: check golden output and m
+Ignore-AOSP-First: security patch
+Change-Id: I6cb67258cc4aacc41ae80c46ccee10a3cfe723f6
+Merged-In: I6cb67258cc4aacc41ae80c46ccee10a3cfe723f6
+(cherry picked from commit f39b16442ad832f2921ad0eec298b7c333936dc1)
+---
+ generate_cpp.cpp                              |  7 +++++
+ generate_ndk.cpp                              |  7 +++++
+ .../android/aidl/tests/StructuredParcelable.h | 26 +++++++++----------
+ .../android/aidl/tests/StructuredParcelable.h | 26 +++++++++----------
+ 4 files changed, 40 insertions(+), 26 deletions(-)
+
+diff --git a/generate_cpp.cpp b/generate_cpp.cpp
+index fcc27b69..619a2f2f 100644
+--- a/generate_cpp.cpp
++++ b/generate_cpp.cpp
+@@ -1227,6 +1227,13 @@ void BuildParcelFields(ClassDecl& clazz, const AidlStructuredParcelable& decl,
+       } else {
+         out << " { ::android::Parcelable::Stability::STABILITY_LOCAL }";
+       }
++    } else if (auto type = variable->GetType().GetDefinedType(); type) {
++      if (auto enum_type = type->AsEnumDeclaration(); enum_type) {
++        if (!variable->GetType().IsArray()) {
++          // if an enum doesn't have explicit default value, do zero-initialization
++          out << " = " << cppType << "(0)";
++        }
++      }
+     }
+     out << ";\n";
+ 
+diff --git a/generate_ndk.cpp b/generate_ndk.cpp
+index c87c5c63..ca8d66cc 100644
+--- a/generate_ndk.cpp
++++ b/generate_ndk.cpp
+@@ -1046,6 +1046,13 @@ void GenerateParcelHeader(CodeWriter& out, const AidlTypenames& types,
+     }
+     if (variable->GetDefaultValue()) {
+       out << " = " << variable->ValueString(ConstantValueDecorator);
++    } else if (auto type = variable->GetType().GetDefinedType(); type) {
++      if (auto enum_type = type->AsEnumDeclaration(); enum_type) {
++        if (!variable->GetType().IsArray()) {
++          // if an enum doesn't have explicit default value, do zero-initialization
++          out << " = " << NdkNameOf(types, variable->GetType(), StorageMode::STACK) << "(0)";
++        }
++      }
+     }
+     out << ";\n";
+   }
+diff --git a/tests/golden_output/aidl-test-interface-cpp-source/gen/include/android/aidl/tests/StructuredParcelable.h b/tests/golden_output/aidl-test-interface-cpp-source/gen/include/android/aidl/tests/StructuredParcelable.h
+index 795c81ad..bfd1e58f 100644
+--- a/tests/golden_output/aidl-test-interface-cpp-source/gen/include/android/aidl/tests/StructuredParcelable.h
++++ b/tests/golden_output/aidl-test-interface-cpp-source/gen/include/android/aidl/tests/StructuredParcelable.h
+@@ -46,9 +46,9 @@ public:
+   ::std::vector<int32_t> shouldContainThreeFs;
+   int32_t f = int32_t(0);
+   ::std::string shouldBeJerry;
+-  ::android::aidl::tests::ByteEnum shouldBeByteBar;
+-  ::android::aidl::tests::IntEnum shouldBeIntBar;
+-  ::android::aidl::tests::LongEnum shouldBeLongBar;
++  ::android::aidl::tests::ByteEnum shouldBeByteBar = ::android::aidl::tests::ByteEnum(0);
++  ::android::aidl::tests::IntEnum shouldBeIntBar = ::android::aidl::tests::IntEnum(0);
++  ::android::aidl::tests::LongEnum shouldBeLongBar = ::android::aidl::tests::LongEnum(0);
+   ::std::vector<::android::aidl::tests::ByteEnum> shouldContainTwoByteFoos;
+   ::std::vector<::android::aidl::tests::IntEnum> shouldContainTwoIntFoos;
+   ::std::vector<::android::aidl::tests::LongEnum> shouldContainTwoLongFoos;
+@@ -80,16 +80,16 @@ public:
+   ::std::vector<int64_t> int64_1 = ::std::vector<int64_t>({1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L});
+   int32_t hexInt32_pos_1 = int32_t(1);
+   int32_t hexInt64_pos_1 = int32_t(1);
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_1;
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_2;
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_3;
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_4;
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_5;
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_6;
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_7;
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_8;
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_9;
+-  ::android::aidl::tests::ConstantExpressionEnum const_exprs_10;
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_1 = ::android::aidl::tests::ConstantExpressionEnum(0);
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_2 = ::android::aidl::tests::ConstantExpressionEnum(0);
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_3 = ::android::aidl::tests::ConstantExpressionEnum(0);
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_4 = ::android::aidl::tests::ConstantExpressionEnum(0);
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_5 = ::android::aidl::tests::ConstantExpressionEnum(0);
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_6 = ::android::aidl::tests::ConstantExpressionEnum(0);
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_7 = ::android::aidl::tests::ConstantExpressionEnum(0);
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_8 = ::android::aidl::tests::ConstantExpressionEnum(0);
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_9 = ::android::aidl::tests::ConstantExpressionEnum(0);
++  ::android::aidl::tests::ConstantExpressionEnum const_exprs_10 = ::android::aidl::tests::ConstantExpressionEnum(0);
+   ::std::string addString1 = ::std::string("hello world!");
+   ::std::string addString2 = ::std::string("The quick brown fox jumps over the lazy dog.");
+   int32_t shouldSetBit0AndBit2 = int32_t(0);
+diff --git a/tests/golden_output/aidl-test-interface-ndk_platform-source/gen/include/aidl/android/aidl/tests/StructuredParcelable.h b/tests/golden_output/aidl-test-interface-ndk_platform-source/gen/include/aidl/android/aidl/tests/StructuredParcelable.h
+index 01fd7a30..b665af59 100644
+--- a/tests/golden_output/aidl-test-interface-ndk_platform-source/gen/include/aidl/android/aidl/tests/StructuredParcelable.h
++++ b/tests/golden_output/aidl-test-interface-ndk_platform-source/gen/include/aidl/android/aidl/tests/StructuredParcelable.h
+@@ -27,9 +27,9 @@ public:
+   std::vector<int32_t> shouldContainThreeFs;
+   int32_t f = 0;
+   std::string shouldBeJerry;
+-  ::aidl::android::aidl::tests::ByteEnum shouldBeByteBar;
+-  ::aidl::android::aidl::tests::IntEnum shouldBeIntBar;
+-  ::aidl::android::aidl::tests::LongEnum shouldBeLongBar;
++  ::aidl::android::aidl::tests::ByteEnum shouldBeByteBar = ::aidl::android::aidl::tests::ByteEnum(0);
++  ::aidl::android::aidl::tests::IntEnum shouldBeIntBar = ::aidl::android::aidl::tests::IntEnum(0);
++  ::aidl::android::aidl::tests::LongEnum shouldBeLongBar = ::aidl::android::aidl::tests::LongEnum(0);
+   std::vector<::aidl::android::aidl::tests::ByteEnum> shouldContainTwoByteFoos;
+   std::vector<::aidl::android::aidl::tests::IntEnum> shouldContainTwoIntFoos;
+   std::vector<::aidl::android::aidl::tests::LongEnum> shouldContainTwoLongFoos;
+@@ -61,16 +61,16 @@ public:
+   std::vector<int64_t> int64_1 = {1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L};
+   int32_t hexInt32_pos_1 = 1;
+   int32_t hexInt64_pos_1 = 1;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_1;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_2;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_3;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_4;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_5;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_6;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_7;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_8;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_9;
+-  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_10;
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_1 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_2 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_3 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_4 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_5 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_6 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_7 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_8 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_9 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
++  ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_10 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+   std::string addString1 = "hello world!";
+   std::string addString2 = "The quick brown fox jumps over the lazy dog.";
+   int32_t shouldSetBit0AndBit2 = 0;
+-- 
+2.34.0
+
