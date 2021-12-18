@@ -1,0 +1,381 @@
+From 2feebf38599df18dba50b3bb1be9f72b5784f6b5 Mon Sep 17 00:00:00 2001
+From: Hans Boehm <hboehm@google.com>
+Date: Thu, 23 Sep 2021 12:26:04 -0700
+Subject: [PATCH 08/13] [master] Initially allocate smaller local IRT
+
+Introduce a separate small object allocator to allocate tables for
+the initial local indirect reference tables, so they don't each
+occupy a full page. This seemed to be easier than using linear_alloc,
+since these allocations are done from multiple threads. This also
+has the advantage that GC roots are concentrated on separate
+pages, that could be protected as before, but there are many fewer of
+then than before.
+
+As discussed with Lokesh, it might eventually be better to allocate
+these in the Java heap. But doing that cleanly seems to require a
+major refactoring to split IrtEntrys into two separate components,
+which complicates iteration, etc. And that has locality disadvantages
+during lookup. Or we need to either drop the serial number of merge
+it into the GcRoot, neither of which is ideal either.
+
+Drive-by-fix: When trimming, don't call madvise on empty address ranges.
+
+Test: Build and boot AOSP.
+Test: art/test/testrunner/testrunner.py --host -b --64
+Bug: 184847225
+Change-Id: I297646acbdd9dbeab4af47461849fffa2fee23b1
+---
+ runtime/gc/heap.cc                  |   1 +
+ runtime/indirect_reference_table.cc | 107 ++++++++++++++++++++++------
+ runtime/indirect_reference_table.h  |  39 +++++++++-
+ runtime/jni/jni_env_ext.cc          |   2 +-
+ runtime/jni/jni_env_ext.h           |   4 --
+ runtime/runtime.cc                  |   5 ++
+ runtime/runtime.h                   |   7 ++
+ 7 files changed, 137 insertions(+), 28 deletions(-)
+
+diff --git a/runtime/gc/heap.cc b/runtime/gc/heap.cc
+index f86ff33212..f3d041c54e 100644
+--- a/runtime/gc/heap.cc
++++ b/runtime/gc/heap.cc
+@@ -1536,6 +1536,7 @@ void Heap::TrimIndirectReferenceTables(Thread* self) {
+   // Trim globals indirect reference table.
+   vm->TrimGlobals();
+   // Trim locals indirect reference tables.
++  // TODO: May also want to look for entirely empty pages maintained by SmallIrtAllocator.
+   Barrier barrier(0);
+   TrimIndirectReferenceTableClosure closure(&barrier);
+   ScopedThreadStateChange tsc(self, kWaitingForCheckPointsToRun);
+diff --git a/runtime/indirect_reference_table.cc b/runtime/indirect_reference_table.cc
+index f263b936cf..4a06b2f2d7 100644
+--- a/runtime/indirect_reference_table.cc
++++ b/runtime/indirect_reference_table.cc
+@@ -66,11 +66,59 @@ void IndirectReferenceTable::AbortIfNoCheckJNI(const std::string& msg) {
+   }
+ }
+ 
++// Mmap an "indirect ref table region. Table_bytes is a multiple of a page size.
++static inline MemMap NewIRTMap(size_t table_bytes, std::string* error_msg) {
++  MemMap result = MemMap::MapAnonymous("indirect ref table",
++                                       table_bytes,
++                                       PROT_READ | PROT_WRITE,
++                                       /*low_4gb=*/ false,
++                                       error_msg);
++  if (!result.IsValid() && error_msg->empty()) {
++      *error_msg = "Unable to map memory for indirect ref table";
++  }
++  return result;
++}
++
++SmallIrtAllocator::SmallIrtAllocator()
++    : small_irt_freelist_(nullptr), lock_("Small IRT table lock") {
++}
++
++// Allocate an IRT table for kSmallIrtEntries.
++IrtEntry* SmallIrtAllocator::Allocate(std::string* error_msg) {
++  MutexLock lock(Thread::Current(), lock_);
++  if (small_irt_freelist_ == nullptr) {
++    // Refill.
++    MemMap map = NewIRTMap(kPageSize, error_msg);
++    if (map.IsValid()) {
++      small_irt_freelist_ = reinterpret_cast<IrtEntry*>(map.Begin());
++      for (uint8_t* p = map.Begin(); p + kInitialIrtBytes < map.End(); p += kInitialIrtBytes) {
++        *reinterpret_cast<IrtEntry**>(p) = reinterpret_cast<IrtEntry*>(p + kInitialIrtBytes);
++      }
++      shared_irt_maps_.emplace_back(std::move(map));
++    }
++  }
++  if (small_irt_freelist_ == nullptr) {
++    return nullptr;
++  }
++  IrtEntry* result = small_irt_freelist_;
++  small_irt_freelist_ = *reinterpret_cast<IrtEntry**>(small_irt_freelist_);
++  // Clear pointer in first entry.
++  new(result) IrtEntry();
++  return result;
++}
++
++void SmallIrtAllocator::Deallocate(IrtEntry* unneeded) {
++  MutexLock lock(Thread::Current(), lock_);
++  *reinterpret_cast<IrtEntry**>(unneeded) = small_irt_freelist_;
++  small_irt_freelist_ = unneeded;
++}
++
+ IndirectReferenceTable::IndirectReferenceTable(size_t max_count,
+                                                IndirectRefKind desired_kind,
+                                                ResizableCapacity resizable,
+                                                std::string* error_msg)
+     : segment_state_(kIRTFirstSegment),
++      table_(nullptr),
+       kind_(desired_kind),
+       max_entries_(max_count),
+       current_num_holes_(0),
+@@ -81,28 +129,36 @@ IndirectReferenceTable::IndirectReferenceTable(size_t max_count,
+   // Overflow and maximum check.
+   CHECK_LE(max_count, kMaxTableSizeInBytes / sizeof(IrtEntry));
+ 
+-  const size_t table_bytes = RoundUp(max_count * sizeof(IrtEntry), kPageSize);
+-  table_mem_map_ = MemMap::MapAnonymous("indirect ref table",
+-                                        table_bytes,
+-                                        PROT_READ | PROT_WRITE,
+-                                        /*low_4gb=*/ false,
+-                                        error_msg);
+-  if (!table_mem_map_.IsValid() && error_msg->empty()) {
+-    *error_msg = "Unable to map memory for indirect ref table";
++  if (max_entries_ <= kSmallIrtEntries) {
++    table_ = Runtime::Current()->GetSmallIrtAllocator()->Allocate(error_msg);
++    if (table_ != nullptr) {
++      max_entries_ = kSmallIrtEntries;
++      // table_mem_map_ remains invalid.
++    }
+   }
++  if (table_ == nullptr) {
++    const size_t table_bytes = RoundUp(max_count * sizeof(IrtEntry), kPageSize);
++    table_mem_map_ = NewIRTMap(table_bytes, error_msg);
++    if (!table_mem_map_.IsValid() && error_msg->empty()) {
++      *error_msg = "Unable to map memory for indirect ref table";
++    }
+ 
+-  if (table_mem_map_.IsValid()) {
+-    table_ = reinterpret_cast<IrtEntry*>(table_mem_map_.Begin());
+-  } else {
+-    table_ = nullptr;
++    if (table_mem_map_.IsValid()) {
++      table_ = reinterpret_cast<IrtEntry*>(table_mem_map_.Begin());
++    } else {
++      table_ = nullptr;
++    }
++    // Take into account the actual length.
++    max_entries_ = table_bytes / sizeof(IrtEntry);
+   }
+   segment_state_ = kIRTFirstSegment;
+   last_known_previous_state_ = kIRTFirstSegment;
+-  // Take into account the actual length.
+-  max_entries_ = table_bytes / sizeof(IrtEntry);
+ }
+ 
+ IndirectReferenceTable::~IndirectReferenceTable() {
++  if (table_ != nullptr && !table_mem_map_.IsValid()) {
++    Runtime::Current()->GetSmallIrtAllocator()->Deallocate(table_);
++  }
+ }
+ 
+ void IndirectReferenceTable::ConstexprChecks() {
+@@ -134,7 +190,7 @@ void IndirectReferenceTable::ConstexprChecks() {
+ }
+ 
+ bool IndirectReferenceTable::IsValid() const {
+-  return table_mem_map_.IsValid();
++  return table_ != nullptr;
+ }
+ 
+ // Holes:
+@@ -226,16 +282,17 @@ bool IndirectReferenceTable::Resize(size_t new_size, std::string* error_msg) {
+   // Note: the above check also ensures that there is no overflow below.
+ 
+   const size_t table_bytes = RoundUp(new_size * sizeof(IrtEntry), kPageSize);
+-  MemMap new_map = MemMap::MapAnonymous("indirect ref table",
+-                                        table_bytes,
+-                                        PROT_READ | PROT_WRITE,
+-                                        /*low_4gb=*/ false,
+-                                        error_msg);
++
++  MemMap new_map = NewIRTMap(table_bytes, error_msg);
+   if (!new_map.IsValid()) {
+     return false;
+   }
+ 
+-  memcpy(new_map.Begin(), table_mem_map_.Begin(), table_mem_map_.Size());
++  memcpy(new_map.Begin(), table_, max_entries_ * sizeof(IrtEntry));
++  if (!table_mem_map_.IsValid()) {
++    // Didn't have its own map; deallocate old table.
++    Runtime::Current()->GetSmallIrtAllocator()->Deallocate(table_);
++  }
+   table_mem_map_ = std::move(new_map);
+   table_ = reinterpret_cast<IrtEntry*>(table_mem_map_.Begin());
+   const size_t real_new_size = table_bytes / sizeof(IrtEntry);
+@@ -455,13 +512,19 @@ bool IndirectReferenceTable::Remove(IRTSegmentState previous_state, IndirectRef
+ 
+ void IndirectReferenceTable::Trim() {
+   ScopedTrace trace(__PRETTY_FUNCTION__);
++  if (!table_mem_map_.IsValid()) {
++    // Small table; nothing to do here.
++    return;
++  }
+   const size_t top_index = Capacity();
+   uint8_t* release_start = AlignUp(reinterpret_cast<uint8_t*>(&table_[top_index]), kPageSize);
+   uint8_t* release_end = static_cast<uint8_t*>(table_mem_map_.BaseEnd());
+   DCHECK_GE(reinterpret_cast<uintptr_t>(release_end), reinterpret_cast<uintptr_t>(release_start));
+   DCHECK_ALIGNED(release_end, kPageSize);
+   DCHECK_ALIGNED(release_end - release_start, kPageSize);
+-  madvise(release_start, release_end - release_start, MADV_DONTNEED);
++  if (release_start != release_end) {
++    madvise(release_start, release_end - release_start, MADV_DONTNEED);
++  }
+ }
+ 
+ void IndirectReferenceTable::VisitRoots(RootVisitor* visitor, const RootInfo& root_info) {
+diff --git a/runtime/indirect_reference_table.h b/runtime/indirect_reference_table.h
+index 140b6c3be7..6bdf315143 100644
+--- a/runtime/indirect_reference_table.h
++++ b/runtime/indirect_reference_table.h
+@@ -29,6 +29,7 @@
+ #include "base/locks.h"
+ #include "base/macros.h"
+ #include "base/mem_map.h"
++#include "base/mutex.h"
+ #include "gc_root.h"
+ #include "obj_ptr.h"
+ #include "offsets.h"
+@@ -216,6 +217,39 @@ bool inline operator!=(const IrtIterator& lhs, const IrtIterator& rhs) {
+   return !lhs.equals(rhs);
+ }
+ 
++// We initially allocate local reference tables with a very small number of entries, packing
++// multiple tables into a single page. If we need to expand one, we allocate them in units of
++// pages.
++// TODO: We should allocate all IRT tables as nonmovable Java objects, That in turn works better
++// if we break up each table into 2 parallel arrays, one for the Java reference, and one for the
++// serial number. The current scheme page-aligns regions containing IRT tables, and so allows them
++// to be identified and page-protected in the future.
++constexpr size_t kInitialIrtBytes = 512;  // Number of bytes in an initial local table.
++constexpr size_t kSmallIrtEntries = kInitialIrtBytes / sizeof(IrtEntry);
++static_assert(kPageSize % kInitialIrtBytes == 0);
++static_assert(kInitialIrtBytes % sizeof(IrtEntry) == 0);
++static_assert(kInitialIrtBytes % sizeof(void *) == 0);
++
++// A minimal stopgap allocator for initial small local IRT tables.
++class SmallIrtAllocator {
++ public:
++  SmallIrtAllocator();
++
++  // Allocate an IRT table for kSmallIrtEntries.
++  IrtEntry* Allocate(std::string* error_msg) REQUIRES(!lock_);
++
++  void Deallocate(IrtEntry* unneeded) REQUIRES(!lock_);
++
++ private:
++  // A free list of kInitialIrtBytes chunks linked through the first word.
++  IrtEntry* small_irt_freelist_;
++
++  // Repository of MemMaps used for small IRT tables.
++  std::vector<MemMap> shared_irt_maps_;
++
++  Mutex lock_;
++};
++
+ class IndirectReferenceTable {
+  public:
+   enum class ResizableCapacity {
+@@ -228,6 +262,8 @@ class IndirectReferenceTable {
+   // construction has failed and the IndirectReferenceTable will be in an
+   // invalid state. Use IsValid to check whether the object is in an invalid
+   // state.
++  // Max_count is the minimum initial capacity (resizable), or minimum total capacity
++  // (not resizable). A value of 1 indicates an implementation-convenient small size.
+   IndirectReferenceTable(size_t max_count,
+                          IndirectRefKind kind,
+                          ResizableCapacity resizable,
+@@ -401,7 +437,8 @@ class IndirectReferenceTable {
+   /// semi-public - read/write by jni down calls.
+   IRTSegmentState segment_state_;
+ 
+-  // Mem map where we store the indirect refs.
++  // Mem map where we store the indirect refs. If it's invalid, and table_ is non-null, then
++  // table_ is valid, but was allocated via allocSmallIRT();
+   MemMap table_mem_map_;
+   // bottom of the stack. Do not directly access the object references
+   // in this as they are roots. Use Get() that has a read barrier.
+diff --git a/runtime/jni/jni_env_ext.cc b/runtime/jni/jni_env_ext.cc
+index 4b77145aa6..4510b37ff5 100644
+--- a/runtime/jni/jni_env_ext.cc
++++ b/runtime/jni/jni_env_ext.cc
+@@ -77,7 +77,7 @@ JNIEnvExt::JNIEnvExt(Thread* self_in, JavaVMExt* vm_in, std::string* error_msg)
+     : self_(self_in),
+       vm_(vm_in),
+       local_ref_cookie_(kIRTFirstSegment),
+-      locals_(kLocalsInitial, kLocal, IndirectReferenceTable::ResizableCapacity::kYes, error_msg),
++      locals_(1, kLocal, IndirectReferenceTable::ResizableCapacity::kYes, error_msg),
+       monitors_("monitors", kMonitorsInitial, kMonitorsMax),
+       critical_(0),
+       check_jni_(false),
+diff --git a/runtime/jni/jni_env_ext.h b/runtime/jni/jni_env_ext.h
+index 4abb454187..bdde5f8a2f 100644
+--- a/runtime/jni/jni_env_ext.h
++++ b/runtime/jni/jni_env_ext.h
+@@ -37,10 +37,6 @@ namespace mirror {
+ class Object;
+ }  // namespace mirror
+ 
+-// Number of local references in the indirect reference table. The value is arbitrary but
+-// low enough that it forces integrity checks.
+-static constexpr size_t kLocalsInitial = 512;
+-
+ class JNIEnvExt : public JNIEnv {
+  public:
+   // Creates a new JNIEnvExt. Returns null on error, in which case error_msg
+diff --git a/runtime/runtime.cc b/runtime/runtime.cc
+index 433f564b2d..a1061c63e0 100644
+--- a/runtime/runtime.cc
++++ b/runtime/runtime.cc
+@@ -89,6 +89,7 @@
+ #include "handle_scope-inl.h"
+ #include "hidden_api.h"
+ #include "image-inl.h"
++#include "indirect_reference_table.h"
+ #include "instrumentation.h"
+ #include "intern_table-inl.h"
+ #include "interpreter/interpreter.h"
+@@ -497,6 +498,8 @@ Runtime::~Runtime() {
+   monitor_pool_ = nullptr;
+   delete class_linker_;
+   class_linker_ = nullptr;
++  delete small_irt_allocator_;
++  small_irt_allocator_ = nullptr;
+   delete heap_;
+   heap_ = nullptr;
+   delete intern_table_;
+@@ -1662,6 +1665,8 @@ bool Runtime::Init(RuntimeArgumentMap&& runtime_options_in) {
+   }
+   linear_alloc_.reset(CreateLinearAlloc());
+ 
++  small_irt_allocator_ = new SmallIrtAllocator();
++
+   BlockSignals();
+   InitPlatformSignalHandlers();
+ 
+diff --git a/runtime/runtime.h b/runtime/runtime.h
+index 68456cd37b..e0033a56f3 100644
+--- a/runtime/runtime.h
++++ b/runtime/runtime.h
+@@ -106,6 +106,7 @@ class Plugin;
+ struct RuntimeArgumentMap;
+ class RuntimeCallbacks;
+ class SignalCatcher;
++class SmallIrtAllocator;
+ class StackOverflowHandler;
+ class SuspensionHandler;
+ class ThreadList;
+@@ -301,6 +302,10 @@ class Runtime {
+     return class_linker_;
+   }
+ 
++  SmallIrtAllocator* GetSmallIrtAllocator() const {
++    return small_irt_allocator_;
++  }
++
+   jni::JniIdManager* GetJniIdManager() const {
+     return jni_id_manager_.get();
+   }
+@@ -1167,6 +1172,8 @@ class Runtime {
+ 
+   SignalCatcher* signal_catcher_;
+ 
++  SmallIrtAllocator* small_irt_allocator_;
++
+   std::unique_ptr<jni::JniIdManager> jni_id_manager_;
+ 
+   std::unique_ptr<JavaVMExt> java_vm_;
+-- 
+2.34.0
+

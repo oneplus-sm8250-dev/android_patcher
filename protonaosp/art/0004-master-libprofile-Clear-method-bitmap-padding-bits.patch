@@ -1,0 +1,33 @@
+From ea66de0fc9c95ec27c91130d29b6a25800f2cf28 Mon Sep 17 00:00:00 2001
+From: Vladimir Marko <vmarko@google.com>
+Date: Mon, 4 Oct 2021 09:57:48 +0100
+Subject: [PATCH 04/13] [master] libprofile: Clear method bitmap padding bits.
+
+Explicitly clear padding bits instead of zero-initializing
+the entire buffer.
+
+Test: atest com.android.cts.dexmetadata.InstallDexMetadataHostTest#testProfileSnapshotAfterInstall
+Bug: 201627008
+Change-Id: I31655e053f405a8d2903fb7b2e8e7176f5344226
+---
+ libprofile/profile/profile_compilation_info.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/libprofile/profile/profile_compilation_info.cc b/libprofile/profile/profile_compilation_info.cc
+index 8267174b2d..ef8d0ed682 100644
+--- a/libprofile/profile/profile_compilation_info.cc
++++ b/libprofile/profile/profile_compilation_info.cc
+@@ -2622,6 +2622,10 @@ void ProfileCompilationInfo::DexFileData::WriteMethods(SafeBuffer& buffer) const
+     }
+   });
+   DCHECK_EQ(saved_bitmap_index * num_method_ids, saved_bitmap_bit_size);
++  // Clear the padding bits.
++  size_t padding_bit_size = saved_bitmap_byte_size * kBitsPerByte - saved_bitmap_bit_size;
++  BitMemoryRegion padding_region(buffer.GetCurrentPtr(), saved_bitmap_bit_size, padding_bit_size);
++  padding_region.StoreBits(/*bit_offset=*/ 0u, /*value=*/ 0u, /*bit_length=*/ padding_bit_size);
+   buffer.Advance(saved_bitmap_byte_size);
+ 
+   uint16_t last_method_index = 0;
+-- 
+2.34.0
+

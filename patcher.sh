@@ -2,6 +2,7 @@
 
 ROOT="${PWD}"
 REPOSITORIES=(
+    'art'
     'bionic'
     'bootable/recovery'
     'build/soong'

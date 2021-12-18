@@ -1,0 +1,148 @@
+From 89015b0ad70d36b335d2c860d4c6ec2aa3e1a364 Mon Sep 17 00:00:00 2001
+From: Elliott Hughes <enh@google.com>
+Date: Tue, 16 Nov 2021 11:03:19 -0800
+Subject: [PATCH 2/6] [master] Optimize the mbs fast path slightly.
+
+From a logcat profile:
+```
+     |--95.06%-- convertPrintable(char*, char const*, unsigned long)
+     |    |--13.95%-- [hit in function]
+     |    |
+     |    |--35.96%-- mbrtoc32
+     |    |    |--82.72%-- [hit in function]
+     |    |    |
+     |    |    |--11.07%-- mbsinit
+     |    |    |
+     |    |    |--5.96%-- @plt
+```
+I think we'd assumed that mbsinit() would be inlined, but since these
+functions aren't all in wchar.cpp it wasn't being. This change moves the
+implementation into a (more clearly named) inline function so we can
+trivially reclaim that 11%+6%.
+
+Benchmarks before:
+```
+-------------------------------------------------------------------
+Benchmark                         Time             CPU   Iterations
+-------------------------------------------------------------------
+BM_stdlib_mbrtowc_1            8.03 ns         7.95 ns     87144997
+BM_stdlib_mbrtowc_2            22.0 ns         21.8 ns     32002437
+BM_stdlib_mbrtowc_3            30.0 ns         29.7 ns     23517699
+BM_stdlib_mbrtowc_4            37.4 ns         37.1 ns     18895204
+BM_stdlib_mbstowcs_ascii     792373 ns       782484 ns          890 bytes_per_second=609.389M/s
+BM_stdlib_mbstowcs_wide    15836785 ns     15678316 ns           44 bytes_per_second=30.4138M/s
+```
+
+Benchmarks after:
+```
+-------------------------------------------------------------------
+Benchmark                         Time             CPU   Iterations
+-------------------------------------------------------------------
+BM_stdlib_mbrtowc_1            5.76 ns         5.72 ns    121863813
+BM_stdlib_mbrtowc_2            17.1 ns         16.9 ns     41487260
+BM_stdlib_mbrtowc_3            24.2 ns         24.0 ns     29141629
+BM_stdlib_mbrtowc_4            30.3 ns         30.1 ns     23229291
+BM_stdlib_mbstowcs_ascii     783506 ns       775389 ns          903 bytes_per_second=614.965M/s
+BM_stdlib_mbstowcs_wide    12787003 ns     12672642 ns           55 bytes_per_second=37.6273M/s
+```
+
+Bug: http://b/206523398
+Test: treehugger
+Change-Id: If8c6c39880096ddd2cbd323c68dca82e9849ace6
+Signed-off-by: Vishalcj17 <vishalcj@aospa.co>
+---
+ libc/bionic/c16rtomb.cpp      | 2 +-
+ libc/bionic/c32rtomb.cpp      | 2 +-
+ libc/bionic/mbrtoc32.cpp      | 4 ++--
+ libc/bionic/wchar.cpp         | 4 ++--
+ libc/private/bionic_mbstate.h | 4 ++++
+ 5 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/libc/bionic/c16rtomb.cpp b/libc/bionic/c16rtomb.cpp
+index 2d6ae938c..e052d0470 100644
+--- a/libc/bionic/c16rtomb.cpp
++++ b/libc/bionic/c16rtomb.cpp
+@@ -43,7 +43,7 @@ static inline constexpr bool is_low_surrogate(char16_t c16) {
+ size_t c16rtomb(char* s, char16_t c16, mbstate_t* ps) {
+   static mbstate_t __private_state;
+   mbstate_t* state = (ps == nullptr) ? &__private_state : ps;
+-  if (mbsinit(state)) {
++  if (mbstate_is_initial(state)) {
+     if (is_high_surrogate(c16)) {
+       char32_t c32 = (c16 & ~0xd800) << 10;
+       mbstate_set_byte(state, 3, (c32 & 0xff0000) >> 16);
+diff --git a/libc/bionic/c32rtomb.cpp b/libc/bionic/c32rtomb.cpp
+index 2909d8b36..d2519b96f 100644
+--- a/libc/bionic/c32rtomb.cpp
++++ b/libc/bionic/c32rtomb.cpp
+@@ -50,7 +50,7 @@ size_t c32rtomb(char* s, char32_t c32, mbstate_t* ps) {
+     return mbstate_reset_and_return(1, state);
+   }
+ 
+-  if (!mbsinit(state)) {
++  if (!mbstate_is_initial(state)) {
+     return mbstate_reset_and_return_illegal(EILSEQ, state);
+   }
+ 
+diff --git a/libc/bionic/mbrtoc32.cpp b/libc/bionic/mbrtoc32.cpp
+index 644e54275..21603a120 100644
+--- a/libc/bionic/mbrtoc32.cpp
++++ b/libc/bionic/mbrtoc32.cpp
+@@ -55,7 +55,7 @@ size_t mbrtoc32(char32_t* pc32, const char* s, size_t n, mbstate_t* ps) {
+   }
+ 
+   uint8_t ch;
+-  if (mbsinit(state) && (((ch = static_cast<uint8_t>(*s)) & ~0x7f) == 0)) {
++  if (mbstate_is_initial(state) && (((ch = static_cast<uint8_t>(*s)) & ~0x7f) == 0)) {
+     // Fast path for plain ASCII characters.
+     if (pc32 != nullptr) {
+       *pc32 = ch;
+@@ -105,7 +105,7 @@ size_t mbrtoc32(char32_t* pc32, const char* s, size_t n, mbstate_t* ps) {
+   size_t bytes_wanted = length - bytes_so_far;
+   size_t i;
+   for (i = 0; i < MIN(bytes_wanted, n); i++) {
+-    if (!mbsinit(state) && ((*s & 0xc0) != 0x80)) {
++    if (!mbstate_is_initial(state) && ((*s & 0xc0) != 0x80)) {
+       // Malformed input; bad characters in the middle of a character.
+       return mbstate_reset_and_return_illegal(EILSEQ, state);
+     }
+diff --git a/libc/bionic/wchar.cpp b/libc/bionic/wchar.cpp
+index dabe82485..bd9a45ee5 100644
+--- a/libc/bionic/wchar.cpp
++++ b/libc/bionic/wchar.cpp
+@@ -54,7 +54,7 @@
+ //
+ 
+ int mbsinit(const mbstate_t* ps) {
+-  return (ps == nullptr || (*(reinterpret_cast<const uint32_t*>(ps->__seq)) == 0));
++  return ps == nullptr || mbstate_is_initial(ps);
+ }
+ 
+ size_t mbrtowc(wchar_t* pwc, const char* s, size_t n, mbstate_t* ps) {
+@@ -148,7 +148,7 @@ size_t wcsnrtombs(char* dst, const wchar_t** src, size_t nwc, size_t len, mbstat
+   static mbstate_t __private_state;
+   mbstate_t* state = (ps == nullptr) ? &__private_state : ps;
+ 
+-  if (!mbsinit(state)) {
++  if (!mbstate_is_initial(state)) {
+     return mbstate_reset_and_return_illegal(EILSEQ, state);
+   }
+ 
+diff --git a/libc/private/bionic_mbstate.h b/libc/private/bionic_mbstate.h
+index 352115aa7..243b2201b 100644
+--- a/libc/private/bionic_mbstate.h
++++ b/libc/private/bionic_mbstate.h
+@@ -44,6 +44,10 @@ __BEGIN_DECLS
+ #define __MB_IS_ERR(rv) (rv == __MB_ERR_ILLEGAL_SEQUENCE || \
+                          rv == __MB_ERR_INCOMPLETE_SEQUENCE)
+ 
++static inline __wur bool mbstate_is_initial(const mbstate_t* ps) {
++  return *(reinterpret_cast<const uint32_t*>(ps->__seq)) == 0;
++}
++
+ static inline __wur size_t mbstate_bytes_so_far(const mbstate_t* ps) {
+   return
+       (ps->__seq[2] != 0) ? 3 :
+-- 
+2.34.0
+

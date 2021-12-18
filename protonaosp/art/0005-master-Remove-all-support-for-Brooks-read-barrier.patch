@@ -1,0 +1,225 @@
+From cc49879a9ab69c8a3b079452d77e7c05399bd9be Mon Sep 17 00:00:00 2001
+From: Vladimir Marko <vmarko@google.com>
+Date: Tue, 19 Oct 2021 07:54:13 +0100
+Subject: [PATCH 05/13] [master] Remove all support for Brooks read barrier.
+
+Test: m
+Bug: 177048505
+Change-Id: Ifb16927455b98996c61f0b6370bae9a114bf8018
+---
+ build/art.go                               |  4 ++--
+ runtime/class_linker_test.cc               | 16 +--------------
+ runtime/gc/collector/concurrent_copying.cc |  2 +-
+ runtime/gc/reference_queue.cc              |  2 +-
+ runtime/mirror/object.h                    | 10 +--------
+ runtime/read_barrier-inl.h                 |  9 --------
+ runtime/read_barrier_config.h              | 24 +++-------------------
+ 7 files changed, 9 insertions(+), 58 deletions(-)
+
+diff --git a/build/art.go b/build/art.go
+index a24da800f2..dd23762127 100644
+--- a/build/art.go
++++ b/build/art.go
+@@ -61,8 +61,8 @@ func globalFlags(ctx android.LoadHookContext) ([]string, []string) {
+ 	}
+ 
+ 	if !ctx.Config().IsEnvFalse("ART_USE_READ_BARRIER") && ctx.Config().ArtUseReadBarrier() {
+-		// Used to change the read barrier type. Valid values are BAKER, BROOKS,
+-		// TABLELOOKUP. The default is BAKER.
++		// Used to change the read barrier type. Valid values are BAKER, TABLELOOKUP.
++		// The default is BAKER.
+ 		barrierType := ctx.Config().GetenvWithDefault("ART_READ_BARRIER_TYPE", "BAKER")
+ 		cflags = append(cflags,
+ 			"-DART_USE_READ_BARRIER=1",
+diff --git a/runtime/class_linker_test.cc b/runtime/class_linker_test.cc
+index c561c4d591..8e09f35676 100644
+--- a/runtime/class_linker_test.cc
++++ b/runtime/class_linker_test.cc
+@@ -149,21 +149,11 @@ class ClassLinkerTest : public CommonRuntimeTest {
+     EXPECT_FALSE(JavaLangObject->IsSynthetic());
+     EXPECT_EQ(4U, JavaLangObject->NumDirectMethods());
+     EXPECT_EQ(11U, JavaLangObject->NumVirtualMethods());
+-    if (!kUseBrooksReadBarrier) {
+-      EXPECT_EQ(2U, JavaLangObject->NumInstanceFields());
+-    } else {
+-      EXPECT_EQ(4U, JavaLangObject->NumInstanceFields());
+-    }
++    EXPECT_EQ(2U, JavaLangObject->NumInstanceFields());
+     EXPECT_STREQ(JavaLangObject->GetInstanceField(0)->GetName(),
+                  "shadow$_klass_");
+     EXPECT_STREQ(JavaLangObject->GetInstanceField(1)->GetName(),
+                  "shadow$_monitor_");
+-    if (kUseBrooksReadBarrier) {
+-      EXPECT_STREQ(JavaLangObject->GetInstanceField(2)->GetName(),
+-                   "shadow$_x_rb_ptr_");
+-      EXPECT_STREQ(JavaLangObject->GetInstanceField(3)->GetName(),
+-                   "shadow$_x_xpadding_");
+-    }
+ 
+     EXPECT_EQ(0U, JavaLangObject->NumStaticFields());
+     EXPECT_EQ(0U, JavaLangObject->NumDirectInterfaces());
+@@ -571,10 +561,6 @@ struct ObjectOffsets : public CheckOffsets<mirror::Object> {
+   ObjectOffsets() : CheckOffsets<mirror::Object>(false, "Ljava/lang/Object;") {
+     addOffset(OFFSETOF_MEMBER(mirror::Object, klass_), "shadow$_klass_");
+     addOffset(OFFSETOF_MEMBER(mirror::Object, monitor_), "shadow$_monitor_");
+-#ifdef USE_BROOKS_READ_BARRIER
+-    addOffset(OFFSETOF_MEMBER(mirror::Object, x_rb_ptr_), "shadow$_x_rb_ptr_");
+-    addOffset(OFFSETOF_MEMBER(mirror::Object, x_xpadding_), "shadow$_x_xpadding_");
+-#endif
+   }
+ };
+ 
+diff --git a/runtime/gc/collector/concurrent_copying.cc b/runtime/gc/collector/concurrent_copying.cc
+index 538d7bef7c..1826e56013 100644
+--- a/runtime/gc/collector/concurrent_copying.cc
++++ b/runtime/gc/collector/concurrent_copying.cc
+@@ -2312,7 +2312,7 @@ inline void ConcurrentCopying::ProcessMarkStackRef(mirror::Object* to_ref) {
+         // TODO: Temporary; remove this when this is no longer needed (b/116087961).
+         << " runtime->sentinel=" << Runtime::Current()->GetSentinel().Read<kWithoutReadBarrier>();
+   }
+-#ifdef USE_BAKER_OR_BROOKS_READ_BARRIER
++#ifdef USE_BAKER_READ_BARRIER
+   mirror::Object* referent = nullptr;
+   if (UNLIKELY((to_ref->GetClass<kVerifyNone, kWithoutReadBarrier>()->IsTypeOfReferenceClass() &&
+                 (referent = to_ref->AsReference()->GetReferent<kWithoutReadBarrier>()) != nullptr &&
+diff --git a/runtime/gc/reference_queue.cc b/runtime/gc/reference_queue.cc
+index 1c751e1fbd..369731332b 100644
+--- a/runtime/gc/reference_queue.cc
++++ b/runtime/gc/reference_queue.cc
+@@ -75,7 +75,7 @@ ObjPtr<mirror::Reference> ReferenceQueue::DequeuePendingReference() {
+ // This must be called whenever DequeuePendingReference is called.
+ void ReferenceQueue::DisableReadBarrierForReference(ObjPtr<mirror::Reference> ref) {
+   Heap* heap = Runtime::Current()->GetHeap();
+-  if (kUseBakerOrBrooksReadBarrier && heap->CurrentCollectorType() == kCollectorTypeCC &&
++  if (kUseBakerReadBarrier && heap->CurrentCollectorType() == kCollectorTypeCC &&
+       heap->ConcurrentCopyingCollector()->IsActive()) {
+     // Change the gray ptr we left in ConcurrentCopying::ProcessMarkStackRef() to non-gray.
+     // We check IsActive() above because we don't want to do this when the zygote compaction
+diff --git a/runtime/mirror/object.h b/runtime/mirror/object.h
+index a3fc552594..1359842b19 100644
+--- a/runtime/mirror/object.h
++++ b/runtime/mirror/object.h
+@@ -71,7 +71,7 @@ class Throwable;
+ static constexpr bool kCheckFieldAssignments = false;
+ 
+ // Size of Object.
+-static constexpr uint32_t kObjectHeaderSize = kUseBrooksReadBarrier ? 16 : 8;
++static constexpr uint32_t kObjectHeaderSize = 8;
+ 
+ // C++ mirror of java.lang.Object
+ class MANAGED LOCKABLE Object {
+@@ -775,14 +775,6 @@ class MANAGED LOCKABLE Object {
+   // Monitor and hash code information.
+   uint32_t monitor_;
+ 
+-#ifdef USE_BROOKS_READ_BARRIER
+-  // Note names use a 'x' prefix and the x_rb_ptr_ is of type int
+-  // instead of Object to go with the alphabetical/by-type field order
+-  // on the Java side.
+-  uint32_t x_rb_ptr_;      // For the Brooks pointer.
+-  uint32_t x_xpadding_;    // For 8-byte alignment. TODO: get rid of this.
+-#endif
+-
+   friend class art::Monitor;
+   friend struct art::ObjectOffsets;  // for verifying offset information
+   friend class CopyObjectVisitor;  // for CopyObject().
+diff --git a/runtime/read_barrier-inl.h b/runtime/read_barrier-inl.h
+index 1bcbcff08c..0861375f21 100644
+--- a/runtime/read_barrier-inl.h
++++ b/runtime/read_barrier-inl.h
+@@ -72,9 +72,6 @@ inline MirrorType* ReadBarrier::Barrier(
+       }
+       AssertToSpaceInvariant(obj, offset, ref);
+       return ref;
+-    } else if (kUseBrooksReadBarrier) {
+-      // To be implemented.
+-      return ref_addr->template AsMirrorPtr<kIsVolatile>();
+     } else if (kUseTableLookupReadBarrier) {
+       MirrorType* ref = ref_addr->template AsMirrorPtr<kIsVolatile>();
+       MirrorType* old_ref = ref;
+@@ -123,9 +120,6 @@ inline MirrorType* ReadBarrier::BarrierForRoot(MirrorType** root,
+       }
+       AssertToSpaceInvariant(gc_root_source, ref);
+       return ref;
+-    } else if (kUseBrooksReadBarrier) {
+-      // To be implemented.
+-      return ref;
+     } else if (kUseTableLookupReadBarrier) {
+       Thread* self = Thread::Current();
+       if (self != nullptr &&
+@@ -164,9 +158,6 @@ inline MirrorType* ReadBarrier::BarrierForRoot(mirror::CompressedReference<Mirro
+     }
+     AssertToSpaceInvariant(gc_root_source, ref);
+     return ref;
+-  } else if (with_read_barrier && kUseBrooksReadBarrier) {
+-    // To be implemented.
+-    return ref;
+   } else if (with_read_barrier && kUseTableLookupReadBarrier) {
+     Thread* self = Thread::Current();
+     if (self != nullptr &&
+diff --git a/runtime/read_barrier_config.h b/runtime/read_barrier_config.h
+index 7067f9b086..dc11d944da 100644
+--- a/runtime/read_barrier_config.h
++++ b/runtime/read_barrier_config.h
+@@ -24,14 +24,12 @@
+ // Global (C) part.
+ 
+ // Uncomment one of the following two and the two fields in
+-// Object.java (libcore) to enable baker, brooks (unimplemented), or
++// Object.java (libcore) to enable baker, or
+ // table-lookup read barriers.
+ 
+ #ifdef ART_USE_READ_BARRIER
+ #if ART_READ_BARRIER_TYPE_IS_BAKER
+ #define USE_BAKER_READ_BARRIER
+-#elif ART_READ_BARRIER_TYPE_IS_BROOKS
+-#define USE_BROOKS_READ_BARRIER
+ #elif ART_READ_BARRIER_TYPE_IS_TABLELOOKUP
+ #define USE_TABLE_LOOKUP_READ_BARRIER
+ #else
+@@ -39,18 +37,10 @@
+ #endif
+ #endif  // ART_USE_READ_BARRIER
+ 
+-#if defined(USE_BAKER_READ_BARRIER) || defined(USE_BROOKS_READ_BARRIER)
+-#define USE_BAKER_OR_BROOKS_READ_BARRIER
+-#endif
+-
+-#if defined(USE_BAKER_READ_BARRIER) || defined(USE_BROOKS_READ_BARRIER) || defined(USE_TABLE_LOOKUP_READ_BARRIER)
++#if defined(USE_BAKER_READ_BARRIER) || defined(USE_TABLE_LOOKUP_READ_BARRIER)
+ #define USE_READ_BARRIER
+ #endif
+ 
+-#if defined(USE_BAKER_READ_BARRIER) && defined(USE_BROOKS_READ_BARRIER)
+-#error "Only one of Baker or Brooks can be enabled at a time."
+-#endif
+-
+ 
+ // C++-specific configuration part..
+ 
+@@ -64,21 +54,13 @@ static constexpr bool kUseBakerReadBarrier = true;
+ static constexpr bool kUseBakerReadBarrier = false;
+ #endif
+ 
+-#ifdef USE_BROOKS_READ_BARRIER
+-static constexpr bool kUseBrooksReadBarrier = true;
+-#else
+-static constexpr bool kUseBrooksReadBarrier = false;
+-#endif
+-
+ #ifdef USE_TABLE_LOOKUP_READ_BARRIER
+ static constexpr bool kUseTableLookupReadBarrier = true;
+ #else
+ static constexpr bool kUseTableLookupReadBarrier = false;
+ #endif
+ 
+-static constexpr bool kUseBakerOrBrooksReadBarrier = kUseBakerReadBarrier || kUseBrooksReadBarrier;
+-static constexpr bool kUseReadBarrier =
+-    kUseBakerReadBarrier || kUseBrooksReadBarrier || kUseTableLookupReadBarrier;
++static constexpr bool kUseReadBarrier = kUseBakerReadBarrier || kUseTableLookupReadBarrier;
+ 
+ // Debugging flag that forces the generation of read barriers, but
+ // does not trigger the use of the concurrent copying GC.
+-- 
+2.34.0
+

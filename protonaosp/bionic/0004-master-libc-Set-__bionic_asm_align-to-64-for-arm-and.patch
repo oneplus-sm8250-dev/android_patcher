@@ -1,0 +1,47 @@
+From ffd385d480f50ed83691fb423525109b95d4afa2 Mon Sep 17 00:00:00 2001
+From: Jake Weinstein <jake@aospa.co>
+Date: Thu, 30 May 2019 11:43:07 -0500
+Subject: [PATCH 4/6] [master] libc: Set __bionic_asm_align to 64 for arm and
+ arm64
+
+This way, critical string functions are always at the start of a
+cacheline.
+
+Change-Id: I049e88d88a043911093641f44d9846fa5f6f3982
+Suggested-By: Wilco Dijkstra <wilco.dijkstra@arm.com>
+Test: TBD
+Signed-off-by: Vishalcj17 <vishalcj@aospa.co>
+---
+ libc/private/bionic_asm_arm.h   | 2 +-
+ libc/private/bionic_asm_arm64.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libc/private/bionic_asm_arm.h b/libc/private/bionic_asm_arm.h
+index d8381d32b..9ca5f387d 100644
+--- a/libc/private/bionic_asm_arm.h
++++ b/libc/private/bionic_asm_arm.h
+@@ -37,7 +37,7 @@
+ 
+ #pragma once
+ 
+-#define __bionic_asm_align 0
++#define __bionic_asm_align 64
+ 
+ #undef __bionic_asm_custom_entry
+ #undef __bionic_asm_custom_end
+diff --git a/libc/private/bionic_asm_arm64.h b/libc/private/bionic_asm_arm64.h
+index ee51a8e78..c0b969cbd 100644
+--- a/libc/private/bionic_asm_arm64.h
++++ b/libc/private/bionic_asm_arm64.h
+@@ -37,7 +37,7 @@
+ 
+ #pragma once
+ 
+-#define __bionic_asm_align 16
++#define __bionic_asm_align 64
+ 
+ #undef __bionic_asm_function_type
+ #define __bionic_asm_function_type %function
+-- 
+2.34.0
+

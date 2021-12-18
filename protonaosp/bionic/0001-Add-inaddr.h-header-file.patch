@@ -1,7 +1,7 @@
 From ce936ae9d545686c180c21153dbb470c899cd633 Mon Sep 17 00:00:00 2001
 From: Srinivas Rao Narne <snarne@codeaurora.org>
 Date: Tue, 23 Jan 2018 15:31:48 -0800
-Subject: [PATCH] Add inaddr.h header file.
+Subject: [PATCH 1/6] Add inaddr.h header file.
 
 Change-Id: Iad92c39fb729538cf51bf9d9037b15515104b453
 ---
