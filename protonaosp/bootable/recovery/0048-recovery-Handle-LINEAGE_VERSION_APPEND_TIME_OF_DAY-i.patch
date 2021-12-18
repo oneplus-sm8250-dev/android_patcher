@@ -1,0 +1,34 @@
+From 1f4c663c66d1c4ffeb89835a27b888d693c9c4ed Mon Sep 17 00:00:00 2001
+From: LuK1337 <priv.luk@gmail.com>
+Date: Sat, 17 Oct 2020 16:45:51 +0200
+Subject: [PATCH 48/63] recovery: Handle LINEAGE_VERSION_APPEND_TIME_OF_DAY in
+ ver_date
+
+Change-Id: Ia4c4b5e6544e5ac8a88aadd495dbfd06c210828d
+---
+ recovery.cpp | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/recovery.cpp b/recovery.cpp
+index 64a72059..ee2e6279 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -733,11 +733,12 @@ Device::BuiltinAction start_recovery(Device* device, const std::vector<std::stri
+     ui->SetStage(st_cur, st_max);
+   }
+ 
+-  // Extract the YYYYMMDD date from the full version string. Assume
+-  // the first instance of "-[0-9]{8}-" (if any) has the desired date.
++  // Extract the YYYYMMDD / YYYYMMDD_HHMMSS timestamp from the full version string.
++  // Assume the first instance of "-[0-9]{8}-", or "-[0-9]{8}_[0-9]{6}-" in case
++  // LINEAGE_VERSION_APPEND_TIME_OF_DAY is set to true has the desired date.
+   std::string ver = android::base::GetProperty("ro.lineage.version", "");
+   std::smatch ver_date_match;
+-  std::regex_search(ver, ver_date_match, std::regex("-(\\d{8})-"));
++  std::regex_search(ver, ver_date_match, std::regex("-(\\d{8}(_\\d{6})?)-"));
+   std::string ver_date = ver_date_match.str(1);  // Empty if no match.
+ 
+   std::vector<std::string> title_lines = {
+-- 
+2.34.0
+

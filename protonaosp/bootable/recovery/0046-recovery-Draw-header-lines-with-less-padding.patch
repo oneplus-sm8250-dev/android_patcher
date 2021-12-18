@@ -1,0 +1,42 @@
+From fa2fc4053ea6bdcd05cbc6251596ddb5e1f6a790 Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Thu, 1 Oct 2020 16:45:53 +0200
+Subject: [PATCH 46/63] recovery: Draw header lines with less padding
+
+ * Makes Format Data or Rescue Party menus much more readable
+
+Change-Id: I039e536e26897d659dfc4dd260d95a32760eb6f3
+---
+ recovery_ui/screen_ui.cpp | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index bdcc36bf..25c84f9d 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -335,6 +335,8 @@ int MenuDrawFunctions::DrawTextLines(int x, int y, const std::vector<std::string
+ }
+ 
+ int MenuDrawFunctions::DrawWrappedTextLines(int x, int y, const std::vector<std::string>& lines) const {
++  const int padding = MenuItemPadding() / 2;
++
+   // Keep symmetrical margins based on the given offset (i.e. x).
+   size_t text_cols = (gr_fb_width() - x * 2) / MenuCharWidth();
+   int offset = 0;
+@@ -356,9 +358,12 @@ int MenuDrawFunctions::DrawWrappedTextLines(int x, int y, const std::vector<std:
+           next_start += last_space + 1;
+         }
+       }
+-      offset += DrawTextLine(x, y + offset, sub, false);
++      offset += DrawTextLine(x, y + offset, sub, false) - (2 * MenuItemPadding() - padding);
+     }
+   }
++  if (!lines.empty()) {
++    offset += 2 * MenuItemPadding() - padding;
++  }
+   return offset;
+ }
+ 
+-- 
+2.34.0
+

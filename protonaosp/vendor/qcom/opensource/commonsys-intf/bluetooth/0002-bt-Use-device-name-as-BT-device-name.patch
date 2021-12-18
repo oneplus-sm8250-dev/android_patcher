@@ -1,0 +1,29 @@
+From 5345ee6e144b3a5d9d8fdf3f0f4b0b85208ef665 Mon Sep 17 00:00:00 2001
+From: Jake Weinstein <jake@aospa.co>
+Date: Mon, 27 Apr 2020 05:19:43 +0200
+Subject: [PATCH 2/4] bt: Use device name as BT device name.
+
+QCOM_BTD is an ugly string and the device name
+makes much more sense.
+
+Change-Id: I9f402b46107312c0720b5a43f1a56ba73543dce4
+---
+ build/qva/config/bdroid_buildcfg.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/build/qva/config/bdroid_buildcfg.h b/build/qva/config/bdroid_buildcfg.h
+index 6c7d51e..fb2ac69 100644
+--- a/build/qva/config/bdroid_buildcfg.h
++++ b/build/qva/config/bdroid_buildcfg.h
+@@ -19,7 +19,7 @@
+ 
+ #ifndef _BDROID_BUILDCFG_H
+ #define _BDROID_BUILDCFG_H
+-#define BTM_DEF_LOCAL_NAME   "QCOM-BTD"
++//#define BTM_DEF_LOCAL_NAME   "QCOM-BTD"
+ // Disables read remote device feature
+ #define MAX_ACL_CONNECTIONS   16
+ #define MAX_L2CAP_CHANNELS    32
+-- 
+2.34.0
+

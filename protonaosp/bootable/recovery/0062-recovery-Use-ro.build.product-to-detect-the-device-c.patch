@@ -1,0 +1,73 @@
+From 51ee96faeffb55ff40b2c091f6aea9917336345d Mon Sep 17 00:00:00 2001
+From: Dyneteve <dyneteve@pixelexperience.org>
+Date: Sat, 27 Jun 2020 19:36:32 +0200
+Subject: [PATCH 62/63] recovery: Use ro.build.product to detect the device
+ codename
+
+* ro.product.device may be changed to fake props for NGA
+
+Change-Id: If0f713ca46ce645a69b1c6edc4bf1d34dc20e74e
+---
+ fastboot/fastboot.cpp       | 2 +-
+ install/install.cpp         | 2 +-
+ tests/unit/install_test.cpp | 2 +-
+ tests/unit/updater_test.cpp | 4 ++--
+ 4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/fastboot/fastboot.cpp b/fastboot/fastboot.cpp
+index d9050931..35ab9130 100644
+--- a/fastboot/fastboot.cpp
++++ b/fastboot/fastboot.cpp
+@@ -40,7 +40,7 @@ Device::BuiltinAction StartFastboot(Device* device, const std::vector<std::strin
+   RecoveryUI* ui = device->GetUI();
+ 
+   std::vector<std::string> title_lines;
+-  title_lines.push_back("Product name - " + android::base::GetProperty("ro.product.device", ""));
++  title_lines.push_back("Product name - " + android::base::GetProperty("ro.build.product", ""));
+   title_lines.push_back("Bootloader version - " + android::base::GetProperty("ro.bootloader", ""));
+   title_lines.push_back("Baseband version - " +
+                         android::base::GetProperty("ro.build.expect.baseband", ""));
+diff --git a/install/install.cpp b/install/install.cpp
+index 9dd21e83..5525cb1b 100644
+--- a/install/install.cpp
++++ b/install/install.cpp
+@@ -213,7 +213,7 @@ bool CheckPackageMetadata(const std::map<std::string, std::string>& metadata, Ot
+     return false;
+   }
+ 
+-  auto device = android::base::GetProperty("ro.product.device", "");
++  auto device = android::base::GetProperty("ro.build.product", "");
+   auto pkg_device = get_value(metadata, "pre-device");
+   // device name can be a | separated list, so need to check
+   if (pkg_device.empty() || !isInStringList(device, pkg_device, FINGERPRING_SEPARATOR ":")) {
+diff --git a/tests/unit/install_test.cpp b/tests/unit/install_test.cpp
+index c3415479..3582b1ba 100644
+--- a/tests/unit/install_test.cpp
++++ b/tests/unit/install_test.cpp
+@@ -171,7 +171,7 @@ static void VerifyAbUpdateCommands(const std::string& serialno, bool success = t
+   TemporaryFile temp_file;
+ 
+   const std::string properties = "some_properties";
+-  std::string device = android::base::GetProperty("ro.product.device", "");
++  std::string device = android::base::GetProperty("ro.build.product", "");
+   ASSERT_NE("", device);
+   std::string timestamp = android::base::GetProperty("ro.build.date.utc", "");
+   ASSERT_NE("", timestamp);
+diff --git a/tests/unit/updater_test.cpp b/tests/unit/updater_test.cpp
+index 0720e821..60237bf1 100644
+--- a/tests/unit/updater_test.cpp
++++ b/tests/unit/updater_test.cpp
+@@ -235,8 +235,8 @@ class UpdaterTest : public UpdaterTestBase, public ::testing::Test {
+ };
+ 
+ TEST_F(UpdaterTest, getprop) {
+-    expect(android::base::GetProperty("ro.product.device", "").c_str(),
+-           "getprop(\"ro.product.device\")",
++    expect(android::base::GetProperty("ro.build.product", "").c_str(),
++           "getprop(\"ro.build.product\")",
+            kNoCause);
+ 
+     expect(android::base::GetProperty("ro.build.fingerprint", "").c_str(),
+-- 
+2.34.0
+

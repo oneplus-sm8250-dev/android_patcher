@@ -1,0 +1,63 @@
+From 6d5b53779f89654b2d007e801b106cc94e827668 Mon Sep 17 00:00:00 2001
+From: Jake Weinstein <jake@aospa.co>
+Date: Mon, 27 Apr 2020 05:18:47 +0200
+Subject: [PATCH 3/4] bt: Make FM false unless the device tree overrides.
+
+ * Most devices do not support FM, but those that do
+   can define it in their device tree.
+
+Change-Id: I797a2175e4cd277f8e83a02ce4642a0f52122ee1
+---
+ bt-commonsys-intf-board.mk             | 8 +-------
+ bt-commonsys-intf-legacy-aosp-board.mk | 2 +-
+ bt-commonsys-intf-legacy-board.mk      | 2 +-
+ 3 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/bt-commonsys-intf-board.mk b/bt-commonsys-intf-board.mk
+index 89eb7d2..911b0f0 100644
+--- a/bt-commonsys-intf-board.mk
++++ b/bt-commonsys-intf-board.mk
+@@ -6,13 +6,7 @@ BOARD_HAVE_BLUETOOTH := true
+ BOARD_HAVE_BLUETOOTH_QCOM := true
+ 
+ #FM
+-ifeq ($(TARGET_BOARD_TYPE),auto)
+-BOARD_HAVE_QCOM_FM := false
+-else ifeq ($(TARGET_BOARD_AUTO),true)
+-BOARD_HAVE_QCOM_FM := false
+-else
+-BOARD_HAVE_QCOM_FM := true
+-endif
++BOARD_HAVE_QCOM_FM ?= false
+ 
+ TARGET_USE_QTI_BT_CONFIGSTORE := true
+ TARGET_USE_QTI_BT_SAR := true
+diff --git a/bt-commonsys-intf-legacy-aosp-board.mk b/bt-commonsys-intf-legacy-aosp-board.mk
+index ddd2607..0d2dfa4 100644
+--- a/bt-commonsys-intf-legacy-aosp-board.mk
++++ b/bt-commonsys-intf-legacy-aosp-board.mk
+@@ -3,7 +3,7 @@ BOARD_HAVE_BLUETOOTH := true
+ BOARD_HAVE_BLUETOOTH_QCOM := true
+ 
+ #FM
+-BOARD_HAVE_QCOM_FM := false
++BOARD_HAVE_QCOM_FM ?= false
+ 
+ TARGET_USE_QTI_BT_CONFIGSTORE := false
+ TARGET_USE_QTI_BT_SAR := false
+diff --git a/bt-commonsys-intf-legacy-board.mk b/bt-commonsys-intf-legacy-board.mk
+index 14b2a44..175d0f3 100644
+--- a/bt-commonsys-intf-legacy-board.mk
++++ b/bt-commonsys-intf-legacy-board.mk
+@@ -3,7 +3,7 @@ BOARD_HAVE_BLUETOOTH := true
+ BOARD_HAVE_BLUETOOTH_QCOM := true
+ 
+ #FM
+-BOARD_HAVE_QCOM_FM := true
++BOARD_HAVE_QCOM_FM ?= false
+ 
+ ifneq ($(filter sdm660 msm8998, $(TARGET_BOARD_PLATFORM)),)
+ BOARD_ANT_WIRELESS_DEVICE := "qualcomm-hidl"
+-- 
+2.34.0
+

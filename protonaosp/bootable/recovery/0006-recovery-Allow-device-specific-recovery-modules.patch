@@ -1,0 +1,34 @@
+From c0b7cf67aae9bc1751545a34419909f853956218 Mon Sep 17 00:00:00 2001
+From: Matt Mower <mowerm@gmail.com>
+Date: Tue, 4 Nov 2014 21:08:10 -0600
+Subject: [PATCH 06/63] recovery: Allow device-specific recovery modules
+
+Provide a means to include device-specific recovery modules that need to
+be built (i.e. not pre-built). A list of recovery modules can be
+specified by a device with:
+
+TARGET_RECOVERY_DEVICE_MODULES := rec_mod_one rec_mod_two
+
+Change-Id: Ibd19a71318863461d472471a4f7cfddfb1b9ae0d
+---
+ Android.mk | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/Android.mk b/Android.mk
+index 96af417b..6b614bc0 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -76,6 +76,10 @@ ifeq ($(BOARD_CACHEIMAGE_PARTITION_SIZE),)
+ LOCAL_REQUIRED_MODULES += recovery-refresh
+ endif
+ 
++ifneq ($(TARGET_RECOVERY_DEVICE_MODULES),)
++    LOCAL_REQUIRED_MODULES += $(TARGET_RECOVERY_DEVICE_MODULES)
++endif
++
+ include $(BUILD_PHONY_PACKAGE)
+ 
+ include \
+-- 
+2.34.0
+

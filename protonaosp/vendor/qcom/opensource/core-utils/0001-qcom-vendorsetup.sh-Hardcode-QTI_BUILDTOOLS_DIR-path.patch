@@ -1,0 +1,25 @@
+From e8aafba49bcab4397cb793a7e077c424b063ccf6 Mon Sep 17 00:00:00 2001
+From: TheStrix <parthbhatia98@gmail.com>
+Date: Fri, 27 Dec 2019 16:32:49 +0530
+Subject: [PATCH] qcom/vendorsetup.sh: Hardcode QTI_BUILDTOOLS_DIR path
+
+ - Avoid use of BASH_SOURCE, I iz ZSH user and it throws error.
+
+Change-Id: I76a19ecc045b4eb778455b8c3488d49092a6a577
+---
+ vendorsetup.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/vendorsetup.sh b/vendorsetup.sh
+index 16f20a3..1f42eab 100755
+--- a/vendorsetup.sh
++++ b/vendorsetup.sh
+@@ -25,4 +25,4 @@
+ # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE US
+ 
+-export QTI_BUILDTOOLS_DIR=$(dirname ${BASH_SOURCE[0]})
++export QTI_BUILDTOOLS_DIR="vendor/qcom/opensource/core-utils"
+-- 
+2.34.0
+

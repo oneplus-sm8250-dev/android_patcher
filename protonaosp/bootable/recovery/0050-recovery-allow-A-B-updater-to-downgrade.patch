@@ -1,0 +1,140 @@
+From a7d46a557ff5d34619882f4a10f327f53e99c044 Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Tue, 17 Mar 2020 23:06:52 +0100
+Subject: [PATCH 50/63] recovery: allow A/B updater to downgrade
+
+Change-Id: Iaa1fb7838fb958e69fb3104fef7743aafad12b1b
+---
+ install/include/install/install.h |  3 ++-
+ install/install.cpp               | 24 ++++++++++++++++--------
+ install/wipe_device.cpp           |  2 +-
+ recovery.cpp                      |  9 +++++++++
+ 4 files changed, 28 insertions(+), 10 deletions(-)
+
+diff --git a/install/include/install/install.h b/install/include/install/install.h
+index bef23e9c..aaa6036d 100644
+--- a/install/include/install/install.h
++++ b/install/include/install/install.h
+@@ -62,7 +62,8 @@ bool ReadMetadataFromPackage(ZipArchiveHandle zip, std::map<std::string, std::st
+ // Checks if the metadata in the OTA package has expected values. Mandatory checks: ota-type,
+ // pre-device and serial number (if presents). A/B OTA specific checks: pre-build version,
+ // fingerprint, timestamp.
+-bool CheckPackageMetadata(const std::map<std::string, std::string>& metadata, OtaType ota_type);
++bool CheckPackageMetadata(const std::map<std::string, std::string>& metadata, OtaType ota_type,
++                          RecoveryUI* ui);
+ 
+ // Ensures the path to the update package is mounted. Also set the |should_use_fuse| to true if the
+ // package stays on a removable media.
+diff --git a/install/install.cpp b/install/install.cpp
+index ca25a77b..65347bab 100644
+--- a/install/install.cpp
++++ b/install/install.cpp
+@@ -62,6 +62,7 @@
+ using namespace std::chrono_literals;
+ 
+ bool ask_to_continue_unverified(Device* device);
++bool ask_to_continue_downgrade(Device* device);
+ 
+ static constexpr int kRecoveryApiVersion = 3;
+ // We define RECOVERY_API_VERSION in Android.mk, which will be picked up by build system and packed
+@@ -145,7 +146,8 @@ static void ReadSourceTargetBuild(const std::map<std::string, std::string>& meta
+ // Checks the build version, fingerprint and timestamp in the metadata of the A/B package.
+ // Downgrading is not allowed unless explicitly enabled in the package and only for
+ // incremental packages.
+-static bool CheckAbSpecificMetadata(const std::map<std::string, std::string>& metadata) {
++static bool CheckAbSpecificMetadata(const std::map<std::string, std::string>& metadata,
++                                    RecoveryUI* ui) {
+   // Incremental updates should match the current build.
+   auto device_pre_build = android::base::GetProperty("ro.build.version.incremental", "");
+   auto pkg_pre_build = get_value(metadata, "pre-build-incremental");
+@@ -165,6 +167,7 @@ static bool CheckAbSpecificMetadata(const std::map<std::string, std::string>& me
+   }
+ 
+   // Check for downgrade version.
++  bool undeclared_downgrade = false;
+   int64_t build_timestamp =
+       android::base::GetIntProperty("ro.build.date.utc", std::numeric_limits<int64_t>::max());
+   int64_t pkg_post_timestamp = 0;
+@@ -179,18 +182,23 @@ static bool CheckAbSpecificMetadata(const std::map<std::string, std::string>& me
+                     "newer than timestamp "
+                  << build_timestamp << " but package has timestamp " << pkg_post_timestamp
+                  << " and downgrade not allowed.";
+-      return false;
+-    }
+-    if (pkg_pre_build_fingerprint.empty()) {
++      undeclared_downgrade = true;
++    } else if (pkg_pre_build_fingerprint.empty()) {
+       LOG(ERROR) << "Downgrade package must have a pre-build version set, not allowed.";
+-      return false;
++      undeclared_downgrade = true;
+     }
+   }
+ 
++  if (undeclared_downgrade &&
++      !(ui->IsTextVisible() && ask_to_continue_downgrade(ui->GetDevice()))) {
++    return false;
++  }
++
+   return true;
+ }
+ 
+-bool CheckPackageMetadata(const std::map<std::string, std::string>& metadata, OtaType ota_type) {
++bool CheckPackageMetadata(const std::map<std::string, std::string>& metadata, OtaType ota_type,
++                          RecoveryUI* ui) {
+   auto package_ota_type = get_value(metadata, "ota-type");
+   auto expected_ota_type = OtaTypeToString(ota_type);
+   if (ota_type != OtaType::AB && ota_type != OtaType::BRICK) {
+@@ -231,7 +239,7 @@ bool CheckPackageMetadata(const std::map<std::string, std::string>& metadata, Ot
+   }
+ 
+   if (ota_type == OtaType::AB) {
+-    return CheckAbSpecificMetadata(metadata);
++    return CheckAbSpecificMetadata(metadata, ui);
+   }
+ 
+   return true;
+@@ -362,7 +370,7 @@ static InstallResult TryUpdateBinary(Package* package, bool* wipe_cache,
+   // Package does not declare itself as an A/B package, but device only supports A/B;
+   //   still calls CheckPackageMetadata to get a meaningful error message.
+   if (package_is_ab || device_only_supports_ab) {
+-    if (!CheckPackageMetadata(metadata, OtaType::AB)) {
++    if (!CheckPackageMetadata(metadata, OtaType::AB, ui)) {
+       log_buffer->push_back(android::base::StringPrintf("error: %d", kUpdateBinaryCommandFailure));
+       return INSTALL_ERROR;
+     }
+diff --git a/install/wipe_device.cpp b/install/wipe_device.cpp
+index 915c87b4..a6c9fcf3 100644
+--- a/install/wipe_device.cpp
++++ b/install/wipe_device.cpp
+@@ -169,7 +169,7 @@ static bool CheckWipePackage(Package* wipe_package, RecoveryUI* ui) {
+     return false;
+   }
+ 
+-  return CheckPackageMetadata(metadata, OtaType::BRICK);
++  return CheckPackageMetadata(metadata, OtaType::BRICK, ui);
+ }
+ 
+ bool WipeAbDevice(Device* device, size_t wipe_package_size) {
+diff --git a/recovery.cpp b/recovery.cpp
+index fe2ea3ec..86354410 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -178,6 +178,15 @@ bool ask_to_continue_unverified(Device* device) {
+   }
+ }
+ 
++bool ask_to_continue_downgrade(Device* device) {
++  if (get_build_type() == "user") {
++    return false;
++  } else {
++    device->GetUI()->SetProgressType(RecoveryUI::EMPTY);
++    return yes_no(device, "This package will downgrade your system", "Install anyway?");
++  }
++}
++
+ static bool ask_to_wipe_data(Device* device) {
+   std::vector<std::string> headers{ "Format user data?", "This includes internal storage.", "THIS CANNOT BE UNDONE!" };
+   std::vector<std::string> items{ " Cancel", " Format data" };
+-- 
+2.34.0
+

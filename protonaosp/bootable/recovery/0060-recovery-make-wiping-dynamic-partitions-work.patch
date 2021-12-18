@@ -1,0 +1,84 @@
+From 48424292d1b8d6ee0060e5bf93ff0de65cab5429 Mon Sep 17 00:00:00 2001
+From: Tim Zimmermann <tim@linux4.de>
+Date: Tue, 8 Jun 2021 16:14:55 +0200
+Subject: [PATCH 60/63] recovery: make wiping dynamic partitions work
+
+Dynamic partitions need special handling:
+ * Block device path read from fstab is actually
+   the partition's name
+ * We need to use BLKROSET ioctl for allowing
+   write operations
+
+Change-Id: Ib0a018f789716c9fc43db9316d15dbda13991c1e
+---
+ install/wipe_data.cpp | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)
+
+diff --git a/install/wipe_data.cpp b/install/wipe_data.cpp
+index 082ffb8a..3d788cea 100644
+--- a/install/wipe_data.cpp
++++ b/install/wipe_data.cpp
+@@ -16,8 +16,11 @@
+ 
+ #include "install/wipe_data.h"
+ 
++#include <fcntl.h>
++#include <linux/fs.h>
+ #include <stdio.h>
+ #include <string.h>
++#include <sys/ioctl.h>
+ #include <sys/stat.h>
+ 
+ #include <functional>
+@@ -27,6 +30,7 @@
+ #include <android-base/logging.h>
+ #include <android-base/stringprintf.h>
+ #include <fs_mgr/roots.h>
++#include <libdm/dm.h>
+ 
+ #include "install/snapshot_utils.h"
+ #include "otautil/dirutil.h"
+@@ -52,6 +56,40 @@ static bool EraseVolume(const char* volume, RecoveryUI* ui, bool convert_fbe) {
+   ui->Print("Formatting %s...\n", volume);
+ 
+   Volume* vol = volume_for_mount_point(volume);
++  if (vol->fs_mgr_flags.logical) {
++    android::dm::DeviceMapper& dm = android::dm::DeviceMapper::Instance();
++
++    map_logical_partitions();
++    // map_logical_partitions is non-blocking, so check for some limited time
++    // if it succeeded
++    for (int i = 0; i < 500; i++) {
++      if (vol->blk_device[0] == '/' ||
++          dm.GetState(vol->blk_device) == android::dm::DmDeviceState::ACTIVE)
++        break;
++      std::this_thread::sleep_for(std::chrono::milliseconds(1));
++    }
++
++    if (vol->blk_device[0] != '/' && !dm.GetDmDevicePathByName(vol->blk_device, &vol->blk_device)) {
++      PLOG(ERROR) << "Failed to find dm device path for " << vol->blk_device;
++      return false;
++    }
++
++    int fd = open(vol->blk_device.c_str(), O_RDWR);
++    if (fd < 0) {
++      PLOG(ERROR) << "Failed to open " << vol->blk_device;
++      return false;
++    }
++
++    int val = 0;
++    if (ioctl(fd, BLKROSET, &val) != 0) {
++      PLOG(ERROR) << "Failed to set " << vol->blk_device << " rw";
++      close(fd);
++      return false;
++    }
++
++    close(fd);
++  }
++
+   if (ensure_volume_unmounted(vol->blk_device) == -1) {
+     PLOG(ERROR) << "Failed to unmount volume!";
+     return false;
+-- 
+2.34.0
+

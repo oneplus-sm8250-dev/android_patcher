@@ -1,0 +1,38 @@
+From 01375b163696579d01e1b192addd969f3814c3c3 Mon Sep 17 00:00:00 2001
+From: DarkJoker360 <simoespo159@gmail.com>
+Date: Fri, 16 Jul 2021 20:39:20 +0200
+Subject: [PATCH 63/63] recovery: Switch to Proton props
+
+* Fixes unknown version and build date.
+
+Change-Id: I82df585acb0e195eb59b82661180d6e29ac1c8fa
+---
+ recovery.cpp | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/recovery.cpp b/recovery.cpp
+index a96b9de4..8907f099 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -816,16 +816,10 @@ Device::BuiltinAction start_recovery(Device* device, const std::vector<std::stri
+     ui->SetStage(st_cur, st_max);
+   }
+ 
+-  // Extract the YYYYMMDD / YYYYMMDD_HHMMSS timestamp from the full version string.
+-  // Assume the first instance of "-[0-9]{8}-", or "-[0-9]{8}_[0-9]{6}-" in case
+-  // LINEAGE_VERSION_APPEND_TIME_OF_DAY is set to true has the desired date.
+-  std::string ver = android::base::GetProperty("ro.lineage.version", "");
+-  std::smatch ver_date_match;
+-  std::regex_search(ver, ver_date_match, std::regex("-(\\d{8}(_\\d{6})?)-"));
+-  std::string ver_date = ver_date_match.str(1);  // Empty if no match.
++  std::string ver_date = android::base::GetProperty("ro.build.date.custom", "");
+ 
+   std::vector<std::string> title_lines = {
+-    "Version " + android::base::GetProperty("ro.lineage.build.version", "(unknown)") +
++    "Version " + android::base::GetProperty("ro.build.version.custom", "(unknown)") +
+         " (" + ver_date + ")",
+   };
+   if (android::base::GetBoolProperty("ro.build.ab_update", false)) {
+-- 
+2.34.0
+

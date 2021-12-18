@@ -1,0 +1,55 @@
+From c02926bf112b57e147b69aff45b5f97cd89e1ae6 Mon Sep 17 00:00:00 2001
+From: Bruno Martins <bgcngm@gmail.com>
+Date: Mon, 29 Oct 2018 13:48:35 +0000
+Subject: [PATCH 2/7] data-ipa-cfg-mgr: Use generated kernel headers
+
+Change-Id: Ie33f0b8b7996536a73f660cba5b4700964d8b03f
+---
+ ipacm/Android.bp       | 2 +-
+ ipanat/Android.bp      | 2 +-
+ ipanat/test/Android.mk | 3 +--
+ 3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/ipacm/Android.bp b/ipacm/Android.bp
+index 0ce21f7..c2d25a2 100644
+--- a/ipacm/Android.bp
++++ b/ipacm/Android.bp
+@@ -3,7 +3,7 @@ cc_binary {
+     name: "ipacm",
+ 
+     local_include_dirs: ["src"] + ["inc"],
+-	header_libs: ["qti_kernel_headers"],
++	header_libs: ["generated_kernel_headers"],
+ 
+     cflags: ["-v"] + ["-DFEATURE_IPA_ANDROID"] + ["-DFEATURE_IPACM_RESTART"] + [
+         "-DFEATURE_IPACM_HAL",
+diff --git a/ipanat/Android.bp b/ipanat/Android.bp
+index 310304d..3c8f977 100644
+--- a/ipanat/Android.bp
++++ b/ipanat/Android.bp
+@@ -3,7 +3,7 @@
+ cc_library_shared {
+     name: "libipanat",
+ 
+-    header_libs: ["qti_kernel_headers"],
++    header_libs: ["generated_kernel_headers"],
+ 
+     srcs: [
+         "src/ipa_nat_drv.c",
+diff --git a/ipanat/test/Android.mk b/ipanat/test/Android.mk
+index b8ae6a4..4c5f5a7 100644
+--- a/ipanat/test/Android.mk
++++ b/ipanat/test/Android.mk
+@@ -10,8 +10,7 @@ include $(CLEAR_VARS)
+ LOCAL_C_INCLUDES := $(LOCAL_PATH)/
+ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../ipanat/inc
+ 
+-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+-LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
++LOCAL_HEADER_LIBRARIES := generated_kernel_headers
+ 
+ LOCAL_MODULE := ipa_nat_test
+ LOCAL_SRC_FILES := ipa_nat_test000.c \
+-- 
+2.34.0
+

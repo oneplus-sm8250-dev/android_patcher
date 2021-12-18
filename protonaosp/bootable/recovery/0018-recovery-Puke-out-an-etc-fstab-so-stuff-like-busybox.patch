@@ -1,0 +1,77 @@
+From 49588243a6602a8a2216554a48fe5a8232f38b56 Mon Sep 17 00:00:00 2001
+From: Steve Kondik <shade@chemlab.org>
+Date: Sun, 24 Nov 2013 21:40:09 -0800
+Subject: [PATCH 18/63] recovery: Puke out an /etc/fstab so stuff like
+ busybox/toybox is happy
+
+ * And disregard special mount flags on purpose because of certain
+   dubious packages which "exec busybox mount".
+
+Squashed:
+Author: Alessandro Astone <ales.astone@gmail.com>
+Date:   2021-03-26 18:02:34 +0100
+
+    roots: Correct mount flags in /etc/fstab
+
+    The logic here got inverted.
+
+    Change-Id: I63c0d77fa17442ae8630015a52c7bf1be66f69f4
+
+Change-Id: I163702c9bd7fca3d40676fd6d8476e8deb13acc0
+---
+ recovery_utils/roots.cpp | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/recovery_utils/roots.cpp b/recovery_utils/roots.cpp
+index 75b586d4..58630bec 100644
+--- a/recovery_utils/roots.cpp
++++ b/recovery_utils/roots.cpp
+@@ -45,6 +45,16 @@ using android::fs_mgr::Fstab;
+ using android::fs_mgr::FstabEntry;
+ using android::fs_mgr::ReadDefaultFstab;
+ 
++static void write_fstab_entry(const FstabEntry& entry, FILE* file) {
++  if (entry.fs_type != "emmc" && !entry.fs_mgr_flags.vold_managed && !entry.blk_device.empty() &&
++      entry.blk_device[0] == '/' && !entry.mount_point.empty() && entry.mount_point[0] == '/') {
++    fprintf(file, "%s ", entry.blk_device.c_str());
++    fprintf(file, "%s ", entry.mount_point.c_str());
++    fprintf(file, "%s ", entry.fs_type.c_str());
++    fprintf(file, "%s 0 0\n", !entry.fs_options.empty() ? entry.fs_options.c_str() : "defaults");
++  }
++}
++
+ static Fstab fstab;
+ 
+ constexpr const char* CACHE_ROOT = "/cache";
+@@ -55,6 +65,12 @@ void load_volume_table() {
+     return;
+   }
+ 
++  // Create a boring /etc/fstab so tools like Busybox work
++  FILE* file = fopen("/etc/fstab", "w");
++  if (!file) {
++    LOG(ERROR) << "Unable to create /etc/fstab";
++  }
++
+   fstab.emplace_back(FstabEntry{
+       .blk_device = "ramdisk",
+       .mount_point = "/tmp",
+@@ -68,8 +84,15 @@ void load_volume_table() {
+     std::cout << "  " << i << " " << entry.mount_point << " "
+               << " " << entry.fs_type << " " << entry.blk_device << " " << entry.length
+               << std::endl;
++    if (file) {
++      write_fstab_entry(entry, file);
++    }
+   }
+   std::cout << std::endl;
++
++  if (file) {
++    fclose(file);
++  }
+ }
+ 
+ Volume* volume_for_mount_point(const std::string& mount_point) {
+-- 
+2.34.0
+

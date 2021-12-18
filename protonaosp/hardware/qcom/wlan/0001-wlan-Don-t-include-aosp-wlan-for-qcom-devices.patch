@@ -1,0 +1,25 @@
+From 2d3d454c221a2c9c1f047391d09be219c09b2e67 Mon Sep 17 00:00:00 2001
+From: YumeMichi <do4suki@gmail.com>
+Date: Sun, 7 Nov 2021 19:45:37 +0800
+Subject: [PATCH] wlan: Don't include aosp wlan for qcom devices
+
+Signed-off-by: YumeMichi <do4suki@gmail.com>
+Change-Id: I1e145625ddc535b0bebaac7115457980af9de58f
+---
+ Android.mk | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Android.mk b/Android.mk
+index 200eb36..d16686a 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -1,4 +1,6 @@
+ # TODO:  Find a better way to separate build configs for ADP vs non-ADP devices
++ifneq ($(BOARD_USES_QCOM_HARDWARE),true)
+ ifneq ($(BOARD_IS_AUTOMOTIVE),true)
+ include $(call all-subdir-makefiles)
+ endif
++endif
+-- 
+2.34.0
+

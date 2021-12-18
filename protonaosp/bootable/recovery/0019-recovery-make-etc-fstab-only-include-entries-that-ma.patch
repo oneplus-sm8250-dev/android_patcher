@@ -1,0 +1,126 @@
+From f53d6d92b7016c84fa8a670c36602d9aa14a4dba Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Sun, 1 Mar 2020 13:33:27 +0100
+Subject: [PATCH 19/63] recovery: make /etc/fstab only include entries that
+ match the detected fs type
+
+ * toybox's `mount` does not support multiple entries like we do,
+   so if we can detect the filesystem of an fstab enrtry print that
+   and only that one to /etc/fstab, so that mounting via toybox has
+   a better chance of succeding.
+
+ * as a bonus, this patch also gets rid of duplicates in /etc/fstab
+   caused by the fact that ReadDefaultFstab() combines entries from
+   DT and from recovery.fstab
+
+Change-Id: Iec4ab38044054555d2a33da6f5d53de7716e7bee
+---
+ recovery_utils/Android.bp |  4 ++++
+ recovery_utils/roots.cpp  | 44 ++++++++++++++++++++++++++++++++-------
+ 2 files changed, 40 insertions(+), 8 deletions(-)
+
+diff --git a/recovery_utils/Android.bp b/recovery_utils/Android.bp
+index e0e9ec05..7a5ba2dc 100644
+--- a/recovery_utils/Android.bp
++++ b/recovery_utils/Android.bp
+@@ -45,6 +45,10 @@ cc_defaults {
+         "libfstab",
+         "libhealthhalutils",
+     ],
++
++    whole_static_libs: [
++        "libext2_blkid",
++    ],
+ }
+ 
+ // A utility lib that's local to recovery (in contrast, libotautil is exposed to device-specific
+diff --git a/recovery_utils/roots.cpp b/recovery_utils/roots.cpp
+index 58630bec..304ab23c 100644
+--- a/recovery_utils/roots.cpp
++++ b/recovery_utils/roots.cpp
+@@ -34,6 +34,7 @@
+ #include <android-base/properties.h>
+ #include <android-base/stringprintf.h>
+ #include <android-base/unique_fd.h>
++#include <blkid/blkid.h>
+ #include <cryptfs.h>
+ #include <ext4_utils/wipe.h>
+ #include <fs_mgr.h>
+@@ -59,18 +60,31 @@ static Fstab fstab;
+ 
+ constexpr const char* CACHE_ROOT = "/cache";
+ 
++FstabEntry* fstab_entry_for_mount_point_detect_fs(const std::string& path) {
++  FstabEntry* found = android::fs_mgr::GetEntryForMountPoint(&fstab, path);
++  if (found == nullptr) {
++    return nullptr;
++  }
++
++  if (char* detected_fs_type = blkid_get_tag_value(nullptr, "TYPE", found->blk_device.c_str())) {
++    for (auto& entry : fstab) {
++      if (entry.mount_point == path && entry.fs_type == detected_fs_type) {
++        found = &entry;
++        break;
++      }
++    }
++    free(detected_fs_type);
++  }
++
++  return found;
++}
++
+ void load_volume_table() {
+   if (!ReadDefaultFstab(&fstab)) {
+     LOG(ERROR) << "Failed to read default fstab";
+     return;
+   }
+ 
+-  // Create a boring /etc/fstab so tools like Busybox work
+-  FILE* file = fopen("/etc/fstab", "w");
+-  if (!file) {
+-    LOG(ERROR) << "Unable to create /etc/fstab";
+-  }
+-
+   fstab.emplace_back(FstabEntry{
+       .blk_device = "ramdisk",
+       .mount_point = "/tmp",
+@@ -78,20 +92,34 @@ void load_volume_table() {
+       .length = 0,
+   });
+ 
++  Fstab fake_fstab;
+   std::cout << "recovery filesystem table" << std::endl << "=========================" << std::endl;
+   for (size_t i = 0; i < fstab.size(); ++i) {
+     const auto& entry = fstab[i];
+     std::cout << "  " << i << " " << entry.mount_point << " "
+               << " " << entry.fs_type << " " << entry.blk_device << " " << entry.length
+               << std::endl;
+-    if (file) {
+-      write_fstab_entry(entry, file);
++
++    if (std::find_if(fake_fstab.begin(), fake_fstab.end(), [entry](const FstabEntry& e) {
++          return entry.mount_point == e.mount_point;
++        }) == fake_fstab.end()) {
++      FstabEntry* entry_detectfs = fstab_entry_for_mount_point_detect_fs(entry.mount_point);
++      if (entry_detectfs == &entry) {
++        fake_fstab.emplace_back(entry);
++      }
+     }
+   }
+   std::cout << std::endl;
+ 
++  // Create a boring /etc/fstab so tools like Busybox work
++  FILE* file = fopen("/etc/fstab", "w");
+   if (file) {
++    for (auto& entry : fake_fstab) {
++      write_fstab_entry(entry, file);
++    }
+     fclose(file);
++  } else {
++    LOG(ERROR) << "Unable to create /etc/fstab";
+   }
+ }
+ 
+-- 
+2.34.0
+

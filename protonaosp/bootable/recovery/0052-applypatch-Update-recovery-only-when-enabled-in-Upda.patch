@@ -1,0 +1,27 @@
+From 12d3b5568a44c624ada4449755bb77e56e5e79fb Mon Sep 17 00:00:00 2001
+From: "Brint E. Kriebel" <bekit@cyngn.com>
+Date: Wed, 14 May 2014 18:13:00 -0700
+Subject: [PATCH 52/63] applypatch: Update recovery only when enabled in
+ Updater settings
+
+Change-Id: I8a85db8addeb75a2fd60d809c5ed4edc619ef7ed
+---
+ applypatch/vendor_flash_recovery.rc | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/applypatch/vendor_flash_recovery.rc b/applypatch/vendor_flash_recovery.rc
+index 37a7c2be..e4890c85 100644
+--- a/applypatch/vendor_flash_recovery.rc
++++ b/applypatch/vendor_flash_recovery.rc
+@@ -1,3 +1,8 @@
+ service vendor_flash_recovery /vendor/bin/install-recovery.sh
+     class main
+     oneshot
++    disabled
++
++# update recovery if enabled
++on property:persist.vendor.recovery_update=true
++    start vendor_flash_recovery
+-- 
+2.34.0
+

@@ -1,0 +1,40 @@
+From 7a51438c93f07c293619804097d3b72575a43f10 Mon Sep 17 00:00:00 2001
+From: dianlujitao <dianlujitao@lineageos.org>
+Date: Fri, 13 Aug 2021 21:08:15 +0900
+Subject: [PATCH 6/7] ipacm: Address IPACM start failure.
+
+ * IPACM PID file is stored at /data/vendor/ipa/ipacm.pid, and the service fails to start if the directory is not accessible.
+
+ * QCOM uses ipacm-diag.rc to create the directory. Replicate the behavior since we don't necessarily ship that one.
+
+ * Move to late_start since post-fs is earlier than post-fs-data.
+
+Change-Id: I5663e32d202cd8b52de8e8257332be1029c0fe3d
+---
+ ipacm/src/ipacm.rc | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/ipacm/src/ipacm.rc b/ipacm/src/ipacm.rc
+index 6b3bf98..8a63b46 100644
+--- a/ipacm/src/ipacm.rc
++++ b/ipacm/src/ipacm.rc
+@@ -25,10 +25,12 @@
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
++# msm specific files that need to be created on /data
++on post-fs-data
++    mkdir /data/vendor/ipa 0770 radio radio
++    chmod 0770 /data/vendor/ipa
++
+ service vendor.ipacm /system/vendor/bin/ipacm
+-    class main
++    class late_start
+     user radio
+     group radio inet
+-
+-on post-fs-data
+-    start vendor.ipacm
+-- 
+2.34.0
+

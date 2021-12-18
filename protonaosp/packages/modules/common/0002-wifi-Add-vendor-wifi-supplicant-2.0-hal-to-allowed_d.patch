@@ -1,0 +1,31 @@
+From 468a87f8a7a9ec4a114dcb660838d7c5e1f3d2ab Mon Sep 17 00:00:00 2001
+From: Mohammad Asaad Akram <asadkrm@codeaurora.org>
+Date: Mon, 7 Jun 2021 21:44:18 +0530
+Subject: [PATCH 2/3] wifi: Add vendor wifi supplicant 2.0 hal to allowed_deps
+
+This CL adds vendor wifi supplicant 2.0 hal to allowed_deps to make
+compiler happy.
+
+Original change: https://keystone-qcom-review.googlesource.com/c/platform/packages/modules/Wifi/+/531569
+
+Change-Id: I9c34afb01583e35538f065657115d64c74a7c666
+CRs-Fixed: 2944180
+---
+ build/allowed_deps.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/build/allowed_deps.txt b/build/allowed_deps.txt
+index 5f6ea1e..462f184 100644
+--- a/build/allowed_deps.txt
++++ b/build/allowed_deps.txt
+@@ -725,6 +725,7 @@ tflite_support(minSdkVersion:30)
+ vendor.qti.hardware.wifi.hostapd-V1.0-java(minSdkVersion:current)
+ vendor.qti.hardware.wifi.hostapd-V1.1-java(minSdkVersion:current)
+ vendor.qti.hardware.wifi.hostapd-V1.2-java(minSdkVersion:current)
++vendor.qti.hardware.wifi.supplicant-V2.0-java(minSdkVersion:current)
+ wifi-lite-protos(minSdkVersion:30)
+ wifi-nano-protos(minSdkVersion:30)
+ xz-java(minSdkVersion:current)
+-- 
+2.34.0
+

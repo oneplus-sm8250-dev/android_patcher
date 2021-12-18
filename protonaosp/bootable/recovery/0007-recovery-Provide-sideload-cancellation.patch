@@ -1,0 +1,161 @@
+From a69f4fdd5d6f60f61a5616bcc45d542b0effbb4f Mon Sep 17 00:00:00 2001
+From: Tom Marshall <tdm.code@gmail.com>
+Date: Mon, 17 Dec 2018 15:57:44 -0800
+Subject: [PATCH 07/63] recovery: Provide sideload cancellation
+
+We can't use InterruptWaitKey() as it hangs recovery
+when called from the minadbd listener thread, so provide
+our own 'CancelWaitKey' implementation.
+[forkbomb: rework for Q]
+
+Squashed:
+  recovery: Move sideload (non)cancellation to its own key
+
+   * We use KEY_REFRESH for actually refreshing menus, which is
+     useful when handling hotpluggable storage.
+     We don't want that to interact with the sideload menu.
+
+  Change-Id: Id7f5c06385e613648b3f727fc5e91eb3206406cf
+
+Change-Id: I13f0c9ae5444652a2141442ef24258679a78d320
+---
+ install/adb_install.cpp                  | 20 ++++++++++++++++++--
+ recovery_ui/device.cpp                   |  3 +++
+ recovery_ui/include/recovery_ui/device.h |  1 +
+ recovery_ui/include/recovery_ui/ui.h     |  1 +
+ recovery_ui/screen_ui.cpp                |  7 ++++++-
+ recovery_ui/ui.cpp                       |  4 ++++
+ 6 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/install/adb_install.cpp b/install/adb_install.cpp
+index ee79a32c..0af101fb 100644
+--- a/install/adb_install.cpp
++++ b/install/adb_install.cpp
+@@ -110,6 +110,7 @@ static auto AdbInstallPackageHandler(RecoveryUI* ui, InstallResult* result) {
+         break;
+       }
+     }
++    ui->CancelWaitKey();
+ 
+     auto package =
+         Package::CreateFilePackage(FUSE_SIDELOAD_HOST_PATHNAME,
+@@ -276,7 +277,7 @@ static void ListenAndExecuteMinadbdCommands(
+ //                               b11. exit the listening loop
+ //
+ static void CreateMinadbdServiceAndExecuteCommands(
+-    RecoveryUI* ui, const std::map<MinadbdCommand, CommandFunction>& command_map,
++    Device* device, const std::map<MinadbdCommand, CommandFunction>& command_map,
+     bool rescue_mode) {
+   signal(SIGPIPE, SIG_IGN);
+ 
+@@ -316,8 +317,23 @@ static void CreateMinadbdServiceAndExecuteCommands(
+     return;
+   }
+ 
++  RecoveryUI* ui = device->GetUI();
+   std::thread listener_thread(ListenAndExecuteMinadbdCommands, ui, child,
+                               std::move(recovery_socket), std::ref(command_map));
++
++  if (ui->IsTextVisible()) {
++    std::vector<std::string> headers{ rescue_mode ? "Rescue mode" : "ADB Sideload" };
++    std::vector<std::string> entries{ "Cancel" };
++    size_t chosen_item = ui->ShowMenu(
++        headers, entries, 0, true,
++        std::bind(&Device::HandleMenuKey, device, std::placeholders::_1, std::placeholders::_2));
++
++    if (chosen_item != Device::kDoSideload) {
++      // Kill minadbd if 'cancel' was selected, to abort sideload.
++      kill(child, SIGKILL);
++    }
++  }
++
+   if (listener_thread.joinable()) {
+     listener_thread.join();
+   }
+@@ -376,7 +392,7 @@ InstallResult ApplyFromAdb(Device* device, bool rescue_mode, Device::BuiltinActi
+     ui->Print("\n\nWaiting for rescue commands...\n");
+   }
+ 
+-  CreateMinadbdServiceAndExecuteCommands(ui, command_map, rescue_mode);
++  CreateMinadbdServiceAndExecuteCommands(device, command_map, rescue_mode);
+ 
+   // Clean up before switching to the older state, for example setting the state
+   // to none sets sys/class/android_usb/android0/enable to 0.
+diff --git a/recovery_ui/device.cpp b/recovery_ui/device.cpp
+index 6d5943f5..7d679808 100644
+--- a/recovery_ui/device.cpp
++++ b/recovery_ui/device.cpp
+@@ -104,6 +104,9 @@ int Device::HandleMenuKey(int key, bool visible) {
+     case KEY_BACK:
+       return kGoBack;
+ 
++    case KEY_AGAIN:
++      return kDoSideload;
++
+     default:
+       // If you have all of the above buttons, any other buttons
+       // are ignored. Otherwise, any button cycles the highlight.
+diff --git a/recovery_ui/include/recovery_ui/device.h b/recovery_ui/include/recovery_ui/device.h
+index 9eaccc7b..98120e02 100644
+--- a/recovery_ui/include/recovery_ui/device.h
++++ b/recovery_ui/include/recovery_ui/device.h
+@@ -38,6 +38,7 @@ class Device {
+   static constexpr const int kInvokeItem = -4;
+   static constexpr const int kGoBack = -5;
+   static constexpr const int kGoHome = -6;
++  static constexpr const int kDoSideload = -7;
+ 
+   // ENTER vs REBOOT: The latter will trigger a reboot that goes through bootloader, which allows
+   // using a new bootloader / recovery image if applicable. For example, REBOOT_RESCUE goes from
+diff --git a/recovery_ui/include/recovery_ui/ui.h b/recovery_ui/include/recovery_ui/ui.h
+index 868c39ce..a8eb3f6d 100644
+--- a/recovery_ui/include/recovery_ui/ui.h
++++ b/recovery_ui/include/recovery_ui/ui.h
+@@ -156,6 +156,7 @@ class RecoveryUI {
+   // KeyError::INTERRUPTED on a key interrupt.
+   virtual int WaitKey();
+ 
++  virtual void CancelWaitKey();
+   // Wakes up the UI if it is waiting on key input, causing WaitKey to return KeyError::INTERRUPTED.
+   virtual void InterruptKey();
+ 
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index ce565896..be98907d 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -1280,11 +1280,16 @@ size_t ScreenRecoveryUI::ShowMenu(std::unique_ptr<Menu>&& menu, bool menu_only,
+         case Device::kGoHome:
+           chosen_item = Device::kGoHome;
+           break;
++        case Device::kDoSideload:
++          chosen_item = Device::kDoSideload;
++          break;
+       }
+     } else if (!menu_only) {
+       chosen_item = action;
+     }
+-    if (chosen_item == Device::kGoBack || chosen_item == Device::kGoHome) {
++
++    if (chosen_item == Device::kGoBack || chosen_item == Device::kGoHome ||
++        chosen_item == Device::kDoSideload) {
+       break;
+     }
+   }
+diff --git a/recovery_ui/ui.cpp b/recovery_ui/ui.cpp
+index c20e5978..fc37cf09 100644
+--- a/recovery_ui/ui.cpp
++++ b/recovery_ui/ui.cpp
+@@ -557,6 +557,10 @@ int RecoveryUI::WaitKey() {
+   return key;
+ }
+ 
++void RecoveryUI::CancelWaitKey() {
++  EnqueueKey(KEY_AGAIN);
++}
++
+ void RecoveryUI::InterruptKey() {
+   {
+     std::lock_guard<std::mutex> lg(key_queue_mutex);
+-- 
+2.34.0
+

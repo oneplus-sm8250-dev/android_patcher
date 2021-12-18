@@ -1,0 +1,32 @@
+From 7e1cc58c85f9140de6912229603d94f3777a1028 Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Mon, 30 Mar 2020 00:01:21 +0200
+Subject: [PATCH 42/63] recovery: use ensure_volume_unmounted in format_volume
+
+ * Using ensure_path_unmounted on "/" when attempting to format
+   system on P SAR can fail with -EINVAL.
+   As we already introduced the ensure_volume_unmounted function
+   to handle unmounting system when it's mounted at /mnt/system,
+   use it in format_volume too.
+
+Change-Id: If1ab12e64c919ac6785fad406390a9001768007c
+---
+ recovery_utils/roots.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/recovery_utils/roots.cpp b/recovery_utils/roots.cpp
+index 304ab23c..00a4b01f 100644
+--- a/recovery_utils/roots.cpp
++++ b/recovery_utils/roots.cpp
+@@ -217,7 +217,7 @@ int format_volume(const std::string& volume, const std::string& directory) {
+     LOG(ERROR) << "can't give path \"" << volume << "\" to format_volume";
+     return -1;
+   }
+-  if (ensure_path_unmounted(volume) != 0) {
++  if (ensure_volume_unmounted(v->blk_device) != 0) {
+     LOG(ERROR) << "format_volume: Failed to unmount \"" << v->mount_point << "\"";
+     return -1;
+   }
+-- 
+2.34.0
+

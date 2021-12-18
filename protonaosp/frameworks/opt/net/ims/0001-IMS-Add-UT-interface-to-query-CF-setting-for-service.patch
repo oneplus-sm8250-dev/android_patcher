@@ -1,0 +1,50 @@
+From bb1bf062533bee80b04d5d251671a10be24841a0 Mon Sep 17 00:00:00 2001
+From: pengfeix <pengfeix@codeaurora.org>
+Date: Sat, 15 Apr 2017 23:01:13 +0800
+Subject: [PATCH] IMS: Add UT interface to query CF setting for service class.
+
+Current interface does not take any service class argument.
+Add a new API for querying call forward status based on service
+class.
+This may be useful to query call forwarding information for video calls
+differently from voice calls
+
+Change-Id: I2b64ed84d203105e7045a876fbf283cb0dc723b6
+CRs-Fixed: 2214326
+---
+ src/java/com/android/ims/ImsUt.java | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/java/com/android/ims/ImsUt.java b/src/java/com/android/ims/ImsUt.java
+index 61a1111..9fafb33 100644
+--- a/src/java/com/android/ims/ImsUt.java
++++ b/src/java/com/android/ims/ImsUt.java
+@@ -193,14 +193,23 @@ public class ImsUt implements ImsUtInterface {
+      */
+     @Override
+     public void queryCallForward(int condition, String number, Message result) {
++        queryCallForward(condition, number, SERVICE_CLASS_VOICE, result);
++    }
++    /**
++     * Retrieves the configuration of the call forward for specified service class.
++     * The return value of ((AsyncResult)result.obj) is an array of {@link ImsCallForwardInfo}.
++     */
++    @Override
++    public void queryCallForward(int condition, String number,
++            int serviceClass, Message result) {
+         if (DBG) {
+             log("queryCallForward :: Ut=" + miUt + ", condition=" + condition
+-                    + ", number=" + Rlog.pii(TAG, number));
++                    + ", number=" + Rlog.pii(TAG, number) + ", class=" + serviceClass);
+         }
+ 
+         synchronized(mLockObj) {
+             try {
+-                int id = miUt.queryCallForward(condition, number);
++                int id = miUt.queryCFForServiceClass(condition, number, serviceClass);
+ 
+                 if (id < 0) {
+                     sendFailureReport(result,
+-- 
+2.34.0
+

@@ -1,0 +1,136 @@
+From 3139eeeadf80d07d0a01cb3a20e1e739f82b9d0a Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Thu, 25 Jun 2020 19:54:18 +0200
+Subject: [PATCH 31/63] recovery: compute displayable item count while drawing
+
+Change-Id: Iece9359a5d7fd768748716bc9281578650fcc2d0
+---
+ recovery_ui/include/recovery_ui/screen_ui.h | 18 ++++++++++++++++--
+ recovery_ui/screen_ui.cpp                   | 12 ++++--------
+ recovery_ui/wear_ui.cpp                     |  5 ++---
+ 3 files changed, 22 insertions(+), 13 deletions(-)
+
+diff --git a/recovery_ui/include/recovery_ui/screen_ui.h b/recovery_ui/include/recovery_ui/screen_ui.h
+index bab3b953..1d4b51c1 100644
+--- a/recovery_ui/include/recovery_ui/screen_ui.h
++++ b/recovery_ui/include/recovery_ui/screen_ui.h
+@@ -107,6 +107,7 @@ class Menu {
+   virtual int DrawItems(int x, int y, int screen_width, bool long_press) const = 0;
+   virtual size_t ItemsCount() const = 0;
+   virtual bool IsMain() const = 0;
++  virtual void SetMenuHeight(int height) = 0;
+ 
+  protected:
+   Menu(size_t initial_selection, const DrawInterface& draw_func);
+@@ -121,7 +122,7 @@ class TextMenu : public Menu {
+  public:
+   // Constructs a Menu instance with the given |headers|, |items| and properties. Sets the initial
+   // selection to |initial_selection|.
+-  TextMenu(bool wrappable, size_t max_items, size_t max_length,
++  TextMenu(bool wrappable, size_t max_length,
+            const std::vector<std::string>& headers, const std::vector<std::string>& items,
+            size_t initial_selection, int char_height, const DrawInterface& draw_funcs);
+ 
+@@ -165,11 +166,23 @@ class TextMenu : public Menu {
+   // |cur_selection_str| if the items exceed the screen limit.
+   bool ItemsOverflow(std::string* cur_selection_str) const;
+ 
++  // The number of displayable items is only known after we started drawing the menu (to consider logo, header, etc.)
++  // Make it settable after the menu is created
++  void SetMenuHeight(int height) {
++    if (!calibrated_height_) {
++      max_display_items_ = height / draw_funcs_.MenuItemHeight();
++      menu_start_ = std::max(0, (int)selection_ - (int)max_display_items_ + 1);
++      calibrated_height_ = true;
++    }
++  }
++
+  private:
+   // The menu is scrollable to display more items. Used on wear devices who have smaller screens.
+   const bool wrappable_;
++  // Did we compute our max height already?
++  bool calibrated_height_;
+   // The max number of menu items to fit vertically on a screen.
+-  const size_t max_display_items_;
++  size_t max_display_items_;
+   // The length of each item to fit horizontally on a screen.
+   const size_t max_item_length_;
+   // The menu headers.
+@@ -204,6 +217,7 @@ class GraphicMenu : public Menu {
+   bool IsMain() const override {
+     return true;
+   }
++  void SetMenuHeight(int height __unused) override {}
+ 
+   // Checks if all the header and items are valid GRSurface's; and that they can fit in the area
+   // defined by |max_width| and |max_height|.
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index 3d2bce48..65aff9dd 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -62,22 +62,20 @@ int Menu::selection() const {
+   return selection_;
+ }
+ 
+-TextMenu::TextMenu(bool wrappable, size_t max_items, size_t max_length,
++TextMenu::TextMenu(bool wrappable, size_t max_length,
+                    const std::vector<std::string>& headers, const std::vector<std::string>& items,
+                    size_t initial_selection, int char_height, const DrawInterface& draw_funcs)
+     : Menu(initial_selection, draw_funcs),
+       wrappable_(wrappable),
+-      max_display_items_(max_items),
++      calibrated_height_(false),
+       max_item_length_(max_length),
+       text_headers_(headers),
+       char_height_(char_height) {
+-  CHECK_LE(max_items, static_cast<size_t>(std::numeric_limits<int>::max()));
+ 
+   size_t items_count = items.size();
+   for (size_t i = 0; i < items_count; ++i) {
+     text_items_.emplace_back(items[i].substr(0, max_item_length_));
+   }
+-  menu_start_ = std::max(0, (int)selection_ - (int)max_display_items_ + 1);
+ 
+   CHECK(!text_items_.empty());
+ }
+@@ -826,6 +824,7 @@ void ScreenRecoveryUI::draw_menu_and_text_buffer_locked(
+ 
+     y += menu_->DrawHeader(x, y);
+     menu_start_y_ = y + 12; // Skip horizontal rule and some margin
++    menu_->SetMenuHeight(std::max(0, ScreenHeight() - menu_start_y_));
+     y += menu_->DrawItems(x, y, ScreenWidth(), IsLongPress());
+   }
+ 
+@@ -1314,12 +1313,9 @@ std::unique_ptr<Menu> ScreenRecoveryUI::CreateMenu(const std::vector<std::string
+                                                    size_t initial_selection) const {
+   int menu_char_width = MenuCharWidth();
+   int menu_char_height = MenuCharHeight();
+-  int menu_item_padding = MenuItemPadding();
+-  int menu_rows = (ScreenHeight() - margin_height_*2 - gr_get_height(lineage_logo_.get()))
+-                  / (menu_char_height + 2 * menu_item_padding) - text_headers.size();
+   int menu_cols = (ScreenWidth() - margin_width_*2 - kMenuIndent) / menu_char_width;
+   bool wrap_selection = !HasThreeButtons() && !HasTouchScreen();
+-  return std::make_unique<TextMenu>(wrap_selection, menu_rows, menu_cols, text_headers, text_items,
++  return std::make_unique<TextMenu>(wrap_selection, menu_cols, text_headers, text_items,
+                                     initial_selection, menu_char_height, *menu_draw_funcs_);
+ }
+ 
+diff --git a/recovery_ui/wear_ui.cpp b/recovery_ui/wear_ui.cpp
+index 7aaf59b6..ecedc1cc 100644
+--- a/recovery_ui/wear_ui.cpp
++++ b/recovery_ui/wear_ui.cpp
+@@ -99,9 +99,8 @@ std::unique_ptr<Menu> WearRecoveryUI::CreateMenu(const std::vector<std::string>&
+                                                  const std::vector<std::string>& text_items,
+                                                  size_t initial_selection) const {
+   if (text_rows_ > 0 && text_cols_ > 0) {
+-    return std::make_unique<TextMenu>(false, text_rows_ - menu_unusable_rows_ - 1,
+-                                      text_cols_ - 1, text_headers, text_items, initial_selection,
+-                                      char_height_, *this);
++    return std::make_unique<TextMenu>(false, text_cols_ - 1, text_headers, text_items,
++                                      initial_selection, char_height_, *this);
+   }
+ 
+   return nullptr;
+-- 
+2.34.0
+

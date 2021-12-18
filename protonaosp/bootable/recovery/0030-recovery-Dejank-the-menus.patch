@@ -1,0 +1,27 @@
+From 46047c00a10760529a35e9199f7f0403da319621 Mon Sep 17 00:00:00 2001
+From: Tom Marshall <tdm@cyngn.com>
+Date: Mon, 24 Nov 2014 16:38:37 -0800
+Subject: [PATCH 30/63] recovery: Dejank the menus
+
+ * Remove extraneous menu update causing jank
+
+Change-Id: I5ca3faf54a51853fde8270edeee0fba778906659
+---
+ recovery_ui/screen_ui.cpp | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index caa25abc..3d2bce48 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -1472,7 +1472,6 @@ size_t ScreenRecoveryUI::ShowMenu(std::unique_ptr<Menu>&& menu, bool menu_only,
+   }
+ 
+   menu_.reset();
+-  Redraw();
+ 
+   return chosen_item;
+ }
+-- 
+2.34.0
+

@@ -1,0 +1,45 @@
+From 8011d6caaeee7863f25715a86dd478319e0065ec Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Mon, 1 Nov 2021 17:47:07 +0100
+Subject: [PATCH 61/63] recovery: Allow separating device asserts with a colon
+ too
+
+* android::base::Split already supports multiple separators
+
+* Make FINGERPRING_SEPARATOR a #define so that we can easily
+  append the other separator. Why even was it ever a char* ?
+
+  Note that we cannot directly make FINGERPRINT_SEPARATOR use ':'
+  as a separator because, as the name suggests, it's also used to
+  split build fingerprints which include ':' as a valid character.
+
+Change-Id: I101e394d8e9fd7f2cbfcf01314e9bda38146c7d5
+---
+ install/install.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/install/install.cpp b/install/install.cpp
+index 5772b1ef..9dd21e83 100644
+--- a/install/install.cpp
++++ b/install/install.cpp
+@@ -74,7 +74,7 @@ static_assert(kRecoveryApiVersion == RECOVERY_API_VERSION, "Mismatching recovery
+ static constexpr int VERIFICATION_PROGRESS_TIME = 60;
+ static constexpr float VERIFICATION_PROGRESS_FRACTION = 0.25;
+ // The charater used to separate dynamic fingerprints. e.x. sargo|aosp-sargo
+-static const char* FINGERPRING_SEPARATOR = "|";
++#define FINGERPRING_SEPARATOR "|"
+ static std::condition_variable finish_log_temperature;
+ static bool isInStringList(const std::string& target_token, const std::string& str_list,
+                            const std::string& deliminator);
+@@ -216,7 +216,7 @@ bool CheckPackageMetadata(const std::map<std::string, std::string>& metadata, Ot
+   auto device = android::base::GetProperty("ro.product.device", "");
+   auto pkg_device = get_value(metadata, "pre-device");
+   // device name can be a | separated list, so need to check
+-  if (pkg_device.empty() || !isInStringList(device, pkg_device, FINGERPRING_SEPARATOR)) {
++  if (pkg_device.empty() || !isInStringList(device, pkg_device, FINGERPRING_SEPARATOR ":")) {
+     LOG(ERROR) << "Package is for product " << pkg_device << " but expected " << device;
+     return false;
+   }
+-- 
+2.34.0
+

@@ -1,0 +1,38 @@
+From 6c200ff17cd4457fb56e8c94097bd932b01bf166 Mon Sep 17 00:00:00 2001
+From: Edward Savage-Jones <edward.savage-jones@sony.com>
+Date: Fri, 18 Oct 2019 10:11:39 +0200
+Subject: [PATCH 4/8] translate="false" -> translatable="false"
+
+Fixed a typo related to String translation
+
+Bug: 142888682
+Test: Manual
+Change-Id: I495af9cd2ad6a1e99130af4af1040654478998b4
+---
+ res/values/strings.xml | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/res/values/strings.xml b/res/values/strings.xml
+index dbef9a0d1..1212b3e69 100644
+--- a/res/values/strings.xml
++++ b/res/values/strings.xml
+@@ -226,13 +226,13 @@
+     <string name="transfer_clear_dlg_title">Clear</string>
+ 
+      <!-- Do not translate. file name used for sharing. -->
+-    <string name="bluetooth_share_file_name" translate="false">bluetooth_content_share</string>
++    <string name="bluetooth_share_file_name" translatable="false">bluetooth_content_share</string>
+ 
+     <!-- Used to run Bluetooth.apk in another process if needed -->
+     <!-- Do not translate. android:sharedUserId string of this application. -->
+-    <string name="sharedUserId" translate="false"><xliff:g id="x" /></string>
++    <string name="sharedUserId" translatable="false"><xliff:g id="x" /></string>
+     <!-- Do not translate. android:process of this application. -->
+-    <string name="process" translate="false"><xliff:g id="x" /></string>
++    <string name="process" translatable="false"><xliff:g id="x" /></string>
+ 
+ 
+     <string name="bluetooth_a2dp_sink_queue_name">Now Playing</string>
+-- 
+2.34.0
+

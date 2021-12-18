@@ -1,0 +1,136 @@
+From b48af61a60178f74487a59a5d9d4a98c83dc1146 Mon Sep 17 00:00:00 2001
+From: aleasto <ales.astone@gmail.com>
+Date: Sun, 17 Jan 2021 20:31:22 +0100
+Subject: [PATCH 57/63] recovery: Support writing to Virtual A/B partitions
+
+Change-Id: Ice74e460242a58140fe31240b9fc464848b3aeea
+---
+ install/install.cpp                           | 11 ++++++
+ recovery_utils/include/recovery_utils/roots.h |  4 +-
+ recovery_utils/roots.cpp                      | 37 ++++++++++++++-----
+ 3 files changed, 42 insertions(+), 10 deletions(-)
+
+diff --git a/install/install.cpp b/install/install.cpp
+index 65347bab..5772b1ef 100644
+--- a/install/install.cpp
++++ b/install/install.cpp
+@@ -47,6 +47,7 @@
+ #include <android-base/unique_fd.h>
+ 
+ #include "install/package.h"
++#include "install/snapshot_utils.h"
+ #include "install/spl_check.h"
+ #include "install/verifier.h"
+ #include "install/wipe_data.h"
+@@ -354,6 +355,7 @@ static InstallResult TryUpdateBinary(Package* package, bool* wipe_cache,
+   bool device_supports_ab = android::base::GetBoolProperty("ro.build.ab_update", false);
+   bool ab_device_supports_nonab = true;
+   bool device_only_supports_ab = device_supports_ab && !ab_device_supports_nonab;
++  bool device_supports_virtual_ab = android::base::GetBoolProperty("ro.virtual_ab.enabled", false);
+ 
+   const auto current_spl = android::base::GetProperty("ro.build.version.security_patch", "");
+   if (ViolatesSPLDowngrade(zip, current_spl)) {
+@@ -376,6 +378,15 @@ static InstallResult TryUpdateBinary(Package* package, bool* wipe_cache,
+     }
+   }
+ 
++  if (!package_is_ab && !logical_partitions_mapped()) {
++    CreateSnapshotPartitions();
++    map_logical_partitions();
++  } else if (package_is_ab && device_supports_virtual_ab && logical_partitions_mapped()) {
++    LOG(ERROR) << "Logical partitions are mapped. "
++               << "Please reboot recovery before installing an OTA update.";
++    return INSTALL_ERROR;
++  }
++
+   ReadSourceTargetBuild(metadata, log_buffer);
+ 
+   // The updater in child process writes to the pipe to communicate with recovery.
+diff --git a/recovery_utils/include/recovery_utils/roots.h b/recovery_utils/include/recovery_utils/roots.h
+index 783eea43..cbc8b07a 100644
+--- a/recovery_utils/include/recovery_utils/roots.h
++++ b/recovery_utils/include/recovery_utils/roots.h
+@@ -61,4 +61,6 @@ int setup_install_mounts();
+ // Returns true if there is /cache in the volumes.
+ bool HasCache();
+ 
+-bool logical_partitions_mapped();
+\ No newline at end of file
++void map_logical_partitions();
++
++bool logical_partitions_mapped();
+diff --git a/recovery_utils/roots.cpp b/recovery_utils/roots.cpp
+index 36deef51..29ae791a 100644
+--- a/recovery_utils/roots.cpp
++++ b/recovery_utils/roots.cpp
+@@ -46,6 +46,8 @@
+ using android::fs_mgr::Fstab;
+ using android::fs_mgr::FstabEntry;
+ using android::fs_mgr::ReadDefaultFstab;
++using android::dm::DeviceMapper;
++using android::dm::DmDeviceState;
+ 
+ static void write_fstab_entry(const FstabEntry& entry, FILE* file) {
+   if (entry.fs_type != "emmc" && !entry.fs_mgr_flags.vold_managed && !entry.blk_device.empty() &&
+@@ -364,8 +366,6 @@ int format_volume(const std::string& volume) {
+   return format_volume(volume, "");
+ }
+ 
+-static bool logical_partitions_auto_mapped = false;
+-
+ int setup_install_mounts() {
+   if (fstab.empty()) {
+     LOG(ERROR) << "can't set up install mounts: no fstab loaded";
+@@ -389,7 +389,18 @@ int setup_install_mounts() {
+       }
+     }
+   }
+-  // Map logical partitions
++  return 0;
++}
++
++bool HasCache() {
++  CHECK(!fstab.empty());
++  static bool has_cache = volume_for_mount_point(CACHE_ROOT) != nullptr;
++  return has_cache;
++}
++
++static bool logical_partitions_auto_mapped = false;
++
++void map_logical_partitions() {
+   if (android::base::GetBoolProperty("ro.boot.dynamic_partitions", false) &&
+       !logical_partitions_mapped()) {
+     std::string super_name = fs_mgr_get_super_partition_name();
+@@ -399,15 +410,23 @@ int setup_install_mounts() {
+       logical_partitions_auto_mapped = true;
+     }
+   }
+-  return 0;
+ }
+ 
+-bool HasCache() {
+-  CHECK(!fstab.empty());
+-  static bool has_cache = volume_for_mount_point(CACHE_ROOT) != nullptr;
+-  return has_cache;
++bool dm_find_system() {
++  auto rec = GetEntryForPath(&fstab, android::fs_mgr::GetSystemRoot());
++  if (!rec->fs_mgr_flags.logical) {
++    return false;
++  }
++  // If the fstab entry for system it's a path instead of a name, then it was already mapped
++  if (rec->blk_device[0] != '/') {
++    if (DeviceMapper::Instance().GetState(rec->blk_device) == DmDeviceState::INVALID) {
++      return false;
++    }
++  }
++  return true;
+ }
+ 
+ bool logical_partitions_mapped() {
+-  return android::fs_mgr::LogicalPartitionsMapped() || logical_partitions_auto_mapped;
++  return android::fs_mgr::LogicalPartitionsMapped() || logical_partitions_auto_mapped ||
++      dm_find_system();
+ }
+-- 
+2.34.0
+

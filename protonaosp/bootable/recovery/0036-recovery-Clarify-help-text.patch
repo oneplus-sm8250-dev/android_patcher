@@ -1,0 +1,30 @@
+From beaceb6d0ad13c1755471749343665bc1df21ca9 Mon Sep 17 00:00:00 2001
+From: Richard Hansen <rhansen@rhansen.org>
+Date: Wed, 13 May 2020 10:07:36 -0400
+Subject: [PATCH 36/63] recovery: Clarify help text
+
+Currently this help text is not rendered, but that will change in a
+future commit.
+
+Change-Id: Ic2f566b84c4f49610fe0dab5929abe19abef9275
+---
+ recovery_ui/screen_ui.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index 7f80ac95..f2720b6d 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -771,7 +771,8 @@ void ScreenRecoveryUI::SetTitle(const std::vector<std::string>& lines) {
+ std::vector<std::string> ScreenRecoveryUI::GetMenuHelpMessage() const {
+   // clang-format off
+   static std::vector<std::string> REGULAR_HELP{
+-    "Use volume up/down and power.",
++    "Use the volume up/down keys to navigate.",
++    "Use the power key to select.",
+   };
+   static std::vector<std::string> LONG_PRESS_HELP{
+     "Any button cycles highlight.",
+-- 
+2.34.0
+

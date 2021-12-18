@@ -1,0 +1,68 @@
+From 076159edacdd69dca440cd232ca9749bbbb69153 Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Sun, 4 Oct 2020 21:59:52 +0200
+Subject: [PATCH 08/63] recovery: Don't consider manual install aborts as
+ errors
+
+ * From android-11, recovery warns the user about the danger of
+   rebooting after a failed update, but if we didn't even start
+   the install procedure it doesn't really make much sense.
+
+Change-Id: Ifaf5eae9fe6e1d915a035e2570c22260de59f99b
+---
+ install/adb_install.cpp  | 2 +-
+ install/fuse_install.cpp | 4 ++--
+ recovery.cpp             | 3 +++
+ 3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/install/adb_install.cpp b/install/adb_install.cpp
+index 0af101fb..c94d8ca4 100644
+--- a/install/adb_install.cpp
++++ b/install/adb_install.cpp
+@@ -362,7 +362,7 @@ InstallResult ApplyFromAdb(Device* device, bool rescue_mode, Device::BuiltinActi
+ 
+   RecoveryUI* ui = device->GetUI();
+ 
+-  InstallResult install_result = INSTALL_ERROR;
++  InstallResult install_result = INSTALL_NONE;
+   std::map<MinadbdCommand, CommandFunction> command_map{
+     { MinadbdCommand::kInstall, std::bind(&AdbInstallPackageHandler, ui, &install_result) },
+     { MinadbdCommand::kRebootAndroid, std::bind(&AdbRebootHandler, MinadbdCommand::kRebootAndroid,
+diff --git a/install/fuse_install.cpp b/install/fuse_install.cpp
+index 66119144..83b7e2c5 100644
+--- a/install/fuse_install.cpp
++++ b/install/fuse_install.cpp
+@@ -211,14 +211,14 @@ InstallResult ApplyFromSdcard(Device* device) {
+   auto ui = device->GetUI();
+   if (ensure_path_mounted(SDCARD_ROOT) != 0) {
+     LOG(ERROR) << "\n-- Couldn't mount " << SDCARD_ROOT << ".\n";
+-    return INSTALL_ERROR;
++    return INSTALL_NONE;
+   }
+ 
+   std::string path = BrowseDirectory(SDCARD_ROOT, device, ui);
+   if (path.empty()) {
+     LOG(ERROR) << "\n-- No package file selected.\n";
+     ensure_path_unmounted(SDCARD_ROOT);
+-    return INSTALL_ERROR;
++    return INSTALL_NONE;
+   }
+ 
+   // Hint the install function to read from a block map file.
+diff --git a/recovery.cpp b/recovery.cpp
+index 627bc13c..f6a9e837 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -488,6 +488,9 @@ static Device::BuiltinAction PromptAndWait(Device* device, InstallResult status)
+         if (status == INSTALL_REBOOT) {
+           return reboot_action;
+         }
++        if (status == INSTALL_NONE) {
++          update_in_progress = false;
++        }
+ 
+         if (status == INSTALL_SUCCESS) {
+           update_in_progress = false;
+-- 
+2.34.0
+

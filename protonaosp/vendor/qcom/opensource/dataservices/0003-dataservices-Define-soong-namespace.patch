@@ -1,0 +1,26 @@
+From 4365a8249ad8213c1876a6806c65892255648afa Mon Sep 17 00:00:00 2001
+From: razorloves <razorloves@gmail.com>
+Date: Mon, 19 Oct 2020 00:34:36 -0500
+Subject: [PATCH 3/3] dataservices: Define soong namespace
+
+The mk files in this repo were converted to bp, so this is
+needed to avoid duplicate module build errors on devices
+that use a different dataservices lib.
+
+Change-Id: Ifa12f4c259ab2cdc2606fb41efb1c6d307b4406d
+---
+ Android.bp | 2 ++
+ 1 file changed, 2 insertions(+)
+ create mode 100644 Android.bp
+
+diff --git a/Android.bp b/Android.bp
+new file mode 100644
+index 0000000..9515b25
+--- /dev/null
++++ b/Android.bp
+@@ -0,0 +1,2 @@
++soong_namespace {
++}
+-- 
+2.34.0
+

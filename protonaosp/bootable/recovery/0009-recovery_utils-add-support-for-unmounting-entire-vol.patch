@@ -1,0 +1,96 @@
+From 14ca4d43f7ee4e3c476aed74a8e6d056cdf91ae9 Mon Sep 17 00:00:00 2001
+From: Simon Shields <simon@lineageos.org>
+Date: Wed, 2 Oct 2019 00:21:45 +1000
+Subject: [PATCH 09/63] recovery_utils: add support for unmounting entire
+ volumes
+
+When wiping /system, the partition isn't actually mounted at /system
+or / - it's mounted at /mnt/system. This breaks 'format system' from
+recovery if the partition has been mounted.
+
+This patch adds an ensure_volume_unmounted function that finds all
+mounts of a given device and unmounts them, meaning the device
+can be safely formatted.
+
+Change-Id: Id4f727f845308a89e865f1ba60dc284f5ebc66e1
+---
+ install/wipe_data.cpp                         |  6 ++++-
+ recovery_utils/include/recovery_utils/roots.h |  4 ++++
+ recovery_utils/roots.cpp                      | 22 +++++++++++++++++++
+ 3 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/install/wipe_data.cpp b/install/wipe_data.cpp
+index 4eecf72c..78fef95c 100644
+--- a/install/wipe_data.cpp
++++ b/install/wipe_data.cpp
+@@ -50,7 +50,11 @@ static bool EraseVolume(const char* volume, RecoveryUI* ui, bool convert_fbe) {
+ 
+   ui->Print("Formatting %s...\n", volume);
+ 
+-  ensure_path_unmounted(volume);
++  Volume* vol = volume_for_mount_point(volume);
++  if (ensure_volume_unmounted(vol->blk_device) == -1) {
++    PLOG(ERROR) << "Failed to unmount volume!";
++    return false;
++  }
+ 
+   int result;
+   if (is_data && convert_fbe) {
+diff --git a/recovery_utils/include/recovery_utils/roots.h b/recovery_utils/include/recovery_utils/roots.h
+index 92ee756f..96c53d49 100644
+--- a/recovery_utils/include/recovery_utils/roots.h
++++ b/recovery_utils/include/recovery_utils/roots.h
+@@ -39,6 +39,10 @@ int ensure_path_mounted_at(const std::string& path, const std::string& mount_poi
+ // success (volume is unmounted);
+ int ensure_path_unmounted(const std::string& path);
+ 
++// Make sure that the volume at 'blk_device' is unmounted.
++// Returns 0 on success.
++int ensure_volume_unmounted(const std::string& blk_device);
++
+ // Reformat the given volume (must be the mount point only, eg
+ // "/cache"), no paths permitted.  Attempts to unmount the volume if
+ // it is mounted.
+diff --git a/recovery_utils/roots.cpp b/recovery_utils/roots.cpp
+index 19484478..75b586d4 100644
+--- a/recovery_utils/roots.cpp
++++ b/recovery_utils/roots.cpp
+@@ -24,6 +24,7 @@
+ #include <sys/types.h>
+ #include <sys/wait.h>
+ #include <unistd.h>
++#include <sys/mount.h>
+ 
+ #include <iostream>
+ #include <string>
+@@ -89,6 +90,27 @@ int ensure_path_unmounted(const std::string& path) {
+   return android::fs_mgr::EnsurePathUnmounted(&fstab, path) ? 0 : -1;
+ }
+ 
++int ensure_volume_unmounted(const std::string& blk_device) {
++  android::fs_mgr::Fstab mounted_fstab;
++  if (!android::fs_mgr::ReadFstabFromFile("/proc/mounts", &mounted_fstab)) {
++    LOG(ERROR) << "Failed to read /proc/mounts";
++    return -1;
++  }
++
++  /* find any entries with the volume */
++  for (auto& entry : mounted_fstab) {
++    if (entry.blk_device == blk_device) {
++      int result = umount(entry.mount_point.c_str());
++      if (result == -1) {
++        LOG(ERROR) << "Failed to unmount " << blk_device << " from " << entry.mount_point << ": "
++                   << errno;
++        return -1;
++      }
++    }
++  }
++  return 0;
++}
++
+ static int exec_cmd(const std::vector<std::string>& args) {
+   CHECK(!args.empty());
+   auto argv = StringVectorToNullTerminatedArray(args);
+-- 
+2.34.0
+

@@ -1,0 +1,27 @@
+From 6bcbb5ab0634e3670309b54666ce099f8a1e93bc Mon Sep 17 00:00:00 2001
+From: Pig <pig.priv@gmail.com>
+Date: Fri, 13 Nov 2020 03:39:54 +0800
+Subject: [PATCH 8/8] Bluetooth: Require libbluetooth_qti instead of
+ libbluetooth
+
+Change-Id: I1b3d318998f8216e1eabc4a757a80ff4ff5ae239
+---
+ Android.bp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Android.bp b/Android.bp
+index 0e8f46174..dde913bcf 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -70,7 +70,7 @@ android_app {
+     optimize: {
+         enabled: false,
+     },
+-    required: ["libbluetooth"],
++    required: ["libbluetooth_qti"],
+ 
+     proto: {
+         type: "micro",
+-- 
+2.34.0
+

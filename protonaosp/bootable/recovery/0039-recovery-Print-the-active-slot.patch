@@ -1,0 +1,31 @@
+From 8afb9802427f123cbb250e9050651e0d9fce1e57 Mon Sep 17 00:00:00 2001
+From: Richard Hansen <rhansen@rhansen.org>
+Date: Mon, 4 May 2020 15:56:36 -0400
+Subject: [PATCH 39/63] recovery: Print the active slot
+
+Addresses https://gitlab.com/LineageOS/issues/android/-/issues/1893
+
+Change-Id: I9fd731c3427c3a52641aa2e9c89eb9a20bafdd57
+---
+ recovery.cpp | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/recovery.cpp b/recovery.cpp
+index 69bb0f32..9ffead07 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -736,6 +736,11 @@ Device::BuiltinAction start_recovery(Device* device, const std::vector<std::stri
+     "Version " + android::base::GetProperty("ro.lineage.build.version", "(unknown)") +
+         " (" + ver_date + ")",
+   };
++  if (android::base::GetBoolProperty("ro.build.ab_update", false)) {
++    std::string slot = android::base::GetProperty("ro.boot.slot_suffix", "");
++    if (android::base::StartsWith(slot, "_")) slot.erase(0, 1);
++    title_lines.push_back("Active slot: " + slot);
++  }
+   ui->SetTitle(title_lines);
+ 
+   ui->ResetKeyInterruptStatus();
+-- 
+2.34.0
+

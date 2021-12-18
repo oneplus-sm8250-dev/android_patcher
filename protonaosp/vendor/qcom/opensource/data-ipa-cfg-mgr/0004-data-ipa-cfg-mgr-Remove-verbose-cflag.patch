@@ -1,0 +1,26 @@
+From b51c5724d65ac52f67371e6cf237dd62662a19e1 Mon Sep 17 00:00:00 2001
+From: Luca Stefani <luca020400@lineageos.org>
+Date: Tue, 18 Jul 2017 18:23:59 +0200
+Subject: [PATCH 4/7] data-ipa-cfg-mgr: Remove verbose cflag
+
+Change-Id: I7d028b4b606f209bd6c27f9f74f4fc04ff69d8c7
+---
+ ipacm/Android.bp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipacm/Android.bp b/ipacm/Android.bp
+index c2d25a2..eb03000 100644
+--- a/ipacm/Android.bp
++++ b/ipacm/Android.bp
+@@ -5,7 +5,7 @@ cc_binary {
+     local_include_dirs: ["src"] + ["inc"],
+ 	header_libs: ["generated_kernel_headers"],
+ 
+-    cflags: ["-v"] + ["-DFEATURE_IPA_ANDROID"] + ["-DFEATURE_IPACM_RESTART"] + [
++    cflags: ["-DFEATURE_IPA_ANDROID"] + ["-DFEATURE_IPACM_RESTART"] + [
+         "-DFEATURE_IPACM_HAL",
+ 	"-DDEBUG",
+         "-Wall",
+-- 
+2.34.0
+

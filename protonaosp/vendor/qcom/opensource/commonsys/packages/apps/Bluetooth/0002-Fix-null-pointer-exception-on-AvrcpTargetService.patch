@@ -1,0 +1,46 @@
+From e26c6a01d6c84f4edbb510565a5d82522bf73c2c Mon Sep 17 00:00:00 2001
+From: "slki.shin" <slki.shin@samsung.com>
+Date: Thu, 25 Jul 2019 15:14:43 +0900
+Subject: [PATCH 2/8] Fix null pointer exception on AvrcpTargetService
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This fixes null pointer exception by simply adding null pointer checker.
+Problem occurs when sendMediaUpdate() is called just after Avrcp
+Service is stop()ed.
+
+Error Message: java.lang.NullPointerException: Attempt to invoke virtual method ’void com.android.bluetooth.avrcp.AvrcpNativeInterface.sendMediaUpdate(boolean, boolean, boolean)’ on a null object reference
+Test: Once issue
+
+Change-Id: Id42e48faa28ce6c1ec6d4148705d3342261aa6ca
+Signed-off-by: slki.shin <slki.shin@samsung.com>
+---
+ src/com/android/bluetooth/avrcp/AvrcpTargetService.java | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/com/android/bluetooth/avrcp/AvrcpTargetService.java b/src/com/android/bluetooth/avrcp/AvrcpTargetService.java
+index e7c89e907..8a5314270 100644
+--- a/src/com/android/bluetooth/avrcp/AvrcpTargetService.java
++++ b/src/com/android/bluetooth/avrcp/AvrcpTargetService.java
+@@ -69,6 +69,8 @@ public class AvrcpTargetService extends ProfileService {
+             MediaPlayerList.FolderUpdateCallback {
+         @Override
+         public void run(MediaData data) {
++            if (mNativeInterface == null) return;
++
+             boolean metadata = !Objects.equals(mCurrentData.metadata, data.metadata);
+             boolean state = !MediaPlayerWrapper.playstateEquals(mCurrentData.state, data.state);
+             boolean queue = !Objects.equals(mCurrentData.queue, data.queue);
+@@ -85,6 +87,8 @@ public class AvrcpTargetService extends ProfileService {
+         @Override
+         public void run(boolean availablePlayers, boolean addressedPlayers,
+                 boolean uids) {
++            if (mNativeInterface == null) return;
++
+             mNativeInterface.sendFolderUpdate(availablePlayers, addressedPlayers, uids);
+         }
+     }
+-- 
+2.34.0
+

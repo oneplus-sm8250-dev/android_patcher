@@ -1,0 +1,91 @@
+From 1550dd88db5fa93610feae588fb7509518310bb5 Mon Sep 17 00:00:00 2001
+From: Pig <pig.priv@gmail.com>
+Date: Sun, 20 Sep 2020 12:45:49 +0800
+Subject: [PATCH 1/2] aidl: Ditch unnecessary get_soc_info
+
+ * Using switch statement here is useless since only 2 platforms (lahaina
+   and shima) support external control.
+
+ * Make it simple to just read the board platform property directly instead
+   of scanning /sys/devices/soc0/soc_id or reading newly added ro.vendor.qti.soc_id
+   which were used to be handled through libsoc_help as of what is seen in reversing.
+
+Change-Id: If3ae8349f6e052fea252c4bd9569326ddf8fc4ca
+---
+ aidl/Android.bp   |  3 ++-
+ aidl/Vibrator.cpp | 22 ++++++----------------
+ 2 files changed, 8 insertions(+), 17 deletions(-)
+
+diff --git a/aidl/Android.bp b/aidl/Android.bp
+index 32a9f59..ab58e3b 100644
+--- a/aidl/Android.bp
++++ b/aidl/Android.bp
+@@ -9,14 +9,15 @@ cc_library_shared {
+         "Vibrator.cpp",
+     ],
+     shared_libs: [
++        "libbase",
+         "libcutils",
+         "libutils",
+         "liblog",
+         "libqtivibratoreffect",
+-        "libsoc_helper",
+         "libbinder_ndk",
+         "android.hardware.vibrator-ndk_platform",
+     ],
++    include_dirs: ["system/core/base/include"],
+     export_include_dirs: ["include"]
+ }
+ 
+diff --git a/aidl/Vibrator.cpp b/aidl/Vibrator.cpp
+index d844e74..456c548 100644
+--- a/aidl/Vibrator.cpp
++++ b/aidl/Vibrator.cpp
+@@ -42,9 +42,9 @@
+ #include "effect.h"
+ #endif
+ 
+-extern "C" {
+-#include "libsoc_helper.h"
+-}
++#include <android-base/properties.h>
++using android::base::GetProperty;
++
+ namespace aidl {
+ namespace android {
+ namespace hardware {
+@@ -70,7 +70,6 @@ InputFFDevice::InputFFDevice()
+     const char *INPUT_DIR = "/dev/input/";
+     char name[NAME_BUF_SIZE];
+     int fd, ret;
+-    soc_info_v0_1_t soc = {MSM_CPU_UNKNOWN};
+ 
+     mVibraFd = INVALID_VALUE;
+     mSupportGain = false;
+@@ -129,20 +128,11 @@ InputFFDevice::InputFFDevice()
+             if (test_bit(FF_GAIN, ffBitmask))
+                 mSupportGain = true;
+ 
+-            get_soc_info(&soc);
+-            ALOGD("msm CPU SoC ID: %d\n", soc.msm_cpu);
+-            switch (soc.msm_cpu) {
+-            case MSM_CPU_LAHAINA:
+-            case APQ_CPU_LAHAINA:
+-            case MSM_CPU_SHIMA:
+-            case MSM_CPU_SM8325:
+-            case APQ_CPU_SM8325P:
+-            case MSM_CPU_YUPIK:
++            auto target = GetProperty("ro.board.platform", "");
++            if (target == "lahaina" || target=="shima") {
+                 mSupportExternalControl = true;
+-                break;
+-            default:
++            } else {
+                 mSupportExternalControl = false;
+-                break;
+             }
+             break;
+         }
+-- 
+2.34.0
+

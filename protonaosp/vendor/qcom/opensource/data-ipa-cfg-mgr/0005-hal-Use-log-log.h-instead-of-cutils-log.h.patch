@@ -1,0 +1,81 @@
+From a3bebc2ba08528b6442562335646d170b2a4790d Mon Sep 17 00:00:00 2001
+From: Michael Bestas <mkbestas@lineageos.org>
+Date: Tue, 19 Nov 2019 20:45:02 +0200
+Subject: [PATCH 5/7] hal: Use log/log.h instead of cutils/log.h
+
+Change-Id: Ie995f5010393652193ecceba1b62142cb1e0bcdb
+---
+ hal/Android.bp                 | 1 -
+ hal/src/CtUpdateAmbassador.cpp | 2 +-
+ hal/src/HAL.cpp                | 2 +-
+ hal/src/IpaEventRelay.cpp      | 2 +-
+ hal/src/LocalLogBuffer.cpp     | 2 +-
+ 5 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/hal/Android.bp b/hal/Android.bp
+index 14d3745..f7aa0b1 100644
+--- a/hal/Android.bp
++++ b/hal/Android.bp
+@@ -12,7 +12,6 @@ cc_library_shared {
+     shared_libs: [
+         "libhidlbase",
+         "liblog",
+-        "libcutils",
+         "libdl",
+         "libbase",
+         "libutils",
+diff --git a/hal/src/CtUpdateAmbassador.cpp b/hal/src/CtUpdateAmbassador.cpp
+index eba6b93..b5e60e2 100644
+--- a/hal/src/CtUpdateAmbassador.cpp
++++ b/hal/src/CtUpdateAmbassador.cpp
+@@ -33,7 +33,7 @@
+ 
+ /* External Includes */
+ #include <arpa/inet.h>
+-#include <cutils/log.h>
++#include <log/log.h>
+ 
+ /* HIDL Includes */
+ #include <android/hardware/tetheroffload/control/1.0/ITetheringOffloadCallback.h>
+diff --git a/hal/src/HAL.cpp b/hal/src/HAL.cpp
+index f18767a..6c1ec10 100644
+--- a/hal/src/HAL.cpp
++++ b/hal/src/HAL.cpp
+@@ -39,7 +39,7 @@
+ #include <linux/netfilter/nfnetlink_compat.h>
+ 
+ /* External Includes */
+-#include <cutils/log.h>
++#include <log/log.h>
+ #include <cstring>
+ #include <sys/socket.h>
+ #include <sys/types.h>
+diff --git a/hal/src/IpaEventRelay.cpp b/hal/src/IpaEventRelay.cpp
+index 137092f..484355a 100644
+--- a/hal/src/IpaEventRelay.cpp
++++ b/hal/src/IpaEventRelay.cpp
+@@ -28,7 +28,7 @@
+  */
+ #define LOG_TAG "IPAHALService/IpaEventRelay"
+ /* External Includes */
+-#include <cutils/log.h>
++#include <log/log.h>
+ 
+ /* HIDL Includes */
+ #include <android/hardware/tetheroffload/control/1.0/ITetheringOffloadCallback.h>
+diff --git a/hal/src/LocalLogBuffer.cpp b/hal/src/LocalLogBuffer.cpp
+index f556e40..50fa91c 100644
+--- a/hal/src/LocalLogBuffer.cpp
++++ b/hal/src/LocalLogBuffer.cpp
+@@ -29,7 +29,7 @@
+ #define LOG_TAG "IPAHALService/dump"
+ 
+ /* External Includes */
+-#include <cutils/log.h>
++#include <log/log.h>
+ #include <deque>
+ #include <string>
+ #include <sys/types.h>
+-- 
+2.34.0
+

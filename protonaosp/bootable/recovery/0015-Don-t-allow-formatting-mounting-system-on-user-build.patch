@@ -1,0 +1,29 @@
+From f6b718fca883dc3129c9695e685f73ff95a4fa1f Mon Sep 17 00:00:00 2001
+From: Luca Stefani <luca.stefani.ge1@gmail.com>
+Date: Sat, 14 Mar 2020 00:12:18 +0100
+Subject: [PATCH 15/63] Don't allow formatting & mounting system on user builds
+
+Change-Id: I7138c307ae6d7996d9fcf1cf280730ff6fb5ccf9
+---
+ recovery_main.cpp | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index 9787f6d7..bce3309a 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -454,6 +454,11 @@ int main(int argc, char** argv) {
+     device->RemoveMenuItemForAction(Device::ENTER_RESCUE);
+   }
+ 
++  if (get_build_type() == "user") {
++    device->RemoveMenuItemForAction(Device::WIPE_SYSTEM);
++    device->RemoveMenuItemForAction(Device::MOUNT_SYSTEM);
++  }
++
+   ui->SetBackground(RecoveryUI::NONE);
+   if (show_text) ui->ShowText(true);
+ 
+-- 
+2.34.0
+

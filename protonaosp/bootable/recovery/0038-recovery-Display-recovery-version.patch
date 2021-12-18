@@ -1,0 +1,128 @@
+From 68a1829afdec633ecb1e87cdc3f83acb6a089b12 Mon Sep 17 00:00:00 2001
+From: Richard Hansen <rhansen@rhansen.org>
+Date: Tue, 12 May 2020 18:08:56 -0400
+Subject: [PATCH 38/63] recovery: Display recovery version
+
+Set the title lines to the lineage version and build date and render
+them between the logo and menu.
+
+The "Lineage Recovery" and "Android Fastboot" lines are removed
+because the logo already says "Recovery" or "Fastbootd".
+
+Also: Assume the logo and back icon are non-null.
+ScreenRecoveryUI::SelectMenu already makes this assumption, and it
+avoids questions about how to handle "back" if either the logo or
+the back icon is null.
+
+Change-Id: I63bb23e34e52fdb01dd85e793552aa259f46a7de
+---
+ fastboot/fastboot.cpp     |  2 +-
+ recovery.cpp              | 15 +++++++++++---
+ recovery_ui/screen_ui.cpp | 42 +++++++++++++++++----------------------
+ 3 files changed, 31 insertions(+), 28 deletions(-)
+
+diff --git a/fastboot/fastboot.cpp b/fastboot/fastboot.cpp
+index a0930087..d9050931 100644
+--- a/fastboot/fastboot.cpp
++++ b/fastboot/fastboot.cpp
+@@ -39,7 +39,7 @@ static const std::vector<std::pair<std::string, Device::BuiltinAction>> kFastboo
+ Device::BuiltinAction StartFastboot(Device* device, const std::vector<std::string>& /* args */) {
+   RecoveryUI* ui = device->GetUI();
+ 
+-  std::vector<std::string> title_lines = { "Android Fastboot" };
++  std::vector<std::string> title_lines;
+   title_lines.push_back("Product name - " + android::base::GetProperty("ro.product.device", ""));
+   title_lines.push_back("Bootloader version - " + android::base::GetProperty("ro.bootloader", ""));
+   title_lines.push_back("Baseband version - " +
+diff --git a/recovery.cpp b/recovery.cpp
+index 23f0fb32..69bb0f32 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -31,6 +31,7 @@
+ #include <functional>
+ #include <iterator>
+ #include <memory>
++#include <regex>
+ #include <string>
+ #include <vector>
+ 
+@@ -724,9 +725,17 @@ Device::BuiltinAction start_recovery(Device* device, const std::vector<std::stri
+     ui->SetStage(st_cur, st_max);
+   }
+ 
+-  std::vector<std::string> title_lines =
+-      android::base::Split(android::base::GetProperty("ro.build.fingerprint", ""), ":");
+-  title_lines.insert(std::begin(title_lines), "Lineage Recovery");
++  // Extract the YYYYMMDD date from the full version string. Assume
++  // the first instance of "-[0-9]{8}-" (if any) has the desired date.
++  std::string ver = android::base::GetProperty("ro.lineage.version", "");
++  std::smatch ver_date_match;
++  std::regex_search(ver, ver_date_match, std::regex("-(\\d{8})-"));
++  std::string ver_date = ver_date_match.str(1);  // Empty if no match.
++
++  std::vector<std::string> title_lines = {
++    "Version " + android::base::GetProperty("ro.lineage.build.version", "(unknown)") +
++        " (" + ver_date + ")",
++  };
+   ui->SetTitle(title_lines);
+ 
+   ui->ResetKeyInterruptStatus();
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index 56b75bef..bdcc36bf 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -804,33 +804,27 @@ void ScreenRecoveryUI::draw_menu_and_text_buffer_locked(
+   int y = margin_height_;
+ 
+   if (menu_) {
+-    int x = margin_width_ + kMenuIndent;
+-
+-    SetColor(UIElement::INFO);
+-
+     auto& logo = fastbootd_logo_enabled_ ? fastbootd_logo_ : lineage_logo_;
+-    if (logo && back_icon_) {
+-      auto logo_width = gr_get_width(logo.get());
+-      auto logo_height = gr_get_height(logo.get());
+-      auto centered_x = ScreenWidth() / 2 - logo_width / 2;
+-      DrawSurface(logo.get(), 0, 0, logo_width, logo_height, centered_x, y);
+-      y += logo_height;
+-
+-      if (!menu_->IsMain()) {
+-        auto icon_w = gr_get_width(back_icon_.get());
+-        auto icon_h = gr_get_height(back_icon_.get());
+-        auto icon_x = centered_x / 2 - icon_w / 2;
+-        auto icon_y = y - logo_height / 2 - icon_h / 2;
+-        gr_blit(back_icon_sel_ && menu_->selection() == -1 ? back_icon_sel_.get() : back_icon_.get(),
+-                0, 0, icon_w, icon_h, icon_x, icon_y);
+-      }
+-      y += MenuItemPadding();
+-    } else {
+-      for (size_t i = 0; i < title_lines_.size(); i++) {
+-        y += DrawTextLine(x, y, title_lines_[i], i == 0);
+-      }
++    auto logo_width = gr_get_width(logo.get());
++    auto logo_height = gr_get_height(logo.get());
++    auto centered_x = ScreenWidth() / 2 - logo_width / 2;
++    DrawSurface(logo.get(), 0, 0, logo_width, logo_height, centered_x, y);
++    y += logo_height;
++
++    if (!menu_->IsMain()) {
++      auto icon_w = gr_get_width(back_icon_.get());
++      auto icon_h = gr_get_height(back_icon_.get());
++      auto icon_x = centered_x / 2 - icon_w / 2;
++      auto icon_y = y - logo_height / 2 - icon_h / 2;
++      gr_blit(back_icon_sel_ && menu_->selection() == -1 ? back_icon_sel_.get() : back_icon_.get(),
++              0, 0, icon_w, icon_h, icon_x, icon_y);
+     }
+ 
++    int x = margin_width_ + kMenuIndent;
++    if (!title_lines_.empty()) {
++      SetColor(UIElement::INFO);
++      y += DrawTextLines(x, y, title_lines_);
++    }
+     y += menu_->DrawHeader(x, y);
+     menu_start_y_ = y + 12; // Skip horizontal rule and some margin
+     menu_->SetMenuHeight(std::max(0, ScreenHeight() - menu_start_y_));
+-- 
+2.34.0
+

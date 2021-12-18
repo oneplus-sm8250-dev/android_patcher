@@ -1,0 +1,814 @@
+From 2673f2ad2efa55f8d53647361d250ff26092f625 Mon Sep 17 00:00:00 2001
+From: Tom Marshall <tdm@cyngn.com>
+Date: Tue, 10 Mar 2020 20:17:49 +0100
+Subject: [PATCH 26/63] recovery: touch UI
+
+[aleasto] make scrolling natural
+[DD3Boh] Adapt to Android 11
+
+Change-Id: Ibf64aa70e21d88f9d0b2c60fc1b66a9995837464
+---
+ recovery_ui/device.cpp                      |   5 +
+ recovery_ui/include/recovery_ui/device.h    |   2 +
+ recovery_ui/include/recovery_ui/screen_ui.h |  29 +++-
+ recovery_ui/include/recovery_ui/ui.h        |  65 +++++++-
+ recovery_ui/screen_ui.cpp                   | 161 +++++++++++++++---
+ recovery_ui/stub_ui.cpp                     |   9 +-
+ recovery_ui/ui.cpp                          | 172 +++++++++++---------
+ 7 files changed, 320 insertions(+), 123 deletions(-)
+
+diff --git a/recovery_ui/device.cpp b/recovery_ui/device.cpp
+index 3a422169..51125a83 100644
+--- a/recovery_ui/device.cpp
++++ b/recovery_ui/device.cpp
+@@ -92,6 +92,11 @@ int Device::HandleMenuKey(int key, bool visible) {
+     case KEY_SEARCH:
+       return kHighlightUp;
+ 
++    case KEY_SCROLLUP:
++      return kScrollUp;
++    case KEY_SCROLLDOWN:
++      return kScrollDown;
++
+     case KEY_ENTER:
+     case KEY_POWER:
+     case BTN_MOUSE:
+diff --git a/recovery_ui/include/recovery_ui/device.h b/recovery_ui/include/recovery_ui/device.h
+index d6e94fcc..67c4da06 100644
+--- a/recovery_ui/include/recovery_ui/device.h
++++ b/recovery_ui/include/recovery_ui/device.h
+@@ -39,6 +39,8 @@ class Device {
+   static constexpr const int kGoBack = -5;
+   static constexpr const int kGoHome = -6;
+   static constexpr const int kDoSideload = -7;
++  static constexpr const int kScrollUp = -8;
++  static constexpr const int kScrollDown = -9;
+ 
+   // ENTER vs REBOOT: The latter will trigger a reboot that goes through bootloader, which allows
+   // using a new bootloader / recovery image if applicable. For example, REBOOT_RESCUE goes from
+diff --git a/recovery_ui/include/recovery_ui/screen_ui.h b/recovery_ui/include/recovery_ui/screen_ui.h
+index f10e8e36..bab3b953 100644
+--- a/recovery_ui/include/recovery_ui/screen_ui.h
++++ b/recovery_ui/include/recovery_ui/screen_ui.h
+@@ -96,10 +96,16 @@ class Menu {
+   // Sets the current selection to |sel|. Handle the overflow cases depending on if the menu is
+   // scrollable.
+   virtual int Select(int sel) = 0;
++  // Select by index within the currently visible items.
++  // Matches Select() if not scrollable
++  virtual int SelectVisible(int relative_sel) = 0;
++  // Scroll the menu by updown, if scrollable
++  virtual int Scroll(int updown) = 0;
+   // Displays the menu headers on the screen at offset x, y
+   virtual int DrawHeader(int x, int y) const = 0;
+   // Iterates over the menu items and displays each of them at offset x, y.
+   virtual int DrawItems(int x, int y, int screen_width, bool long_press) const = 0;
++  virtual size_t ItemsCount() const = 0;
+   virtual bool IsMain() const = 0;
+ 
+  protected:
+@@ -120,8 +126,11 @@ class TextMenu : public Menu {
+            size_t initial_selection, int char_height, const DrawInterface& draw_funcs);
+ 
+   int Select(int sel) override;
++  int SelectVisible(int relative_sel) override;
++  int Scroll(int updown) override;
+   int DrawHeader(int x, int y) const override;
+   int DrawItems(int x, int y, int screen_width, bool long_press) const override;
++  size_t ItemsCount() const override;
+ 
+   bool IsMain() const override {
+     // Main menus have no headers
+@@ -132,9 +141,6 @@ class TextMenu : public Menu {
+     return wrappable_;
+   }
+ 
+-  // Returns count of menu items.
+-  size_t ItemsCount() const;
+-
+   // Returns the index of the first menu item.
+   size_t MenuStart() const;
+ 
+@@ -186,8 +192,15 @@ class GraphicMenu : public Menu {
+               size_t initial_selection, const DrawInterface& draw_funcs);
+ 
+   int Select(int sel) override;
++  int SelectVisible(int sel) override {
++    return Select(sel);
++  }
++  int Scroll(int updown __unused) override {
++    return selection_;
++  };
+   int DrawHeader(int x, int y) const override;
+   int DrawItems(int x, int y, int screen_width, bool long_press) const override;
++  size_t ItemsCount() const override;
+   bool IsMain() const override {
+     return true;
+   }
+@@ -307,6 +320,10 @@ class ScreenRecoveryUI : public RecoveryUI, public DrawInterface {
+       const std::vector<std::string>& backup_headers, const std::vector<std::string>& backup_items,
+       const std::function<int(int, bool)>& key_handler) override;
+ 
++  int MenuItemHeight() const override {
++    return MenuCharHeight() + 2 * MenuItemPadding();
++  }
++
+  protected:
+   static constexpr int kMenuIndent = 24;
+ 
+@@ -350,6 +367,8 @@ class ScreenRecoveryUI : public RecoveryUI, public DrawInterface {
+   // Sets the menu highlight to the given index, wrapping if necessary. Returns the actual item
+   // selected.
+   virtual int SelectMenu(int sel);
++  virtual int SelectMenu(const Point& point);
++  virtual int ScrollMenu(int updown);
+ 
+   // Returns the help message displayed on top of the menu.
+   virtual std::vector<std::string> GetMenuHelpMessage() const;
+@@ -406,9 +425,6 @@ class ScreenRecoveryUI : public RecoveryUI, public DrawInterface {
+   int MenuItemPadding() const override {
+     return menu_char_height_ * 2 / 3;
+   }
+-  int MenuItemHeight() const override {
+-    return MenuCharHeight() + 2 * MenuItemPadding();
+-  }
+ 
+   std::unique_ptr<MenuDrawFunctions> menu_draw_funcs_;
+ 
+@@ -468,6 +484,7 @@ class ScreenRecoveryUI : public RecoveryUI, public DrawInterface {
+   std::vector<std::string> title_lines_;
+ 
+   std::unique_ptr<Menu> menu_;
++  int menu_start_y_;
+ 
+   // An alternate text screen, swapped with 'text_' when we're viewing a log file.
+   char** file_viewer_text_;
+diff --git a/recovery_ui/include/recovery_ui/ui.h b/recovery_ui/include/recovery_ui/ui.h
+index a8eb3f6d..bf3254f1 100644
+--- a/recovery_ui/include/recovery_ui/ui.h
++++ b/recovery_ui/include/recovery_ui/ui.h
+@@ -104,6 +104,42 @@ class RecoveryUI {
+     INTERRUPTED = -2,
+   };
+ 
++  enum EventType {
++    EXTRA,
++    KEY,
++    TOUCH,
++  };
++
++  class InputEvent {
++   public:
++    InputEvent() : type_(EventType::EXTRA), evt_({ 0 }) {
++      evt_.key = static_cast<int>(KeyError::TIMED_OUT);
++    }
++    explicit InputEvent(EventType type, KeyError key)
++        : type_(type), evt_({ static_cast<int>(key) }) {}
++    explicit InputEvent(int key) : type_(EventType::KEY), evt_({ key }) {}
++    explicit InputEvent(const Point& pos) : type_(EventType::TOUCH), evt_({ 0 }) {
++      evt_.pos = pos;
++    }
++
++    EventType type() const {
++      return type_;
++    }
++    int key() const {
++      return evt_.key;
++    }
++    const Point& pos() const {
++      return evt_.pos;
++    }
++
++   private:
++    EventType type_;
++    union {
++      int key;
++      Point pos;
++    } evt_;
++  };
++
+   RecoveryUI();
+ 
+   virtual ~RecoveryUI();
+@@ -154,7 +190,7 @@ class RecoveryUI {
+ 
+   // Waits for a key and return it. May return TIMED_OUT after timeout and
+   // KeyError::INTERRUPTED on a key interrupt.
+-  virtual int WaitKey();
++  virtual InputEvent WaitInputEvent();
+ 
+   virtual void CancelWaitKey();
+   // Wakes up the UI if it is waiting on key input, causing WaitKey to return KeyError::INTERRUPTED.
+@@ -224,6 +260,10 @@ class RecoveryUI {
+       const std::vector<std::string>& backup_headers, const std::vector<std::string>& backup_items,
+       const std::function<int(int, bool)>& key_handler) = 0;
+ 
++  virtual int MenuItemHeight() const {
++    return 1;
++  }
++
+   // Set whether or not the fastbootd logo is displayed.
+   void SetEnableFastbootdLogo(bool enable) {
+     fastbootd_logo_enabled_ = enable;
+@@ -243,6 +283,7 @@ class RecoveryUI {
+ 
+  protected:
+   void EnqueueKey(int key_code);
++  void EnqueueTouch(const Point& pos);
+ 
+   // The normal and dimmed brightness percentages (default: 50 and 25, which means 50% and 25% of
+   // the max_brightness). Because the absolute values may vary across devices. These two values can
+@@ -271,7 +312,9 @@ class RecoveryUI {
+ 
+   void OnTouchDeviceDetected(int fd);
+   void OnKeyDetected(int key_code);
+-  void OnTouchEvent();
++  void OnTouchPress();
++  void OnTouchTrack();
++  void OnTouchRelease();
+   int OnInputEvent(int fd, uint32_t epevents);
+   void ProcessKey(int key_code, int updown);
+   void TimeKey(int key_code, int count);
+@@ -280,10 +323,11 @@ class RecoveryUI {
+   void SetScreensaverState(ScreensaverState state);
+ 
+   // Key event input queue
+-  std::mutex key_queue_mutex;
+-  std::condition_variable key_queue_cond;
++  std::mutex event_queue_mutex;
++  std::condition_variable event_queue_cond;
+   bool key_interrupted_;
+-  int key_queue[256], key_queue_len;
++  InputEvent event_queue[256];
++  int event_queue_len;
+ 
+   // key press events
+   std::mutex key_press_mutex;
+@@ -302,6 +346,10 @@ class RecoveryUI {
+   bool has_touch_screen;
+ 
+   struct vkey_t {
++    bool inside(const Point& p) const {
++      return (p.x() >= min_.x() && p.x() < max_.x() && p.y() >= min_.y() && p.y() < max_.y());
++    }
++
+     int keycode;
+     Point min_;
+     Point max_;
+@@ -309,10 +357,13 @@ class RecoveryUI {
+ 
+   // Touch event related variables. See the comments in RecoveryUI::OnInputEvent().
+   int touch_slot_;
++  bool touch_finger_down_;
++  bool touch_saw_x_;
++  bool touch_saw_y_;
++  bool touch_reported_;
+   Point touch_pos_;
+   Point touch_start_;
+-  bool touch_finger_down_;
+-  bool touch_swiping_;
++  Point touch_track_;
+   std::vector<vkey_t> virtual_keys_;
+   bool is_bootreason_recovery_ui_;
+ 
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index e3a230c8..caa25abc 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -140,6 +140,32 @@ int TextMenu::Select(int sel) {
+   return selection_;
+ }
+ 
++int TextMenu::SelectVisible(int relative_sel) {
++  int sel = relative_sel;
++  if (menu_start_ > 0) {
++    sel += menu_start_;
++  }
++
++  return Select(sel);
++}
++
++int TextMenu::Scroll(int updown) {
++  if ((updown > 0 && menu_start_ + max_display_items_ < ItemsCount()) ||
++      (updown < 0 && menu_start_ > 0)) {
++    menu_start_ += updown;
++
++    /* We can receive a kInvokeItem event from a different source than touch,
++       like from Power button. For this reason, selection should not get out of
++       the screen. Constrain it to the first or last visible item of the list */
++    if (selection_ < menu_start_) {
++      selection_ = menu_start_;
++    } else if (selection_ >= menu_start_ + max_display_items_) {
++      selection_ = menu_start_ + max_display_items_ - 1;
++    }
++  }
++  return selection_;
++}
++
+ int TextMenu::DrawHeader(int x, int y) const {
+   int offset = 0;
+ 
+@@ -249,6 +275,10 @@ int GraphicMenu::DrawItems(int x, int y, int screen_width, bool long_press) cons
+   return offset;
+ }
+ 
++size_t GraphicMenu::ItemsCount() const {
++  return graphic_items_.size();
++}
++
+ bool GraphicMenu::Validate(size_t max_width, size_t max_height, const GRSurface* graphic_headers,
+                            const std::vector<const GRSurface*>& graphic_items) {
+   int offset = 0;
+@@ -621,16 +651,20 @@ void ScreenRecoveryUI::CheckBackgroundTextImages() {
+ 
+   FlushKeys();
+   while (true) {
+-    int key = WaitKey();
+-    if (key == static_cast<int>(KeyError::INTERRUPTED)) break;
+-    if (key == KEY_POWER || key == KEY_ENTER) {
+-      break;
+-    } else if (key == KEY_UP || key == KEY_VOLUMEUP) {
+-      selected = (selected == 0) ? locales_entries.size() - 1 : selected - 1;
+-      SelectAndShowBackgroundText(locales_entries, selected);
+-    } else if (key == KEY_DOWN || key == KEY_VOLUMEDOWN) {
+-      selected = (selected == locales_entries.size() - 1) ? 0 : selected + 1;
+-      SelectAndShowBackgroundText(locales_entries, selected);
++    InputEvent evt = WaitInputEvent();
++    if (evt.type() == EventType::EXTRA) {
++      if (evt.key() == static_cast<int>(KeyError::INTERRUPTED)) break;
++    }
++    if (evt.type() == EventType::KEY) {
++      if (evt.key() == KEY_POWER || evt.key() == KEY_ENTER) {
++        break;
++      } else if (evt.key() == KEY_UP || evt.key() == KEY_VOLUMEUP) {
++        selected = (selected == 0) ? locales_entries.size() - 1 : selected - 1;
++        SelectAndShowBackgroundText(locales_entries, selected);
++      } else if (evt.key() == KEY_DOWN || evt.key() == KEY_VOLUMEDOWN) {
++        selected = (selected == locales_entries.size() - 1) ? 0 : selected + 1;
++        SelectAndShowBackgroundText(locales_entries, selected);
++      }
+     }
+   }
+ 
+@@ -791,6 +825,7 @@ void ScreenRecoveryUI::draw_menu_and_text_buffer_locked(
+     }
+ 
+     y += menu_->DrawHeader(x, y);
++    menu_start_y_ = y + 12; // Skip horizontal rule and some margin
+     y += menu_->DrawItems(x, y, ScreenWidth(), IsLongPress());
+   }
+ 
+@@ -1191,11 +1226,20 @@ void ScreenRecoveryUI::ShowFile(FILE* fp) {
+       Redraw();
+       while (show_prompt) {
+         show_prompt = false;
+-        int key = WaitKey();
+-        if (key == static_cast<int>(KeyError::INTERRUPTED)) return;
+-        if (key == KEY_POWER || key == KEY_ENTER) {
++        InputEvent evt = WaitInputEvent();
++        if (evt.type() == EventType::EXTRA) {
++          if (evt.key() == static_cast<int>(KeyError::INTERRUPTED)) {
++            return;
++          }
++        }
++        if (evt.type() != EventType::KEY) {
++          show_prompt = true;
++          continue;
++        }
++        if (evt.key() == KEY_POWER || evt.key() == KEY_ENTER || evt.key() == KEY_BACKSPACE ||
++            evt.key() == KEY_BACK || evt.key() == KEY_HOME || evt.key() == KEY_HOMEPAGE) {
+           return;
+-        } else if (key == KEY_UP || key == KEY_VOLUMEUP) {
++        } else if (evt.key() == KEY_UP || evt.key() == KEY_VOLUMEUP || evt.key() == KEY_SCROLLUP) {
+           if (offsets.size() <= 1) {
+             show_prompt = true;
+           } else {
+@@ -1292,6 +1336,49 @@ int ScreenRecoveryUI::SelectMenu(int sel) {
+   return sel;
+ }
+ 
++int ScreenRecoveryUI::SelectMenu(const Point& point) {
++  int new_sel = Device::kNoAction;
++  std::lock_guard<std::mutex> lg(updateMutex);
++  if (menu_) {
++    if (!menu_->IsMain()) {
++      // Back arrow hitbox
++      const static int logo_width = gr_get_width(lineage_logo_.get());
++      const static int logo_height = gr_get_height(lineage_logo_.get());
++      const static int icon_w = gr_get_width(back_icon_.get());
++      const static int icon_h = gr_get_height(back_icon_.get());
++      const static int centered_x = ScreenWidth() / 2 - logo_width / 2;
++      const static int icon_x = centered_x / 2 - icon_w / 2;
++      const static int icon_y = margin_height_ + logo_height / 2 - icon_h / 2;
++
++      if (point.x() >= icon_x && point.x() <= icon_x + icon_w &&
++          point.y() >= icon_y && point.y() <= icon_y + icon_h) {
++        return Device::kGoBack;
++      }
++    }
++
++    if (point.y() >= menu_start_y_ &&
++        point.y() < menu_start_y_ + menu_->ItemsCount() * MenuItemHeight()) {
++      int old_sel = menu_->selection();
++      int relative_sel = (point.y() - menu_start_y_) / MenuItemHeight();
++      new_sel = menu_->SelectVisible(relative_sel);
++      if (new_sel != -1 && new_sel != old_sel) {
++        update_screen_locked();
++      }
++    }
++  }
++  return new_sel;
++}
++
++int ScreenRecoveryUI::ScrollMenu(int updown) {
++  std::lock_guard<std::mutex> lg(updateMutex);
++  int sel = Device::kNoAction;
++  if (menu_) {
++    sel = menu_->Scroll(updown);
++    update_screen_locked();
++  }
++  return sel;
++}
++
+ size_t ScreenRecoveryUI::ShowMenu(std::unique_ptr<Menu>&& menu, bool menu_only,
+                                   const std::function<int(int, bool)>& key_handler) {
+   // Throw away keys pressed previously, so user doesn't accidentally trigger menu items.
+@@ -1310,23 +1397,37 @@ size_t ScreenRecoveryUI::ShowMenu(std::unique_ptr<Menu>&& menu, bool menu_only,
+   int selected = menu_->selection();
+   int chosen_item = -1;
+   while (chosen_item < 0) {
+-    int key = WaitKey();
+-    if (key == static_cast<int>(KeyError::INTERRUPTED)) {  // WaitKey() was interrupted.
+-      return static_cast<size_t>(KeyError::INTERRUPTED);
++    InputEvent evt = WaitInputEvent();
++    if (evt.type() == EventType::EXTRA) {
++      if (evt.key() == static_cast<int>(KeyError::INTERRUPTED)) {
++        // WaitKey() was interrupted.
++        return static_cast<size_t>(KeyError::INTERRUPTED);
++      }
++      if (evt.key() == static_cast<int>(KeyError::TIMED_OUT)) {  // WaitKey() timed out.
++        if (WasTextEverVisible()) {
++          continue;
++        } else {
++          LOG(INFO) << "Timed out waiting for key input; rebooting.";
++          menu_.reset();
++          Redraw();
++          return static_cast<size_t>(KeyError::TIMED_OUT);
++        }
++      }
+     }
+-    if (key == static_cast<int>(KeyError::TIMED_OUT)) {  // WaitKey() timed out.
+-      if (WasTextEverVisible()) {
+-        continue;
++
++    int action = Device::kNoAction;
++    if (evt.type() == EventType::TOUCH) {
++      int touch_sel = SelectMenu(evt.pos());
++      if (touch_sel < 0) {
++        action = touch_sel;
+       } else {
+-        LOG(INFO) << "Timed out waiting for key input; rebooting.";
+-        menu_.reset();
+-        Redraw();
+-        return static_cast<size_t>(KeyError::TIMED_OUT);
++        action = Device::kInvokeItem;
++        selected = touch_sel;
+       }
++    } else {
++      bool visible = IsTextVisible();
++      action = key_handler(evt.key(), visible);
+     }
+-
+-    bool visible = IsTextVisible();
+-    int action = key_handler(key, visible);
+     if (action < 0) {
+       switch (action) {
+         case Device::kHighlightUp:
+@@ -1335,6 +1436,12 @@ size_t ScreenRecoveryUI::ShowMenu(std::unique_ptr<Menu>&& menu, bool menu_only,
+         case Device::kHighlightDown:
+           selected = SelectMenu(++selected);
+           break;
++        case Device::kScrollUp:
++          selected = ScrollMenu(-1);
++          break;
++        case Device::kScrollDown:
++          selected = ScrollMenu(1);
++          break;
+         case Device::kInvokeItem:
+           if (selected < 0) {
+             chosen_item = Device::kGoBack;
+diff --git a/recovery_ui/stub_ui.cpp b/recovery_ui/stub_ui.cpp
+index a56b3f72..87605cf4 100644
+--- a/recovery_ui/stub_ui.cpp
++++ b/recovery_ui/stub_ui.cpp
+@@ -25,11 +25,12 @@ size_t StubRecoveryUI::ShowMenu(const std::vector<std::string>& /* headers */,
+                                 size_t /* initial_selection */, bool /* menu_only */,
+                                 const std::function<int(int, bool)>& /*key_handler*/) {
+   while (true) {
+-    int key = WaitKey();
+     // Exit the loop in the case of interruption or time out.
+-    if (key == static_cast<int>(KeyError::INTERRUPTED) ||
+-        key == static_cast<int>(KeyError::TIMED_OUT)) {
+-      return static_cast<size_t>(key);
++    InputEvent evt = WaitInputEvent();
++    if (evt.type() == EventType::EXTRA) {
++      if (evt.key() == static_cast<int>(KeyError::INTERRUPTED) ||
++        evt.key() == static_cast<int>(KeyError::TIMED_OUT))
++          return static_cast<size_t>(evt.key());
+     }
+   }
+   LOG(FATAL) << "Unreachable key selected in ShowMenu of stub UI";
+diff --git a/recovery_ui/ui.cpp b/recovery_ui/ui.cpp
+index fc37cf09..f4148945 100644
+--- a/recovery_ui/ui.cpp
++++ b/recovery_ui/ui.cpp
+@@ -68,7 +68,7 @@ RecoveryUI::RecoveryUI()
+       touch_high_threshold_(android::base::GetIntProperty("ro.recovery.ui.touch_high_threshold",
+                                                           kDefaultTouchHighThreshold)),
+       key_interrupted_(false),
+-      key_queue_len(0),
++      event_queue_len(0),
+       key_last_down(-1),
+       key_long_press(false),
+       key_down_count(0),
+@@ -79,6 +79,10 @@ RecoveryUI::RecoveryUI()
+       has_down_key(false),
+       has_touch_screen(false),
+       touch_slot_(0),
++      touch_finger_down_(false),
++      touch_saw_x_(false),
++      touch_saw_y_(false),
++      touch_reported_(false),
+       is_bootreason_recovery_ui_(false),
+       screensaver_state_(ScreensaverState::DISABLED) {
+   memset(key_pressed, 0, sizeof(key_pressed));
+@@ -235,58 +239,48 @@ bool RecoveryUI::Init(const std::string& /* locale */) {
+   return true;
+ }
+ 
+-void RecoveryUI::OnTouchEvent() {
+-  Point delta = touch_pos_ - touch_start_;
+-  enum SwipeDirection { UP, DOWN, RIGHT, LEFT } direction;
+-
+-  // We only consider a valid swipe if:
+-  // - the delta along one axis is below touch_low_threshold_;
+-  // - and the delta along the other axis is beyond touch_high_threshold_.
+-  if (abs(delta.y()) < touch_low_threshold_ && abs(delta.x()) > touch_high_threshold_) {
+-    direction = delta.x() < 0 ? SwipeDirection::LEFT : SwipeDirection::RIGHT;
+-  } else if (abs(delta.x()) < touch_low_threshold_ && abs(delta.y()) > touch_high_threshold_) {
+-    direction = delta.y() < 0 ? SwipeDirection::UP : SwipeDirection::DOWN;
+-  } else {
+-    for (const auto& vk : virtual_keys_) {
+-      if (touch_start_.x() >= vk.min_.x() && touch_start_.x() < vk.max_.x() &&
+-          touch_start_.y() >= vk.min_.y() && touch_start_.y() < vk.max_.y()) {
+-        ProcessKey(vk.keycode, 1);  // press key
+-        ProcessKey(vk.keycode, 0);  // and release it
+-        return;
+-      }
++void RecoveryUI::OnTouchPress() {
++  touch_start_ = touch_track_ = touch_pos_;
++}
++
++void RecoveryUI::OnTouchTrack() {
++  if (touch_pos_.y() <= gr_fb_height()) {
++    while (abs(touch_pos_.y() - touch_track_.y()) >= MenuItemHeight()) {
++      int dy = touch_pos_.y() - touch_track_.y();
++      int key = (dy < 0) ? KEY_SCROLLDOWN : KEY_SCROLLUP;
++      ProcessKey(key, 1);  // press key
++      ProcessKey(key, 0);  // and release it
++      int sgn = (dy > 0) - (dy < 0);
++      touch_track_.y(touch_track_.y() + sgn * MenuItemHeight());
+     }
+-    LOG(DEBUG) << "Ignored " << delta.x() << " " << delta.y() << " (low: " << touch_low_threshold_
+-               << ", high: " << touch_high_threshold_ << ")";
+-    return;
+   }
++}
+ 
++void RecoveryUI::OnTouchRelease() {
+   // Allow turning on text mode with any swipe, if bootloader has set a bootreason of recovery_ui.
+   if (is_bootreason_recovery_ui_ && !IsTextVisible()) {
+     ShowText(true);
+     return;
+   }
+ 
+-  LOG(DEBUG) << "Swipe direction=" << direction;
+-  switch (direction) {
+-    case SwipeDirection::UP:
+-      ProcessKey(KEY_UP, 1);  // press up key
+-      ProcessKey(KEY_UP, 0);  // and release it
+-      break;
++  // Check vkeys.  Only report if touch both starts and ends in the vkey.
++  if (touch_start_.y() > gr_fb_height() && touch_pos_.y() > gr_fb_height()) {
++    for (const auto& vk : virtual_keys_) {
++      if (vk.inside(touch_start_) && vk.inside(touch_pos_)) {
++        ProcessKey(vk.keycode, 1);  // press key
++        ProcessKey(vk.keycode, 0);  // and release it
++      }
++    }
++    return;
++  }
+ 
+-    case SwipeDirection::DOWN:
+-      ProcessKey(KEY_DOWN, 1);  // press down key
+-      ProcessKey(KEY_DOWN, 0);  // and release it
+-      break;
++  // If we tracked a vertical swipe, ignore the release
++  if (touch_track_ != touch_start_) {
++    return;
++  }
+ 
+-    case SwipeDirection::LEFT:
+-      ProcessKey(KEY_BACK, 1);  // press back key
+-      ProcessKey(KEY_BACK, 0);  // and release it
+-      break;
+-    case SwipeDirection::RIGHT:
+-      ProcessKey(KEY_POWER, 1);  // press power key
+-      ProcessKey(KEY_POWER, 0);  // and release it
+-      break;
+-  };
++  // Simple touch
++  EnqueueTouch(touch_pos_);
+ }
+ 
+ int RecoveryUI::OnInputEvent(int fd, uint32_t epevents) {
+@@ -297,10 +291,6 @@ int RecoveryUI::OnInputEvent(int fd, uint32_t epevents) {
+ 
+   // Touch inputs handling.
+   //
+-  // We handle the touch inputs by tracking the position changes between initial contacting and
+-  // upon lifting. touch_start_X/Y record the initial positions, with touch_finger_down set. Upon
+-  // detecting the lift, we unset touch_finger_down and detect a swipe based on position changes.
+-  //
+   // Per the doc Multi-touch Protocol at below, there are two protocols.
+   // https://www.kernel.org/doc/Documentation/input/multi-touch-protocol.txt
+   //
+@@ -317,14 +307,17 @@ int RecoveryUI::OnInputEvent(int fd, uint32_t epevents) {
+ 
+   if (ev.type == EV_SYN) {
+     if (touch_screen_allowed_ && ev.code == SYN_REPORT) {
+-      // There might be multiple SYN_REPORT events. We should only detect a swipe after lifting the
+-      // contact.
+-      if (touch_finger_down_ && !touch_swiping_) {
+-        touch_start_ = touch_pos_;
+-        touch_swiping_ = true;
+-      } else if (!touch_finger_down_ && touch_swiping_) {
+-        touch_swiping_ = false;
+-        OnTouchEvent();
++      // There might be multiple SYN_REPORT events. Only report press/release once.
++      if (!touch_reported_ && touch_finger_down_) {
++        if (touch_saw_x_ && touch_saw_y_) {
++          OnTouchPress();
++          touch_reported_ = true;
++          touch_saw_x_ = touch_saw_y_ = false;
++        }
++      } else if (touch_reported_ && !touch_finger_down_) {
++        OnTouchRelease();
++        touch_reported_ = false;
++        touch_saw_x_ = touch_saw_y_ = false;
+       }
+     }
+     return 0;
+@@ -360,13 +353,23 @@ int RecoveryUI::OnInputEvent(int fd, uint32_t epevents) {
+ 
+     switch (ev.code) {
+       case ABS_MT_POSITION_X:
+-        touch_pos_.x(ev.value);
+         touch_finger_down_ = true;
++        touch_saw_x_ = true;
++        touch_pos_.x(ev.value);
++        if (touch_reported_ && touch_saw_y_) {
++          OnTouchTrack();
++          touch_saw_x_ = touch_saw_y_ = false;
++        }
+         break;
+ 
+       case ABS_MT_POSITION_Y:
+-        touch_pos_.y(ev.value);
+         touch_finger_down_ = true;
++        touch_saw_y_ = true;
++        touch_pos_.y(ev.value);
++        if (touch_reported_ && touch_saw_x_) {
++          OnTouchTrack();
++          touch_saw_x_ = touch_saw_y_ = false;
++        }
+         break;
+ 
+       case ABS_MT_TRACKING_ID:
+@@ -466,11 +469,22 @@ void RecoveryUI::TimeKey(int key_code, int count) {
+ }
+ 
+ void RecoveryUI::EnqueueKey(int key_code) {
+-  std::lock_guard<std::mutex> lg(key_queue_mutex);
+-  const int queue_max = sizeof(key_queue) / sizeof(key_queue[0]);
+-  if (key_queue_len < queue_max) {
+-    key_queue[key_queue_len++] = key_code;
+-    key_queue_cond.notify_one();
++  std::lock_guard<std::mutex> lg(event_queue_mutex);
++  const int queue_max = sizeof(event_queue) / sizeof(event_queue[0]);
++  if (event_queue_len < queue_max) {
++    InputEvent event(key_code);
++    event_queue[event_queue_len++] = event;
++    event_queue_cond.notify_one();
++  }
++}
++
++void RecoveryUI::EnqueueTouch(const Point& pos) {
++  std::lock_guard<std::mutex> lg(event_queue_mutex);
++  const int queue_max = sizeof(event_queue) / sizeof(event_queue[0]);
++  if (event_queue_len < queue_max) {
++    InputEvent event(pos);
++    event_queue[event_queue_len++] = event;
++    event_queue_cond.notify_one();
+   }
+ }
+ 
+@@ -509,23 +523,23 @@ void RecoveryUI::SetScreensaverState(ScreensaverState state) {
+   }
+ }
+ 
+-int RecoveryUI::WaitKey() {
+-  std::unique_lock<std::mutex> lk(key_queue_mutex);
++RecoveryUI::InputEvent RecoveryUI::WaitInputEvent() {
++  std::unique_lock<std::mutex> lk(event_queue_mutex);
+ 
+   // Check for a saved key queue interruption.
+   if (key_interrupted_) {
+     SetScreensaverState(ScreensaverState::NORMAL);
+-    return static_cast<int>(KeyError::INTERRUPTED);
++    return InputEvent(EventType::EXTRA, KeyError::INTERRUPTED);
+   }
+ 
+   // Time out after UI_WAIT_KEY_TIMEOUT_SEC, unless a USB cable is plugged in.
+   do {
+-    bool rc = key_queue_cond.wait_for(lk, std::chrono::seconds(UI_WAIT_KEY_TIMEOUT_SEC), [this] {
+-      return this->key_queue_len != 0 || key_interrupted_;
++    bool rc = event_queue_cond.wait_for(lk, std::chrono::seconds(UI_WAIT_KEY_TIMEOUT_SEC), [this] {
++      return this->event_queue_len != 0 || key_interrupted_;
+     });
+     if (key_interrupted_) {
+       SetScreensaverState(ScreensaverState::NORMAL);
+-      return static_cast<int>(KeyError::INTERRUPTED);
++      return InputEvent(EventType::EXTRA, KeyError::INTERRUPTED);
+     }
+     if (screensaver_state_ != ScreensaverState::DISABLED) {
+       if (!rc) {
+@@ -538,8 +552,8 @@ int RecoveryUI::WaitKey() {
+       } else if (screensaver_state_ != ScreensaverState::NORMAL) {
+         // Drop the first key if it's changing from OFF to NORMAL.
+         if (screensaver_state_ == ScreensaverState::OFF) {
+-          if (key_queue_len > 0) {
+-            memcpy(&key_queue[0], &key_queue[1], sizeof(int) * --key_queue_len);
++          if (event_queue_len > 0) {
++            memcpy(&event_queue[0], &event_queue[1], sizeof(int) * --event_queue_len);
+           }
+         }
+ 
+@@ -547,14 +561,14 @@ int RecoveryUI::WaitKey() {
+         SetScreensaverState(ScreensaverState::NORMAL);
+       }
+     }
+-  } while (IsUsbConnected() && key_queue_len == 0);
++  } while (IsUsbConnected() && event_queue_len == 0);
+ 
+-  int key = static_cast<int>(KeyError::TIMED_OUT);
+-  if (key_queue_len > 0) {
+-    key = key_queue[0];
+-    memcpy(&key_queue[0], &key_queue[1], sizeof(int) * --key_queue_len);
++  InputEvent event;
++  if (event_queue_len > 0) {
++    event = event_queue[0];
++    memcpy(&event_queue[0], &event_queue[1], sizeof(InputEvent) * --event_queue_len);
+   }
+-  return key;
++  return event;
+ }
+ 
+ void RecoveryUI::CancelWaitKey() {
+@@ -563,10 +577,10 @@ void RecoveryUI::CancelWaitKey() {
+ 
+ void RecoveryUI::InterruptKey() {
+   {
+-    std::lock_guard<std::mutex> lg(key_queue_mutex);
++    std::lock_guard<std::mutex> lg(event_queue_mutex);
+     key_interrupted_ = true;
+   }
+-  key_queue_cond.notify_one();
++  event_queue_cond.notify_one();
+ }
+ 
+ bool RecoveryUI::IsUsbConnected() {
+@@ -610,8 +624,8 @@ bool RecoveryUI::HasTouchScreen() const {
+ }
+ 
+ void RecoveryUI::FlushKeys() {
+-  std::lock_guard<std::mutex> lg(key_queue_mutex);
+-  key_queue_len = 0;
++  std::lock_guard<std::mutex> lg(event_queue_mutex);
++  event_queue_len = 0;
+ }
+ 
+ RecoveryUI::KeyAction RecoveryUI::CheckKey(int key, bool is_long_press) {
+-- 
+2.34.0
+

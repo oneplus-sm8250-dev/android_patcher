@@ -1,0 +1,40 @@
+From 137ba7beb5364bd3d3bd18dda037f13651e868cf Mon Sep 17 00:00:00 2001
+From: Tom Marshall <tdm.code@gmail.com>
+Date: Wed, 23 Aug 2017 22:45:19 +0000
+Subject: [PATCH 02/63] recovery: ui: Default to touch enabled
+
+Change-Id: I048905cda2ea0439338e0dea43029041bff22c00
+---
+ recovery_ui/include/recovery_ui/ui.h | 2 +-
+ recovery_ui/ui.cpp                   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/recovery_ui/include/recovery_ui/ui.h b/recovery_ui/include/recovery_ui/ui.h
+index 512732f9..b89be501 100644
+--- a/recovery_ui/include/recovery_ui/ui.h
++++ b/recovery_ui/include/recovery_ui/ui.h
+@@ -205,7 +205,7 @@ class RecoveryUI {
+   std::string brightness_file_;
+   std::string max_brightness_file_;
+ 
+-  // Whether we should listen for touch inputs (default: false).
++  // Whether we should listen for touch inputs (default: true).
+   bool touch_screen_allowed_;
+ 
+   bool fastbootd_logo_enabled_;
+diff --git a/recovery_ui/ui.cpp b/recovery_ui/ui.cpp
+index 6e67b1d4..f04786ab 100644
+--- a/recovery_ui/ui.cpp
++++ b/recovery_ui/ui.cpp
+@@ -61,7 +61,7 @@ RecoveryUI::RecoveryUI()
+       brightness_dimmed_(25),
+       brightness_file_(BRIGHTNESS_FILE),
+       max_brightness_file_(MAX_BRIGHTNESS_FILE),
+-      touch_screen_allowed_(false),
++      touch_screen_allowed_(true),
+       fastbootd_logo_enabled_(false),
+       touch_low_threshold_(android::base::GetIntProperty("ro.recovery.ui.touch_low_threshold",
+                                                          kDefaultTouchLowThreshold)),
+-- 
+2.34.0
+

@@ -1,0 +1,76 @@
+From 37d0d14082550d6d218b9d345fabd6b852259c38 Mon Sep 17 00:00:00 2001
+From: Michael Bestas <mkbestas@lineageos.org>
+Date: Sat, 16 Jan 2021 18:16:47 +0200
+Subject: [PATCH 58/63] recovery: Add ability to unmount system
+
+* Correct system mount text while we are at it
+
+Change-Id: I955173e84767e61d729fb55b4e53a84e310e786e
+---
+ recovery.cpp           | 27 +++++++++++++++++++--------
+ recovery_ui/device.cpp |  2 +-
+ 2 files changed, 20 insertions(+), 9 deletions(-)
+
+diff --git a/recovery.cpp b/recovery.cpp
+index 82ab1b12..a96b9de4 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -25,6 +25,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <sys/mount.h>
+ #include <sys/types.h>
+ #include <unistd.h>
+ 
+@@ -606,16 +607,26 @@ change_menu:
+         break;
+       }
+ 
+-      case Device::MOUNT_SYSTEM:
+-        // For Virtual A/B, set up the snapshot devices (if exist).
+-        if (!CreateSnapshotPartitions()) {
+-          ui->Print("Virtual A/B: snapshot partitions creation failed.\n");
+-          break;
+-        }
+-        if (ensure_path_mounted_at(android::fs_mgr::GetSystemRoot(), "/mnt/system") != -1) {
+-          ui->Print("Mounted /system.\n");
++      case Device::MOUNT_SYSTEM: {
++        static bool mounted = false;
++        if (!mounted) {
++          // For Virtual A/B, set up the snapshot devices (if exist).
++          if (!logical_partitions_mapped() && !CreateSnapshotPartitions()) {
++            ui->Print("Virtual A/B: snapshot partitions creation failed.\n");
++            break;
++          }
++          if (ensure_path_mounted_at(android::fs_mgr::GetSystemRoot(), "/mnt/system") != -1) {
++            ui->Print("Mounted /mnt/system.\n");
++            mounted = true;
++          }
++        } else {
++          if (umount("/mnt/system") != -1) {
++            ui->Print("Unounted /mnt/system.\n");
++            mounted = false;
++          }
+         }
+         break;
++      }
+ 
+       case Device::KEY_INTERRUPTED:
+         return Device::KEY_INTERRUPTED;
+diff --git a/recovery_ui/device.cpp b/recovery_ui/device.cpp
+index 34c4ce93..a740fbdc 100644
+--- a/recovery_ui/device.cpp
++++ b/recovery_ui/device.cpp
+@@ -42,7 +42,7 @@ static std::vector<menu_action_t> g_advanced_actions{
+   { "Enter fastboot", Device::ENTER_FASTBOOT },
+   { "Reboot to bootloader", Device::REBOOT_BOOTLOADER },
+   { "Reboot to recovery", Device::REBOOT_RECOVERY },
+-  { "Mount /system", Device::MOUNT_SYSTEM },
++  { "Mount/unmount system", Device::MOUNT_SYSTEM },
+   { "View recovery logs", Device::VIEW_RECOVERY_LOGS },
+   { "Enable ADB", Device::ENABLE_ADB },
+   { "Run graphics test", Device::RUN_GRAPHICS_TEST },
+-- 
+2.34.0
+

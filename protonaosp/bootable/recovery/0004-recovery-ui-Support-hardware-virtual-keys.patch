@@ -1,0 +1,321 @@
+From c3f44005c7dd82c09e31296ac223f9226c5ca54e Mon Sep 17 00:00:00 2001
+From: Tom Marshall <tdm.code@gmail.com>
+Date: Thu, 24 Aug 2017 13:50:01 +0000
+Subject: [PATCH 04/63] recovery: ui: Support hardware virtual keys
+
+ * Also swipe left -> KEY_BACK
+
+Change-Id: I6bd8054485d680df35abb86cb79f1dda683e4459
+---
+ install/fuse_install.cpp                 | 11 +++--
+ minui/events.cpp                         |  5 ++-
+ minui/include/minui/minui.h              |  3 +-
+ recovery.cpp                             | 10 ++++-
+ recovery_ui/device.cpp                   | 14 ++++++
+ recovery_ui/include/recovery_ui/device.h |  3 ++
+ recovery_ui/include/recovery_ui/ui.h     |  8 ++++
+ recovery_ui/screen_ui.cpp                |  9 ++++
+ recovery_ui/ui.cpp                       | 57 +++++++++++++++++++++++-
+ 9 files changed, 112 insertions(+), 8 deletions(-)
+
+diff --git a/install/fuse_install.cpp b/install/fuse_install.cpp
+index 143b5d3f..66119144 100644
+--- a/install/fuse_install.cpp
++++ b/install/fuse_install.cpp
+@@ -99,13 +99,16 @@ static std::string BrowseDirectory(const std::string& path, Device* device, Reco
+     if (chosen_item == static_cast<size_t>(RecoveryUI::KeyError::INTERRUPTED)) {
+       return "";
+     }
+-
+-    const std::string& item = entries[chosen_item];
+-    if (chosen_item == 0) {
+-      // Go up but continue browsing (if the caller is BrowseDirectory).
++    if (chosen_item == Device::kGoHome) {
++      return "@";
++    }
++    if (chosen_item == Device::kGoBack || chosen_item == 0) {
++      // Go up but continue browsing (if the caller is browse_directory).
+       return "";
+     }
+ 
++    const std::string& item = entries[chosen_item];
++
+     std::string new_path = path + "/" + item;
+     if (new_path.back() == '/') {
+       // Recurse down into a subdirectory.
+diff --git a/minui/events.cpp b/minui/events.cpp
+index b5c4b9f6..f65b528b 100644
+--- a/minui/events.cpp
++++ b/minui/events.cpp
+@@ -323,7 +323,8 @@ void ev_iterate_available_keys(const std::function<void(int)>& key_detected) {
+   }
+ }
+ 
+-void ev_iterate_touch_inputs(const std::function<void(int)>& key_detected) {
++void ev_iterate_touch_inputs(const std::function<void(int)>& touch_device_detected,
++                             const std::function<void(int)>& key_detected) {
+   for (size_t i = 0; i < g_ev_dev_count; ++i) {
+     // Use unsigned long to match ioctl's parameter type.
+     unsigned long ev_bits[BITS_TO_LONGS(EV_MAX)] = {};  // NOLINT
+@@ -339,6 +340,8 @@ void ev_iterate_touch_inputs(const std::function<void(int)>& key_detected) {
+       continue;
+     }
+ 
++    touch_device_detected(ev_fdinfo[i].fd);
++
+     for (int key_code = 0; key_code <= KEY_MAX; ++key_code) {
+       if (test_bit(key_code, key_bits)) {
+         key_detected(key_code);
+diff --git a/minui/include/minui/minui.h b/minui/include/minui/minui.h
+index 246647e2..2711b79f 100644
+--- a/minui/include/minui/minui.h
++++ b/minui/include/minui/minui.h
+@@ -157,7 +157,8 @@ int ev_init(ev_callback input_cb, bool allow_touch_inputs = false);
+ void ev_exit();
+ int ev_add_fd(android::base::unique_fd&& fd, ev_callback cb);
+ void ev_iterate_available_keys(const std::function<void(int)>& key_detected);
+-void ev_iterate_touch_inputs(const std::function<void(int)>& key_detected);
++void ev_iterate_touch_inputs(const std::function<void(int)>& touch_device_detected,
++                             const std::function<void(int)>& key_detected);
+ int ev_sync_key_state(const ev_set_key_callback& set_key_cb);
+ 
+ // 'timeout' has the same semantics as poll(2).
+diff --git a/recovery.cpp b/recovery.cpp
+index 36924fbd..627bc13c 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -261,7 +261,10 @@ static void choose_recovery_file(Device* device) {
+     if (chosen_item == static_cast<size_t>(RecoveryUI::KeyError::INTERRUPTED)) {
+       break;
+     }
+-    if (entries[chosen_item] == "Back") break;
++    if (chosen_item == Device::kGoHome || chosen_item == Device::kGoBack ||
++        chosen_item == entries.size() - 1) {
++      break;
++    }
+ 
+     device->GetUI()->ShowFile(entries[chosen_item]);
+   }
+@@ -397,6 +400,11 @@ static Device::BuiltinAction PromptAndWait(Device* device, InstallResult status)
+     if (chosen_item == static_cast<size_t>(RecoveryUI::KeyError::INTERRUPTED)) {
+       return Device::KEY_INTERRUPTED;
+     }
++    // We are already in the main menu
++    if (chosen_item == Device::kGoBack || chosen_item == Device::kGoHome) {
++      continue;
++    }
++
+     // Device-specific code may take some action here. It may return one of the core actions
+     // handled in the switch statement below.
+     Device::BuiltinAction chosen_action =
+diff --git a/recovery_ui/device.cpp b/recovery_ui/device.cpp
+index d46df92d..6d5943f5 100644
+--- a/recovery_ui/device.cpp
++++ b/recovery_ui/device.cpp
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (C) 2015 The Android Open Source Project
++ * Copyright (C) 2019 The LineageOS Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -78,18 +79,31 @@ int Device::HandleMenuKey(int key, bool visible) {
+   }
+ 
+   switch (key) {
++    case KEY_RIGHTSHIFT:
+     case KEY_DOWN:
+     case KEY_VOLUMEDOWN:
++    case KEY_MENU:
+       return kHighlightDown;
+ 
+     case KEY_UP:
+     case KEY_VOLUMEUP:
++    case KEY_SEARCH:
+       return kHighlightUp;
+ 
+     case KEY_ENTER:
+     case KEY_POWER:
++    case BTN_MOUSE:
++    case KEY_SEND:
+       return kInvokeItem;
+ 
++    case KEY_HOME:
++    case KEY_HOMEPAGE:
++      return kGoHome;
++
++    case KEY_BACKSPACE:
++    case KEY_BACK:
++      return kGoBack;
++
+     default:
+       // If you have all of the above buttons, any other buttons
+       // are ignored. Otherwise, any button cycles the highlight.
+diff --git a/recovery_ui/include/recovery_ui/device.h b/recovery_ui/include/recovery_ui/device.h
+index 76166f09..9eaccc7b 100644
+--- a/recovery_ui/include/recovery_ui/device.h
++++ b/recovery_ui/include/recovery_ui/device.h
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (C) 2011 The Android Open Source Project
++ * Copyright (C) 2019 The LineageOS Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -35,6 +36,8 @@ class Device {
+   static constexpr const int kHighlightUp = -2;
+   static constexpr const int kHighlightDown = -3;
+   static constexpr const int kInvokeItem = -4;
++  static constexpr const int kGoBack = -5;
++  static constexpr const int kGoHome = -6;
+ 
+   // ENTER vs REBOOT: The latter will trigger a reboot that goes through bootloader, which allows
+   // using a new bootloader / recovery image if applicable. For example, REBOOT_RESCUE goes from
+diff --git a/recovery_ui/include/recovery_ui/ui.h b/recovery_ui/include/recovery_ui/ui.h
+index 143516b2..868c39ce 100644
+--- a/recovery_ui/include/recovery_ui/ui.h
++++ b/recovery_ui/include/recovery_ui/ui.h
+@@ -268,6 +268,7 @@ class RecoveryUI {
+   const int touch_low_threshold_;
+   const int touch_high_threshold_;
+ 
++  void OnTouchDeviceDetected(int fd);
+   void OnKeyDetected(int key_code);
+   void OnTouchEvent();
+   int OnInputEvent(int fd, uint32_t epevents);
+@@ -299,12 +300,19 @@ class RecoveryUI {
+   bool has_down_key;
+   bool has_touch_screen;
+ 
++  struct vkey_t {
++    int keycode;
++    Point min_;
++    Point max_;
++  };
++
+   // Touch event related variables. See the comments in RecoveryUI::OnInputEvent().
+   int touch_slot_;
+   Point touch_pos_;
+   Point touch_start_;
+   bool touch_finger_down_;
+   bool touch_swiping_;
++  std::vector<vkey_t> virtual_keys_;
+   bool is_bootreason_recovery_ui_;
+ 
+   std::thread input_thread_;
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index b2c828f3..1b113688 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -1267,10 +1267,19 @@ size_t ScreenRecoveryUI::ShowMenu(std::unique_ptr<Menu>&& menu, bool menu_only,
+           break;
+         case Device::kNoAction:
+           break;
++        case Device::kGoBack:
++          chosen_item = Device::kGoBack;
++          break;
++        case Device::kGoHome:
++          chosen_item = Device::kGoHome;
++          break;
+       }
+     } else if (!menu_only) {
+       chosen_item = action;
+     }
++    if (chosen_item == Device::kGoBack || chosen_item == Device::kGoHome) {
++      break;
++    }
+   }
+ 
+   menu_.reset();
+diff --git a/recovery_ui/ui.cpp b/recovery_ui/ui.cpp
+index 8e5dd11b..c20e5978 100644
+--- a/recovery_ui/ui.cpp
++++ b/recovery_ui/ui.cpp
+@@ -92,6 +92,48 @@ RecoveryUI::~RecoveryUI() {
+   }
+ }
+ 
++void RecoveryUI::OnTouchDeviceDetected(int fd) {
++  char name[256];
++  char path[PATH_MAX];
++  char buf[4096];
++
++  memset(name, 0, sizeof(name));
++  if (ioctl(fd, EVIOCGNAME(sizeof(name)), name) < 0) {
++    return;
++  }
++  sprintf(path, "/sys/board_properties/virtualkeys.%s", name);
++  int vkfd = open(path, O_RDONLY);
++  if (vkfd < 0) {
++    LOG(INFO) << "vkeys: could not open " << path;
++    return;
++  }
++  ssize_t len = read(vkfd, buf, sizeof(buf));
++  close(vkfd);
++  if (len <= 0) {
++    LOG(ERROR) << "vkeys: could not read " << path;
++    return;
++  }
++  buf[len] = '\0';
++
++  char* p = buf;
++  char* endp;
++  for (size_t n = 0; p < buf + len && *p == '0'; ++n) {
++    int val[6];
++    int f;
++    for (f = 0; *p && f < 6; ++f) {
++      val[f] = strtol(p, &endp, 0);
++      if (p == endp) break;
++      p = endp + 1;
++    }
++    if (f != 6 || val[0] != 0x01) break;
++    vkey_t vk;
++    vk.keycode = val[1];
++    vk.min_ = Point(val[2] - val[4] / 2, val[3] - val[5] / 2);
++    vk.max_ = Point(val[2] + val[4] / 2, val[3] + val[5] / 2);
++    virtual_keys_.push_back(vk);
++  }
++}
++
+ void RecoveryUI::OnKeyDetected(int key_code) {
+   if (key_code == KEY_POWER) {
+     has_power_key = true;
+@@ -159,7 +201,9 @@ bool RecoveryUI::Init(const std::string& /* locale */) {
+   ev_iterate_available_keys(std::bind(&RecoveryUI::OnKeyDetected, this, std::placeholders::_1));
+ 
+   if (touch_screen_allowed_) {
+-    ev_iterate_touch_inputs(std::bind(&RecoveryUI::OnKeyDetected, this, std::placeholders::_1));
++    ev_iterate_touch_inputs(
++        std::bind(&RecoveryUI::OnTouchDeviceDetected, this, std::placeholders::_1),
++        std::bind(&RecoveryUI::OnKeyDetected, this, std::placeholders::_1));
+ 
+     // Parse /proc/cmdline to determine if it's booting into recovery with a bootreason of
+     // "recovery_ui". This specific reason is set by some (wear) bootloaders, to allow an easier way
+@@ -203,6 +247,14 @@ void RecoveryUI::OnTouchEvent() {
+   } else if (abs(delta.x()) < touch_low_threshold_ && abs(delta.y()) > touch_high_threshold_) {
+     direction = delta.y() < 0 ? SwipeDirection::UP : SwipeDirection::DOWN;
+   } else {
++    for (const auto& vk : virtual_keys_) {
++      if (touch_start_.x() >= vk.min_.x() && touch_start_.x() < vk.max_.x() &&
++          touch_start_.y() >= vk.min_.y() && touch_start_.y() < vk.max_.y()) {
++        ProcessKey(vk.keycode, 1);  // press key
++        ProcessKey(vk.keycode, 0);  // and release it
++        return;
++      }
++    }
+     LOG(DEBUG) << "Ignored " << delta.x() << " " << delta.y() << " (low: " << touch_low_threshold_
+                << ", high: " << touch_high_threshold_ << ")";
+     return;
+@@ -227,6 +279,9 @@ void RecoveryUI::OnTouchEvent() {
+       break;
+ 
+     case SwipeDirection::LEFT:
++      ProcessKey(KEY_BACK, 1);  // press back key
++      ProcessKey(KEY_BACK, 0);  // and release it
++      break;
+     case SwipeDirection::RIGHT:
+       ProcessKey(KEY_POWER, 1);  // press power key
+       ProcessKey(KEY_POWER, 0);  // and release it
+-- 
+2.34.0
+

@@ -1,0 +1,35 @@
+From d0927dac0380b0b3334a7580ead1184997d35cd2 Mon Sep 17 00:00:00 2001
+From: Michael Bestas <mkbestas@lineageos.org>
+Date: Fri, 20 Sep 2019 01:12:11 +0300
+Subject: [PATCH 2/2] tinycompress: Conditionally enable extended compress
+ format
+
+Squashed with:
+
+Author: LuK1337 <priv.luk@gmail.com>
+Date:   Thu Oct 15 17:12:12 2020 +0200
+
+    tinycompress: Convert lineage product variables to soong config variables
+
+    Change-Id: I5c0d32b9def67979c74a49d9dc03415a5cc4d2d1
+
+Change-Id: Iac589fcc06bd7cea544475f7d82eaf4af8af2348
+---
+ Android.bp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Android.bp b/Android.bp
+index b47b773..b9775b5 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -21,6 +21,7 @@ license {
+ 
+ cc_library_shared {
+     name: "libtinycompress",
++    defaults: ["extended_compress_format_defaults"],
+     vendor: true,
+ 
+     cflags: [
+-- 
+2.34.0
+

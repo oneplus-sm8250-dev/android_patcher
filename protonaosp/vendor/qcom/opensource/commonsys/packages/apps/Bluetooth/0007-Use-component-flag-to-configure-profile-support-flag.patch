@@ -1,0 +1,67 @@
+From fd1b6c6c7b2dcc360fb42f6b42d98e45378115e4 Mon Sep 17 00:00:00 2001
+From: weichinweng <weichinweng@google.com>
+Date: Fri, 1 Nov 2019 17:56:40 +0800
+Subject: [PATCH 7/8] Use component flag to configure profile support flag.
+
+Previously, the profile support flag is configure by the overlay final
+value. This CL is add the logic to load system config value to configure
+the profile support flag.
+
+Bug: 135048762
+Bug: 143265752
+Test: Check whether the SAP feature is working fine.
+
+Change-Id: If85812a44f6c791c3256d675d5b9be5c93d8e160
+---
+ src/com/android/bluetooth/btservice/Config.java | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/src/com/android/bluetooth/btservice/Config.java b/src/com/android/bluetooth/btservice/Config.java
+index 321af27ec..f01dc1a5c 100644
+--- a/src/com/android/bluetooth/btservice/Config.java
++++ b/src/com/android/bluetooth/btservice/Config.java
+@@ -23,6 +23,7 @@ import android.content.Context;
+ import android.content.res.Resources;
+ import android.media.AudioManager;
+ import android.provider.Settings;
++import android.util.ArrayMap;
+ import android.util.FeatureFlagUtils;
+ import android.util.Log;
+ import android.os.SystemProperties;
+@@ -48,6 +49,7 @@ import com.android.bluetooth.ReflectionUtils;
+ import com.android.bluetooth.sap.SapService;
+ import com.android.bluetooth.apm.ApmConstIntf;
+ import com.android.bluetooth.ba.BATService;
++import com.android.server.SystemConfig;
+ 
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -186,6 +188,11 @@ public class Config {
+         if (resources == null) {
+             return;
+         }
++        SystemConfig systemConfig = SystemConfig.getInstance();
++        ArrayMap<String, Boolean> componentEnabledStates = null;
++        if (systemConfig != null) {
++            componentEnabledStates = systemConfig.getComponentsEnabledStates(ctx.getPackageName());
++        }
+ 
+         if (isAdvAudioAvailable()) {
+             AdapterService.setAdvanceAudioSupport();
+@@ -203,6 +210,13 @@ public class Config {
+                 supported = true;
+             }
+ 
++            if (componentEnabledStates != null
++                    && componentEnabledStates.containsKey(config.mClass.getName())) {
++                supported = componentEnabledStates.get(config.mClass.getName());
++                Log.v(TAG, config.mClass.getSimpleName() + " Feature Flag set to " + supported
++                        + " by components configuration");
++            }
++
+             if (supported && !isProfileDisabled(ctx, config.mMask)) {
+                 if (!addAudioProfiles(config.mClass.getSimpleName())) {
+                     Log.i(TAG, " Profile " + config.mClass.getSimpleName() + " Not added ");
+-- 
+2.34.0
+

@@ -1,0 +1,101 @@
+From 79a9dc92eafac33a023174ce6f5d367013aa0c8e Mon Sep 17 00:00:00 2001
+From: Michael Bestas <mkbestas@lineageos.org>
+Date: Fri, 27 Sep 2019 19:52:13 +0300
+Subject: [PATCH 10/63] recovery: Add wipe system partition option
+
+Change-Id: Id606cef249a7464037443de6265055803c290d82
+---
+ install/include/install/wipe_data.h      |  3 +++
+ install/wipe_data.cpp                    | 12 ++++++++++++
+ recovery.cpp                             | 10 ++++++++++
+ recovery_ui/device.cpp                   |  1 +
+ recovery_ui/include/recovery_ui/device.h |  1 +
+ 5 files changed, 27 insertions(+)
+
+diff --git a/install/include/install/wipe_data.h b/install/include/install/wipe_data.h
+index b34891f3..4c15fff6 100644
+--- a/install/include/install/wipe_data.h
++++ b/install/include/install/wipe_data.h
+@@ -28,3 +28,6 @@ bool WipeCache(RecoveryUI* ui, const std::function<bool()>& confirm);
+ 
+ // Returns true on success.
+ bool WipeData(Device* device, bool convert_fbe);
++
++// Returns true on success.
++bool WipeSystem(RecoveryUI* ui, const std::function<bool()>& confirm);
+\ No newline at end of file
+diff --git a/install/wipe_data.cpp b/install/wipe_data.cpp
+index 78fef95c..082ffb8a 100644
+--- a/install/wipe_data.cpp
++++ b/install/wipe_data.cpp
+@@ -26,6 +26,7 @@
+ #include <android-base/file.h>
+ #include <android-base/logging.h>
+ #include <android-base/stringprintf.h>
++#include <fs_mgr/roots.h>
+ 
+ #include "install/snapshot_utils.h"
+ #include "otautil/dirutil.h"
+@@ -134,3 +135,14 @@ bool WipeData(Device* device, bool convert_fbe) {
+   ui->Print("Data wipe %s.\n", success ? "complete" : "failed");
+   return success;
+ }
++
++bool WipeSystem(RecoveryUI* ui, const std::function<bool()>& confirm_func) {
++  if (confirm_func && !confirm_func()) {
++    return false;
++  }
++
++  ui->Print("\n-- Wiping system...\n");
++  bool success = EraseVolume(android::fs_mgr::GetSystemRoot().c_str(), ui, false);
++  ui->Print("System wipe %s.\n", success ? "complete" : "failed");
++  return success;
++}
+diff --git a/recovery.cpp b/recovery.cpp
+index f6a9e837..61480ac8 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -463,6 +463,16 @@ static Device::BuiltinAction PromptAndWait(Device* device, InstallResult status)
+         break;
+       }
+ 
++      case Device::WIPE_SYSTEM: {
++        save_current_log = true;
++        std::function<bool()> confirm_func = [&device]() {
++          return yes_no(device, "Wipe system?", "  THIS CAN NOT BE UNDONE!");
++        };
++        WipeSystem(ui, ui->IsTextVisible() ? confirm_func : nullptr);
++        if (!ui->IsTextVisible()) return Device::NO_ACTION;
++        break;
++      }
++
+       case Device::APPLY_ADB_SIDELOAD:
+       case Device::APPLY_SDCARD:
+       case Device::ENTER_RESCUE: {
+diff --git a/recovery_ui/device.cpp b/recovery_ui/device.cpp
+index 7d679808..3dd71b1f 100644
+--- a/recovery_ui/device.cpp
++++ b/recovery_ui/device.cpp
+@@ -35,6 +35,7 @@ static std::vector<std::pair<std::string, Device::BuiltinAction>> g_menu_actions
+   { "Apply update from SD card", Device::APPLY_SDCARD },
+   { "Wipe data/factory reset", Device::WIPE_DATA },
+   { "Wipe cache partition", Device::WIPE_CACHE },
++  { "Wipe system partition", Device::WIPE_SYSTEM },
+   { "Mount /system", Device::MOUNT_SYSTEM },
+   { "View recovery logs", Device::VIEW_RECOVERY_LOGS },
+   { "Run graphics test", Device::RUN_GRAPHICS_TEST },
+diff --git a/recovery_ui/include/recovery_ui/device.h b/recovery_ui/include/recovery_ui/device.h
+index 98120e02..d6e94fcc 100644
+--- a/recovery_ui/include/recovery_ui/device.h
++++ b/recovery_ui/include/recovery_ui/device.h
+@@ -67,6 +67,7 @@ class Device {
+     REBOOT_RESCUE = 19,
+     REBOOT_FROM_FASTBOOT = 20,
+     SHUTDOWN_FROM_FASTBOOT = 21,
++    WIPE_SYSTEM = 100,
+   };
+ 
+   explicit Device(RecoveryUI* ui);
+-- 
+2.34.0
+

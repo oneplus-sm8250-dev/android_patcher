@@ -1,0 +1,32 @@
+From b77547eb11e656755078547d4ae94a03ad6bc186 Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Mon, 5 Oct 2020 15:11:36 +0200
+Subject: [PATCH 47/63] recovery: Always use the text menu for rescue party
+
+* Until now, we were relying on:
+    Graphic surface doesn't fit into the screen. [...]
+    Failed to initialize graphic menu, falling back to use the text menu.
+
+Change-Id: I22ced1a735fc82e15b67b826a730c593dcbb788f
+---
+ recovery_ui/screen_ui.cpp | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index 25c84f9d..632995ef 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -1502,9 +1502,7 @@ size_t ScreenRecoveryUI::ShowMenu(const std::vector<std::string>& headers,
+ size_t ScreenRecoveryUI::ShowPromptWipeDataMenu(const std::vector<std::string>& backup_headers,
+                                                 const std::vector<std::string>& backup_items,
+                                                 const std::function<int(int, bool)>& key_handler) {
+-  auto wipe_data_menu = CreateMenu(wipe_data_menu_header_text_.get(),
+-                                   { try_again_text_.get(), factory_data_reset_text_.get() },
+-                                   backup_headers, backup_items, 0);
++  auto wipe_data_menu = CreateMenu(backup_headers, backup_items, 0);
+   if (wipe_data_menu == nullptr) {
+     return 0;
+   }
+-- 
+2.34.0
+

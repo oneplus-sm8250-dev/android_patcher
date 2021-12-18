@@ -1,0 +1,148 @@
+From d4bbbb258b0c0a474c3ea736441f101deb0a9476 Mon Sep 17 00:00:00 2001
+From: Tom Marshall <tdm.code@gmail.com>
+Date: Thu, 21 Jun 2018 00:57:24 +0200
+Subject: [PATCH 49/63] recovery: Allow bypassing signature verification on
+ non-release builds
+
+For non-release (userdebug, eng) builds, when signature verification
+fails, ask the user whether they wish to install anyway.
+
+[aleasto]
+Rewritten to minimize the diff footprint for maintainability
+
+Change-Id: I950ad455e6f698cabe348f0482eb64287cc88a08
+---
+ install/install.cpp                  |  7 ++++++-
+ recovery.cpp                         |  9 +++++++++
+ recovery.h                           |  2 ++
+ recovery_main.cpp                    |  2 +-
+ recovery_ui/device.cpp               |  1 +
+ recovery_ui/include/recovery_ui/ui.h | 12 ++++++++++++
+ 6 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/install/install.cpp b/install/install.cpp
+index 49f30a35..ca25a77b 100644
+--- a/install/install.cpp
++++ b/install/install.cpp
+@@ -54,12 +54,15 @@
+ #include "otautil/paths.h"
+ #include "otautil/sysutil.h"
+ #include "private/setup_commands.h"
++#include "recovery_ui/device.h"
+ #include "recovery_ui/ui.h"
+ #include "recovery_utils/roots.h"
+ #include "recovery_utils/thermalutil.h"
+ 
+ using namespace std::chrono_literals;
+ 
++bool ask_to_continue_unverified(Device* device);
++
+ static constexpr int kRecoveryApiVersion = 3;
+ // We define RECOVERY_API_VERSION in Android.mk, which will be picked up by build system and packed
+ // into target_files.zip. Assert the version defined in code and in Android.mk are consistent.
+@@ -540,7 +543,9 @@ static InstallResult VerifyAndInstallPackage(Package* package, bool* wipe_cache,
+   // Verify package.
+   if (!verify_package(package, ui)) {
+     log_buffer->push_back(android::base::StringPrintf("error: %d", kZipVerificationFailure));
+-    return INSTALL_CORRUPT;
++    if (!ui->IsTextVisible() || !ask_to_continue_unverified(ui->GetDevice())) {
++        return INSTALL_CORRUPT;
++    }
+   }
+ 
+   // Verify and install the contents of the package.
+diff --git a/recovery.cpp b/recovery.cpp
+index ee2e6279..fe2ea3ec 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -169,6 +169,15 @@ static bool yes_no(Device* device, const char* question1, const char* question2)
+   return (chosen_item == 1);
+ }
+ 
++bool ask_to_continue_unverified(Device* device) {
++  if (get_build_type() == "user") {
++    return false;
++  } else {
++    device->GetUI()->SetProgressType(RecoveryUI::EMPTY);
++    return yes_no(device, "Signature verification failed", "Install anyway?");
++  }
++}
++
+ static bool ask_to_wipe_data(Device* device) {
+   std::vector<std::string> headers{ "Format user data?", "This includes internal storage.", "THIS CANNOT BE UNDONE!" };
+   std::vector<std::string> items{ " Cancel", " Format data" };
+diff --git a/recovery.h b/recovery.h
+index f050549c..08bacbf0 100644
+--- a/recovery.h
++++ b/recovery.h
+@@ -22,3 +22,5 @@
+ #include "recovery_ui/device.h"
+ 
+ Device::BuiltinAction start_recovery(Device* device, const std::vector<std::string>& args);
++
++std::string get_build_type();
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index ab27f11e..73f294a2 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -77,7 +77,7 @@ static bool IsDeviceUnlocked() {
+   return "orange" == android::base::GetProperty("ro.boot.verifiedbootstate", "");
+ }
+ 
+-static std::string get_build_type() {
++std::string get_build_type() {
+   return android::base::GetProperty("ro.build.type", "");
+ }
+ 
+diff --git a/recovery_ui/device.cpp b/recovery_ui/device.cpp
+index 0e96b1e9..4408c9f7 100644
+--- a/recovery_ui/device.cpp
++++ b/recovery_ui/device.cpp
+@@ -74,6 +74,7 @@ static void PopulateMenuItems() {
+ }
+ 
+ Device::Device(RecoveryUI* ui) : ui_(ui) {
++  ui->SetDevice(this);
+   PopulateMenuItems();
+ }
+ 
+diff --git a/recovery_ui/include/recovery_ui/ui.h b/recovery_ui/include/recovery_ui/ui.h
+index d750d7a1..3a944c84 100644
+--- a/recovery_ui/include/recovery_ui/ui.h
++++ b/recovery_ui/include/recovery_ui/ui.h
+@@ -28,6 +28,8 @@
+ #include <thread>
+ #include <vector>
+ 
++class Device;
++
+ static constexpr const char* DEFAULT_LOCALE = "en-US";
+ 
+ /*
+@@ -144,6 +146,14 @@ class RecoveryUI {
+ 
+   virtual ~RecoveryUI();
+ 
++  void SetDevice(Device* device) {
++    device_ = device;
++  }
++
++  Device* GetDevice() {
++    return device_;
++  }
++
+   // Initializes the object; called before anything else. UI texts will be initialized according
+   // to the given locale. Returns true on success.
+   virtual bool Init(const std::string& locale);
+@@ -306,6 +316,8 @@ class RecoveryUI {
+     OFF,
+   };
+ 
++  Device* device_;
++
+   // The sensitivity when detecting a swipe.
+   const int touch_low_threshold_;
+   const int touch_high_threshold_;
+-- 
+2.34.0
+

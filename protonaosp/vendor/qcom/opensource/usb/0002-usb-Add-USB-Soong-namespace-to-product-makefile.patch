@@ -1,0 +1,26 @@
+From af84e2fbd3c15ca0b3152e7a66d26d27f2ad31bf Mon Sep 17 00:00:00 2001
+From: Alexander Koskovich <zvnexus@outlook.com>
+Date: Sat, 21 Aug 2021 18:55:29 -0700
+Subject: [PATCH 2/3] usb: Add USB Soong namespace to product makefile.
+
+ * If this product makefile is picked up the likelihood
+   of wanting to use the included USB scripts is high.
+
+Change-Id: I3c0bdc5fd99c68376ad1a548ed3f595550bc5973
+---
+ vendor_product.mk | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/vendor_product.mk b/vendor_product.mk
+index dc996c6..c30877d 100644
+--- a/vendor_product.mk
++++ b/vendor_product.mk
+@@ -1,3 +1,5 @@
++PRODUCT_SOONG_NAMESPACES += vendor/qcom/opensource/usb/etc
++
+ # USB init scripts
+ PRODUCT_PACKAGES += init.qcom.usb.rc init.qcom.usb.sh
+ 
+-- 
+2.34.0
+

@@ -1,0 +1,48 @@
+From 6fe298534151795476153ed14a99211466752746 Mon Sep 17 00:00:00 2001
+From: Richard Hansen <rhansen@rhansen.org>
+Date: Mon, 4 May 2020 20:46:09 -0400
+Subject: [PATCH 44/63] recovery: Remove the "Format system partition" menu on
+ A/B devices
+
+Addresses https://gitlab.com/LineageOS/issues/android/-/issues/1893
+
+Change-Id: I05351055ff0d67d67e5cbe295492e7ed553c2c53
+---
+ install/install.cpp | 2 +-
+ recovery_main.cpp   | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/install/install.cpp b/install/install.cpp
+index 2eb5051c..49f30a35 100644
+--- a/install/install.cpp
++++ b/install/install.cpp
+@@ -339,7 +339,7 @@ static InstallResult TryUpdateBinary(Package* package, bool* wipe_cache,
+   auto zip = package->GetZipArchiveHandle();
+   bool has_metadata = ReadMetadataFromPackage(zip, &metadata);
+ 
+-  bool package_is_ab = !has_metadata && get_value(metadata, "ota-type") == OtaTypeToString(OtaType::AB);
++  bool package_is_ab = has_metadata && get_value(metadata, "ota-type") == OtaTypeToString(OtaType::AB);
+   bool device_supports_ab = android::base::GetBoolProperty("ro.build.ab_update", false);
+   bool ab_device_supports_nonab = true;
+   bool device_only_supports_ab = device_supports_ab && !ab_device_supports_nonab;
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index a712af68..303aa1da 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -470,6 +470,13 @@ int main(int argc, char** argv) {
+     device->RemoveMenuItemForAction(Device::WIPE_CACHE);
+   }
+ 
++  if (android::base::GetBoolProperty("ro.build.ab_update", false)) {
++    // There's not much point in formatting the active slot's system partition
++    // because ROMs are flashed to the inactive slot. Removing the menu option
++    // prevents users from accidentally trashing a functioning ROM.
++    device->RemoveMenuItemForAction(Device::WIPE_SYSTEM);
++  }
++
+   if (!android::base::GetBoolProperty("ro.boot.dynamic_partitions", false) &&
+       !android::base::GetBoolProperty("ro.fastbootd.available", false)) {
+     device->RemoveMenuItemForAction(Device::ENTER_FASTBOOT);
+-- 
+2.34.0
+

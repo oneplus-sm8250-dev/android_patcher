@@ -1,0 +1,37 @@
+From 97624668be81a3e2c4167c9db5aac30c2d9f46db Mon Sep 17 00:00:00 2001
+From: dianlujitao <dianlujitao@lineageos.org>
+Date: Sun, 3 Oct 2021 10:45:31 +0200
+Subject: [PATCH 3/3] init.qcom.usb.rc: Don't apply persist.vendor.usb.config
+
+ * Otherwise adb turns on after reboot every time.
+
+Change-Id: I66631f1f38a3e3a16e6d3dad87c83d0a98e6f851
+---
+ etc/init.qcom.usb.rc | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/etc/init.qcom.usb.rc b/etc/init.qcom.usb.rc
+index 647fe94..05a32b0 100644
+--- a/etc/init.qcom.usb.rc
++++ b/etc/init.qcom.usb.rc
+@@ -109,7 +109,6 @@ on boot
+     exec u:r:vendor_qti_init_shell:s0 -- /vendor/bin/init.qcom.usb.sh
+     write /config/usb_gadget/g1/strings/0x409/product ${vendor.usb.product_string}
+     write /config/usb_gadget/g2/strings/0x409/product ${vendor.usb.product_string}
+-    setprop sys.usb.config ${persist.vendor.usb.config}
+ 
+ on boot && property:vendor.usb.use_ffs_mtp=1
+    mkdir /config/usb_gadget/g1/functions/ffs.mtp
+@@ -123,9 +122,6 @@ on property:vendor.usb.controller=*
+    setprop sys.usb.controller ${vendor.usb.controller}
+    setprop sys.usb.configfs 1
+ 
+-on property:persist.vendor.usb.config=*
+-    setprop persist.sys.usb.config ${persist.vendor.usb.config}
+-
+ on boot && property:ro.boot.usbconfigfs=true
+         setprop sys.usb.configfs 1
+ 
+-- 
+2.34.0
+

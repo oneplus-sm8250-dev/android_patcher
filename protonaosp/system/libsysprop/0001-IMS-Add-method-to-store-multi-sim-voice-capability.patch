@@ -1,0 +1,37 @@
+From 88794250fb22ac9b287970a994a0bc73f767e65c Mon Sep 17 00:00:00 2001
+From: Suresh Koleti <skoleti@codeaurora.org>
+Date: Mon, 21 Jun 2021 20:02:28 +0530
+Subject: [PATCH] IMS: Add method to store multi sim voice capability
+
+- Add new method multi_sim_voice_capability to
+  set/get multi sim voice capability.
+
+Change-Id: Id72dfc50f35f8d7251a31f6f7f67fd294f3981da
+CRs-Fixed: 2989022
+---
+ srcs/android/sysprop/TelephonyProperties.sysprop | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/srcs/android/sysprop/TelephonyProperties.sysprop b/srcs/android/sysprop/TelephonyProperties.sysprop
+index 15999e7..cad22ff 100644
+--- a/srcs/android/sysprop/TelephonyProperties.sysprop
++++ b/srcs/android/sysprop/TelephonyProperties.sysprop
+@@ -468,3 +468,15 @@ prop {
+     access: Readonly
+     prop_name: "ro.telephony.sim_slots.count"
+ }
++
++#
++# System property which is used to store multi sim voice capability.
++# Possible values {@link TelephonyManager#MultiSimVoiceCapability}.
++#
++prop {
++    api_name: "multi_sim_voice_capability"
++    type: Integer
++    scope: Internal
++    access: ReadWrite
++    prop_name: "ril.multisim.voice_capability"
++}
+-- 
+2.34.0
+

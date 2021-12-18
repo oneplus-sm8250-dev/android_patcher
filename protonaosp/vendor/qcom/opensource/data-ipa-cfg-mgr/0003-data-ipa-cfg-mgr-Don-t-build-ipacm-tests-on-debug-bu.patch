@@ -1,0 +1,26 @@
+From 9908ad4be16e062a487e3da2aad4cb3b58738263 Mon Sep 17 00:00:00 2001
+From: Steve Kondik <steve@cyngn.com>
+Date: Wed, 31 Aug 2016 22:29:11 -0700
+Subject: [PATCH 3/7] data-ipa-cfg-mgr: Don't build ipacm tests on debug builds
+
+Change-Id: I1fd4a4bafc917586ee391fbf6df0da1d12212d36
+---
+ ipanat/test/Android.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipanat/test/Android.mk b/ipanat/test/Android.mk
+index 4c5f5a7..a6bb4b0 100644
+--- a/ipanat/test/Android.mk
++++ b/ipanat/test/Android.mk
+@@ -41,7 +41,7 @@ LOCAL_SRC_FILES := ipa_nat_test000.c \
+ 
+ LOCAL_SHARED_LIBRARIES := libipanat
+ 
+-LOCAL_MODULE_TAGS := debug
++LOCAL_MODULE_TAGS := tests
+ LOCAL_MODULE_PATH := $(TARGET_OUT_DATA)/kernel-tests/ip_accelerator
+ 
+ include $(BUILD_EXECUTABLE)
+-- 
+2.34.0
+

@@ -1,0 +1,71 @@
+From 972aa77b3fe96f733e9781b24c71782e37976edf Mon Sep 17 00:00:00 2001
+From: Vitalii Kulikov <solk@solk.org.ua>
+Date: Mon, 16 Jan 2017 22:36:29 +0100
+Subject: [PATCH 51/63] minui: Allow skipping EV_REL input devices.
+
+This is causing recovery to skip real input devices on some
+samsung phones where sensors are registered as input devices.
+So there more then 16 of them. (ex. ks01lte)
+And EV_REL input devices already disabled in recovery ui.cpp if
+BOARD_RECOVERY_NEEDS_REL_INPUT is not set. So do same here not to exceed
+the limit of MAX_DEVICES
+
+[javelinanddart]: Move this to an opt-in flag so that we can document
+  what devices need this in the device tree, since otherwise we'll
+  forget to port this and what devices need this flag. Additionally,
+  an opt-in flag makes more sense for select devices needing
+  non-standard behavior. The flag is used as follows:
+  TARGET_RECOVERY_SKIP_EV_REL_INPUT := true
+
+[aleasto]: Move from a compiletime flag to a runtime prop
+
+Change-Id: If3d6e29d00229278a8ef3dfa445393c9f3d5f361
+(cherry picked from commit 331afccf4a9b81ddf22500872b7260b532e15c41)
+(cherry picked from commit e7597e934e909112c462024e49a5f43af9bbe341)
+---
+ minui/events.cpp | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/minui/events.cpp b/minui/events.cpp
+index f65b528b..9dd28e87 100644
+--- a/minui/events.cpp
++++ b/minui/events.cpp
+@@ -30,6 +30,7 @@
+ #include <functional>
+ #include <memory>
+ 
++#include <android-base/properties.h>
+ #include <android-base/unique_fd.h>
+ 
+ #include "minui/minui.h"
+@@ -61,6 +62,11 @@ static size_t g_ev_count = 0;
+ static size_t g_ev_dev_count = 0;
+ static size_t g_ev_misc_count = 0;
+ 
++static bool should_skip_ev_rel() {
++  static bool prop = android::base::GetBoolProperty("ro.recovery.skip_ev_rel_input", false);
++  return prop;
++}
++
+ static bool test_bit(size_t bit, unsigned long* array) { // NOLINT
+   return (array[bit / BITS_PER_LONG] & (1UL << (bit % BITS_PER_LONG))) != 0;
+ }
+@@ -74,9 +80,12 @@ static bool should_add_input_device(int fd, bool allow_touch_inputs) {
+     return false;
+   }
+ 
+-  // We assume that only EV_KEY, EV_REL, and EV_SW event types are ever needed. EV_ABS is also
+-  // allowed if allow_touch_inputs is set.
+-  if (!test_bit(EV_KEY, ev_bits) && !test_bit(EV_REL, ev_bits) && !test_bit(EV_SW, ev_bits)) {
++  // We assume that only EV_ABS, EV_KEY, EV_REL, and EV_SW event types are ever needed.
++  // EV_ABS is only allowed if allow_touch_inputs is set.
++  // EV_REL can be explicitly disallowed. This is needed to skip sensor inputs on some devices.
++  if (!test_bit(EV_KEY, ev_bits) &&
++      !test_bit(EV_SW, ev_bits) &&
++      (should_skip_ev_rel() || !test_bit(EV_REL, ev_bits))) {
+     if (!allow_touch_inputs || !test_bit(EV_ABS, ev_bits)) {
+       return false;
+     }
+-- 
+2.34.0
+

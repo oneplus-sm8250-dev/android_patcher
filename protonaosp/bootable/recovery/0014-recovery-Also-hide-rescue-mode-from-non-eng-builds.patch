@@ -1,0 +1,27 @@
+From b0f005cf64bba78b9bca09388144c1caaa943af4 Mon Sep 17 00:00:00 2001
+From: Michael Bestas <mkbestas@lineageos.org>
+Date: Fri, 27 Sep 2019 20:30:04 +0300
+Subject: [PATCH 14/63] recovery: Also hide rescue mode from non eng builds
+
+Change-Id: I071f3baa6f6ee672a6d76fc7cb8b6a65b4988027
+---
+ recovery_main.cpp | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index 21dcdad5..9787f6d7 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -451,9 +451,6 @@ int main(int argc, char** argv) {
+   if (get_build_type() != "eng") {
+     device->RemoveMenuItemForAction(Device::RUN_GRAPHICS_TEST);
+     device->RemoveMenuItemForAction(Device::RUN_LOCALE_TEST);
+-  }
+-
+-  if (!IsRoDebuggable()) {
+     device->RemoveMenuItemForAction(Device::ENTER_RESCUE);
+   }
+ 
+-- 
+2.34.0
+

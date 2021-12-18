@@ -1,0 +1,32 @@
+From 01b6af629097fb6c0716571bdfb455cd394a8880 Mon Sep 17 00:00:00 2001
+From: Alexander Koskovich <zvnexus@outlook.com>
+Date: Mon, 9 Nov 2020 12:04:33 -0700
+Subject: [PATCH 7/7] ipacm: Remove arch check.
+
+ * Being apart of a component doesn't give this access to arch,
+   it's a really dumb check anyways so remove it.
+
+Change-Id: Ieb0d93523aefde005c1fa183be58134b7167d069
+---
+ ipacm_vendor_product.mk | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/ipacm_vendor_product.mk b/ipacm_vendor_product.mk
+index 969d537..74c64c3 100644
+--- a/ipacm_vendor_product.mk
++++ b/ipacm_vendor_product.mk
+@@ -46,11 +46,9 @@ BOARD_ETH_BRIDGE_LIST += kona
+ 
+ ifneq ($(call is-board-platform-in-list,$(BOARD_PLATFORM_LIST)),true)
+ ifneq (,$(filter $(QCOM_BOARD_PLATFORMS),$(TARGET_BOARD_PLATFORM)))
+-ifneq (, $(filter aarch64 arm arm64, $(TARGET_ARCH)))
+ 
+ PRODUCT_PACKAGES += $(IPACM_DATA)
+ 
+-endif # $(TARGET_ARCH)
+ endif
+ endif
+ endif
+-- 
+2.34.0
+

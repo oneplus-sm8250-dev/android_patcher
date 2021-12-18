@@ -1,0 +1,129 @@
+From deced734ebb2824fa2d8b2acdc749ce857930d3f Mon Sep 17 00:00:00 2001
+From: Steve Kondik <shade@chemlab.org>
+Date: Sat, 19 Oct 2013 19:49:20 -0700
+Subject: [PATCH 17/63] recovery: Get a proper shell environment in recovery
+
+ * Root ADB shell by default
+ * Try and get adb_keys from /data
+ * Nicer mkshrc
+ * Build a reboot command
+
+Change-Id: I80b0e2aa5eb7142eaa9f157709f4e029077d8dfa
+---
+ Android.bp        |  4 ++++
+ recovery_main.cpp | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)
+
+diff --git a/Android.bp b/Android.bp
+index 52de7703..30bb7e13 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -1,4 +1,5 @@
+ // Copyright (C) 2018 The Android Open Source Project
++// Copyright (C) 2019 The LineageOS Project
+ //
+ // Licensed under the Apache License, Version 2.0 (the "License");
+ // you may not use this file except in compliance with the License.
+@@ -161,6 +162,7 @@ cc_binary {
+     ],
+ 
+     static_libs: [
++        "libc++fs",
+         "librecovery",
+         "librecovery_ui_default",
+     ],
+@@ -172,6 +174,8 @@ cc_binary {
+         "minadbd",
+         "mke2fs.conf.recovery",
+         "mke2fs.recovery",
++        "mkshrc.recovery",
++        "reboot.recovery",
+         "recovery_deps",
+         "ueventd.rc.recovery",
+     ],
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index bce3309a..02710f7c 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (C) 2018 The Android Open Source Project
++ * Copyright (C) 2019 The LineageOS Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -31,6 +32,7 @@
+ #include <unistd.h>
+ 
+ #include <atomic>
++#include <filesystem>
+ #include <string>
+ #include <thread>
+ #include <vector>
+@@ -60,6 +62,8 @@
+ #include "recovery_utils/logging.h"
+ #include "recovery_utils/roots.h"
+ 
++namespace fs = std::filesystem;
++
+ static constexpr const char* COMMAND_FILE = "/cache/recovery/command";
+ static constexpr const char* LOCALE_FILE = "/cache/recovery/last_locale";
+ 
+@@ -77,6 +81,9 @@ static std::string get_build_type() {
+   return android::base::GetProperty("ro.build.type", "");
+ }
+ 
++static constexpr const char* adb_keys_data = "/data/misc/adb/adb_keys";
++static constexpr const char* adb_keys_root = "/adb_keys";
++
+ static void UiLogger(android::base::LogId /* id */, android::base::LogSeverity severity,
+                      const char* /* tag */, const char* /* file */, unsigned int /* line */,
+                      const char* message) {
+@@ -190,6 +197,20 @@ static std::string load_locale_from_cache() {
+   return android::base::Trim(content);
+ }
+ 
++static void copy_userdata_files() {
++  if (ensure_path_mounted("/data") == 0) {
++    if (access(adb_keys_root, F_OK) != 0) {
++      if (access(adb_keys_data, R_OK) == 0) {
++        std::error_code ec;  // to invoke the overloaded copy_file() that won't throw.
++        if (!fs::copy_file(adb_keys_data, adb_keys_root, ec)) {
++          PLOG(ERROR) << "Failed to copy adb keys";
++        }
++      }
++    }
++    ensure_path_unmounted("/data");
++  }
++}
++
+ // Sets the usb config to 'state'.
+ static bool SetUsbConfig(const std::string& state) {
+   android::base::SetProperty("sys.usb.config", state);
+@@ -334,6 +355,10 @@ int main(int argc, char** argv) {
+   // Take action to refresh pmsg contents
+   __android_log_pmsg_file_read(LOG_ID_SYSTEM, ANDROID_LOG_INFO, filter, logrotate, &do_rotate);
+ 
++  // Clear umask for packages that copy files out to /tmp and then over
++  // to /system without properly setting all permissions (eg. gapps).
++  umask(0);
++
+   time_t start = time(nullptr);
+ 
+   // redirect_stdio should be called only in non-sideload mode. Otherwise we may have two logger
+@@ -477,6 +502,12 @@ int main(int argc, char** argv) {
+   std::thread listener_thread(ListenRecoverySocket, ui, std::ref(action));
+   listener_thread.detach();
+ 
++  // Set up adb_keys and enable root before starting ADB.
++  if (IsRoDebuggable() && !fastboot) {
++    copy_userdata_files();
++    android::base::SetProperty("service.adb.root", "1");
++  }
++
+   while (true) {
+     // We start adbd in recovery for the device with userdebug build or a unlocked bootloader.
+     std::string usb_config =
+-- 
+2.34.0
+

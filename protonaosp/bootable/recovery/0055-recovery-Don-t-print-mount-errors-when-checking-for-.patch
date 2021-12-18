@@ -1,0 +1,58 @@
+From 3d785c2d8f2b4e5a86038f401853c821aa7bfab9 Mon Sep 17 00:00:00 2001
+From: Alessandro <ales.astone@gmail.com>
+Date: Mon, 6 Apr 2020 23:55:07 +0200
+Subject: [PATCH 55/63] recovery: Don't print mount errors when checking for
+ encryption
+
+Change-Id: Ibd57b8bdb9c942edb16fa5b9e4664ed66864b180
+---
+ recovery_main.cpp                 | 2 ++
+ volume_manager/EmulatedVolume.cpp | 5 ++++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index 73f294a2..c105e71b 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -198,6 +198,7 @@ static std::string load_locale_from_cache() {
+ }
+ 
+ static void copy_userdata_files() {
++  android::base::SetLogger(android::base::StdioLogger);
+   if (ensure_path_mounted("/data") == 0) {
+     if (access(adb_keys_root, F_OK) != 0) {
+       if (access(adb_keys_data, R_OK) == 0) {
+@@ -209,6 +210,7 @@ static void copy_userdata_files() {
+     }
+     ensure_path_unmounted("/data");
+   }
++  android::base::SetLogger(UiLogger);
+ }
+ 
+ // Sets the usb config to 'state'.
+diff --git a/volume_manager/EmulatedVolume.cpp b/volume_manager/EmulatedVolume.cpp
+index d0e0dcf4..88eb7d98 100644
+--- a/volume_manager/EmulatedVolume.cpp
++++ b/volume_manager/EmulatedVolume.cpp
+@@ -25,6 +25,7 @@
+ #include <cutils/fs.h>
+ #include <private/android_filesystem_config.h>
+ 
++#include <iostream>
+ #include <fcntl.h>
+ #include <stdlib.h>
+ #include <sys/mount.h>
+@@ -70,7 +71,9 @@ status_t EmulatedVolume::doMount() {
+ 
+     if (::mount(mDevPath.c_str(), kStagingPath.c_str(), mFsType.c_str(), mFlags,
+                 mFsOptions.c_str()) != 0) {
+-        PLOG(ERROR) << getId() << " failed to mount " << mDevPath << " on " << kStagingPath;
++        // It's ok to fail mounting if we're encrytped, so avoid printing to recovery's UiLogger
++        std::cout << getId() << " failed to mount " << mDevPath << " on " << kStagingPath
++                  << ": " << std::strerror(errno);
+         return -EIO;
+     }
+     if (BindMount(bindPath, getPath()) != OK) {
+-- 
+2.34.0
+

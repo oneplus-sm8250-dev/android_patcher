@@ -1,0 +1,52 @@
+From 4677d73ea1ba309e1441a8d12ab2545373908098 Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Wed, 26 Feb 2020 17:25:54 +0100
+Subject: [PATCH 23/63] recovery: allow opting-in to fastbootd
+
+Change-Id: Id8228c0782f4520779d3a2116ea11015b64c13c3
+---
+ recovery_main.cpp         | 6 ++++--
+ recovery_ui/screen_ui.cpp | 3 ++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index 02710f7c..dd7e9991 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -405,7 +405,8 @@ int main(int argc, char** argv) {
+         } else if (option == "reason") {
+           reason = optarg;
+         } else if (option == "fastboot" &&
+-                   android::base::GetBoolProperty("ro.boot.dynamic_partitions", false)) {
++                   (android::base::GetBoolProperty("ro.boot.dynamic_partitions", false) ||
++                    android::base::GetBoolProperty("ro.fastbootd.available", false))) {
+           fastboot = true;
+         }
+         break;
+@@ -469,7 +470,8 @@ int main(int argc, char** argv) {
+     device->RemoveMenuItemForAction(Device::WIPE_CACHE);
+   }
+ 
+-  if (!android::base::GetBoolProperty("ro.boot.dynamic_partitions", false)) {
++  if (!android::base::GetBoolProperty("ro.boot.dynamic_partitions", false) &&
++      !android::base::GetBoolProperty("ro.fastbootd.available", false)) {
+     device->RemoveMenuItemForAction(Device::ENTER_FASTBOOT);
+   }
+ 
+diff --git a/recovery_ui/screen_ui.cpp b/recovery_ui/screen_ui.cpp
+index be98907d..339e3104 100644
+--- a/recovery_ui/screen_ui.cpp
++++ b/recovery_ui/screen_ui.cpp
+@@ -942,7 +942,8 @@ bool ScreenRecoveryUI::Init(const std::string& locale) {
+   no_command_text_ = LoadLocalizedBitmap("no_command_text");
+   error_text_ = LoadLocalizedBitmap("error_text");
+ 
+-  if (android::base::GetBoolProperty("ro.boot.dynamic_partitions", false)) {
++  if (android::base::GetBoolProperty("ro.boot.dynamic_partitions", false) ||
++      android::base::GetBoolProperty("ro.fastbootd.available", false)) {
+     fastbootd_logo_ = LoadBitmap("fastbootd");
+   }
+ 
+-- 
+2.34.0
+

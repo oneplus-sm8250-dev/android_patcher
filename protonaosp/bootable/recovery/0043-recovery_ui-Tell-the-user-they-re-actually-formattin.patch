@@ -1,0 +1,69 @@
+From c211615632a34a86a601308e8847c23093fe0caf Mon Sep 17 00:00:00 2001
+From: Nolen Johnson <johnsonnolen@gmail.com>
+Date: Sun, 12 Apr 2020 14:13:31 -0400
+Subject: [PATCH 43/63] recovery_ui: Tell the user they're actually formatting
+
+* TWRP has given user the sentiment that "Wiping data",
+  and "Factory Reset" both imply the exclusion of
+  files in `/data/media/0` (/sdcard), whereas both AOSP
+  (and Lineage Recovery by proxy) format the partitions.
+
+Change-Id: I36c5a59552d7d538a05762ca262e42dc78a1deac
+---
+ recovery.cpp           | 8 ++++----
+ recovery_ui/device.cpp | 6 +++---
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/recovery.cpp b/recovery.cpp
+index e8593a96..64a72059 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -170,8 +170,8 @@ static bool yes_no(Device* device, const char* question1, const char* question2)
+ }
+ 
+ static bool ask_to_wipe_data(Device* device) {
+-  std::vector<std::string> headers{ "Wipe all user data?", "  THIS CAN NOT BE UNDONE!" };
+-  std::vector<std::string> items{ " Cancel", " Factory data reset" };
++  std::vector<std::string> headers{ "Format user data?", "This includes internal storage.", "THIS CANNOT BE UNDONE!" };
++  std::vector<std::string> items{ " Cancel", " Format data" };
+ 
+   size_t chosen_item = device->GetUI()->ShowMenu(
+       headers, items, 0, true,
+@@ -459,7 +459,7 @@ change_menu:
+       case Device::WIPE_CACHE: {
+         save_current_log = true;
+         std::function<bool()> confirm_func = [&device]() {
+-          return yes_no(device, "Wipe cache?", "  THIS CAN NOT BE UNDONE!");
++          return yes_no(device, "Format cache?", "  THIS CAN NOT BE UNDONE!");
+         };
+         WipeCache(ui, ui->IsTextVisible() ? confirm_func : nullptr);
+         if (!ui->IsTextVisible()) return Device::NO_ACTION;
+@@ -469,7 +469,7 @@ change_menu:
+       case Device::WIPE_SYSTEM: {
+         save_current_log = true;
+         std::function<bool()> confirm_func = [&device]() {
+-          return yes_no(device, "Wipe system?", "  THIS CAN NOT BE UNDONE!");
++          return yes_no(device, "Format system?", "  THIS CAN NOT BE UNDONE!");
+         };
+         WipeSystem(ui, ui->IsTextVisible() ? confirm_func : nullptr);
+         if (!ui->IsTextVisible()) return Device::NO_ACTION;
+diff --git a/recovery_ui/device.cpp b/recovery_ui/device.cpp
+index 38a2551d..0e96b1e9 100644
+--- a/recovery_ui/device.cpp
++++ b/recovery_ui/device.cpp
+@@ -53,9 +53,9 @@ static std::vector<menu_action_t> g_advanced_actions{
+ 
+ static std::vector<std::string> g_wipe_header{ "Factory reset" };
+ static std::vector<menu_action_t> g_wipe_actions{
+-  { "Wipe data/factory reset", Device::WIPE_DATA },
+-  { "Wipe cache partition", Device::WIPE_CACHE },
+-  { "Wipe system partition", Device::WIPE_SYSTEM },
++  { "Format data/factory reset", Device::WIPE_DATA },
++  { "Format cache partition", Device::WIPE_CACHE },
++  { "Format system partition", Device::WIPE_SYSTEM },
+ };
+ 
+ static std::vector<std::string> g_update_header{ "Apply update" };
+-- 
+2.34.0
+

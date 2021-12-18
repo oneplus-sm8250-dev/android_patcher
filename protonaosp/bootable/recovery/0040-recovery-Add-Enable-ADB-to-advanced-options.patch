@@ -1,0 +1,74 @@
+From 92da47b0c8ca306441d2a649dadb61cb1ccec9e8 Mon Sep 17 00:00:00 2001
+From: LuK1337 <priv.luk@gmail.com>
+Date: Sun, 12 Apr 2020 19:04:59 +0200
+Subject: [PATCH 40/63] recovery: Add "Enable ADB" to advanced options
+
+Change-Id: I78ff93a43a17caeaae8a9601ec299b53a2802b20
+---
+ recovery.cpp                             | 8 ++++++++
+ recovery_main.cpp                        | 4 ++++
+ recovery_ui/device.cpp                   | 1 +
+ recovery_ui/include/recovery_ui/device.h | 1 +
+ 4 files changed, 14 insertions(+)
+
+diff --git a/recovery.cpp b/recovery.cpp
+index 9ffead07..e8593a96 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -522,6 +522,14 @@ change_menu:
+         choose_recovery_file(device);
+         break;
+ 
++      case Device::ENABLE_ADB:
++        android::base::SetProperty("ro.adb.secure.recovery", "0");
++        android::base::SetProperty("ctl.restart", "adbd");
++        device->RemoveMenuItemForAction(Device::ENABLE_ADB);
++        device->GoHome();
++        ui->Print("Enabled ADB.\n");
++        break;
++
+       case Device::RUN_GRAPHICS_TEST:
+         run_graphics_test(ui);
+         break;
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index 3393997e..a712af68 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -481,6 +481,10 @@ int main(int argc, char** argv) {
+     device->RemoveMenuItemForAction(Device::ENTER_RESCUE);
+   }
+ 
++  if (get_build_type() != "userdebug") {
++    device->RemoveMenuItemForAction(Device::ENABLE_ADB);
++  }
++
+   if (get_build_type() == "user") {
+     device->RemoveMenuItemForAction(Device::WIPE_SYSTEM);
+     device->RemoveMenuItemForAction(Device::MOUNT_SYSTEM);
+diff --git a/recovery_ui/device.cpp b/recovery_ui/device.cpp
+index 97d58720..38a2551d 100644
+--- a/recovery_ui/device.cpp
++++ b/recovery_ui/device.cpp
+@@ -44,6 +44,7 @@ static std::vector<menu_action_t> g_advanced_actions{
+   { "Reboot to recovery", Device::REBOOT_RECOVERY },
+   { "Mount /system", Device::MOUNT_SYSTEM },
+   { "View recovery logs", Device::VIEW_RECOVERY_LOGS },
++  { "Enable ADB", Device::ENABLE_ADB },
+   { "Run graphics test", Device::RUN_GRAPHICS_TEST },
+   { "Run locale test", Device::RUN_LOCALE_TEST },
+   { "Enter rescue", Device::ENTER_RESCUE },
+diff --git a/recovery_ui/include/recovery_ui/device.h b/recovery_ui/include/recovery_ui/device.h
+index f7ef7843..d95d6fdb 100644
+--- a/recovery_ui/include/recovery_ui/device.h
++++ b/recovery_ui/include/recovery_ui/device.h
+@@ -70,6 +70,7 @@ class Device {
+     REBOOT_FROM_FASTBOOT = 20,
+     SHUTDOWN_FROM_FASTBOOT = 21,
+     WIPE_SYSTEM = 100,
++    ENABLE_ADB = 101,
+     MENU_BASE = 200,
+     MENU_UPDATE = 201,
+     MENU_WIPE = 202,
+-- 
+2.34.0
+

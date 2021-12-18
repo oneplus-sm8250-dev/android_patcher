@@ -1,0 +1,177 @@
+From 7240cd97a5ed5d35ff279625673d2c962f789bf1 Mon Sep 17 00:00:00 2001
+From: Tom Marshall <tdm.code@gmail.com>
+Date: Wed, 24 Jul 2019 21:12:07 +0200
+Subject: [PATCH 54/63] recovery: Hide unmountable volumes from selection
+
+* In volume manager, check if new volumes are mountable.
+
+* Check volumes for mountable for inclusion into update list.
+
+* Erase unmountable volumes from volumes vector for consistency with
+  the item array.
+
+Change-Id: I89ff6cc05a93afffe5e46b24d70fc368bccaf020
+---
+ recovery.cpp                                       |  9 +++++++--
+ volume_manager/EmulatedVolume.cpp                  | 12 ++++++++++++
+ volume_manager/EmulatedVolume.h                    |  2 ++
+ volume_manager/VolumeBase.cpp                      | 14 +++++++++++++-
+ volume_manager/VolumeBase.h                        |  4 ++++
+ volume_manager/VolumeManager.cpp                   |  2 +-
+ .../include/volume_manager/VolumeManager.h         |  1 +
+ 7 files changed, 40 insertions(+), 4 deletions(-)
+
+diff --git a/recovery.cpp b/recovery.cpp
+index 2f9e32dc..f6178d14 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -217,8 +217,13 @@ static InstallResult apply_update_menu(Device* device, Device::BuiltinAction* re
+     items.clear();
+     items.push_back("Apply from ADB");
+     VolumeManager::Instance()->getVolumeInfo(volumes);
+-    for (auto& vitr : volumes) {
+-      items.push_back("Choose from " + vitr.mLabel);
++    for (auto vol = volumes.begin(); vol != volumes.end(); /* empty */) {
++      if (!vol->mMountable) {
++        vol = volumes.erase(vol);
++        continue;
++      }
++      items.push_back("Choose from " + vol->mLabel);
++      ++vol;
+     }
+ 
+     int chosen = ui->ShowMenu(
+diff --git a/volume_manager/EmulatedVolume.cpp b/volume_manager/EmulatedVolume.cpp
+index 23e64349..d0e0dcf4 100644
+--- a/volume_manager/EmulatedVolume.cpp
++++ b/volume_manager/EmulatedVolume.cpp
+@@ -32,6 +32,7 @@
+ #include <sys/sysmacros.h>
+ #include <sys/types.h>
+ #include <sys/wait.h>
++#include <unistd.h>
+ 
+ using android::base::StringPrintf;
+ 
+@@ -39,6 +40,7 @@ namespace android {
+ namespace volmgr {
+ 
+ static const std::string kStagingPath = "/mnt/staging/emulated";
++static const std::string kFbeKeyVersion = kStagingPath + "/unencrypted/key/version";
+ 
+ EmulatedVolume::EmulatedVolume(FstabEntry* rec, const std::string& subdir)
+     : VolumeBase(Type::kEmulated),
+@@ -90,5 +92,15 @@ status_t EmulatedVolume::doUnmount(bool detach /* = false */) {
+     return OK;
+ }
+ 
++bool EmulatedVolume::detectMountable() {
++    bool mountable = false;
++    if (doMount() == OK) {
++        // Check if FBE encrypted
++        mountable = access(kFbeKeyVersion.c_str(), F_OK) != 0;
++        doUnmount();
++    }
++    return mountable;
++}
++
+ }  // namespace volmgr
+ }  // namespace android
+diff --git a/volume_manager/EmulatedVolume.h b/volume_manager/EmulatedVolume.h
+index ac40b6fc..66421ccb 100644
+--- a/volume_manager/EmulatedVolume.h
++++ b/volume_manager/EmulatedVolume.h
+@@ -55,6 +55,8 @@ class EmulatedVolume : public VolumeBase {
+     unsigned long mFlags;
+     std::string mFsOptions;
+ 
++    bool detectMountable() override;
++
+     DISALLOW_COPY_AND_ASSIGN(EmulatedVolume);
+ };
+ 
+diff --git a/volume_manager/VolumeBase.cpp b/volume_manager/VolumeBase.cpp
+index a0fd33b1..bd7c29cd 100644
+--- a/volume_manager/VolumeBase.cpp
++++ b/volume_manager/VolumeBase.cpp
+@@ -35,7 +35,7 @@ namespace android {
+ namespace volmgr {
+ 
+ VolumeBase::VolumeBase(Type type)
+-    : mType(type), mMountFlags(0), mCreated(false), mState(State::kUnmounted), mSilent(false) {}
++    : mType(type), mMountFlags(0), mCreated(false), mState(State::kUnmounted), mSilent(false), mMountable(false) {}
+ 
+ VolumeBase::~VolumeBase() {
+     CHECK(!mCreated);
+@@ -131,9 +131,21 @@ status_t VolumeBase::create() {
+         }
+     }
+     setState(State::kUnmounted);
++
++    mMountable = detectMountable();
++
+     return res;
+ }
+ 
++bool VolumeBase::detectMountable() {
++    bool mountable = false;
++    if (doMount() == OK) {
++        mountable = true;
++        doUnmount();
++    }
++    return mountable;
++}
++
+ status_t VolumeBase::doCreate() {
+     return OK;
+ }
+diff --git a/volume_manager/VolumeBase.h b/volume_manager/VolumeBase.h
+index 6ec6e274..acfff45e 100644
+--- a/volume_manager/VolumeBase.h
++++ b/volume_manager/VolumeBase.h
+@@ -82,6 +82,7 @@ class VolumeBase {
+     int getMountFlags() const { return mMountFlags; }
+     State getState() const { return mState; }
+     const std::string& getPath() const { return mPath; }
++    bool isMountable() const { return mMountable; }
+ 
+     status_t setDiskId(const std::string& diskId);
+     status_t setPartGuid(const std::string& partGuid);
+@@ -127,6 +128,9 @@ class VolumeBase {
+     /* Flag indicating that volume should emit no events */
+     bool mSilent;
+ 
++    bool mMountable;
++    virtual bool detectMountable();
++
+     void setState(State state);
+ 
+     DISALLOW_COPY_AND_ASSIGN(VolumeBase);
+diff --git a/volume_manager/VolumeManager.cpp b/volume_manager/VolumeManager.cpp
+index 7609b1bd..ded6565b 100644
+--- a/volume_manager/VolumeManager.cpp
++++ b/volume_manager/VolumeManager.cpp
+@@ -136,7 +136,7 @@ static int process_config(VolumeManager* vm, FstabEntry* data_recp) {
+ }
+ 
+ VolumeInfo::VolumeInfo(const VolumeBase* vol)
+-    : mId(vol->getId()), mLabel(vol->getPartLabel()), mPath(vol->getPath()) {
++    : mId(vol->getId()), mLabel(vol->getPartLabel()), mPath(vol->getPath()), mMountable(vol->isMountable()) {
+     // Empty
+ }
+ 
+diff --git a/volume_manager/include/volume_manager/VolumeManager.h b/volume_manager/include/volume_manager/VolumeManager.h
+index e5a65d4e..c2cb8dde 100644
+--- a/volume_manager/include/volume_manager/VolumeManager.h
++++ b/volume_manager/include/volume_manager/VolumeManager.h
+@@ -49,6 +49,7 @@ class VolumeInfo {
+     std::string mId;
+     std::string mLabel;
+     std::string mPath;
++    bool        mMountable;
+ };
+ 
+ class VolumeManager {
+-- 
+2.34.0
+

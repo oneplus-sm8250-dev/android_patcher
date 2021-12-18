@@ -1,0 +1,35 @@
+From 9b856121c0074e870ef6bb2961086db498478608 Mon Sep 17 00:00:00 2001
+From: Alessandro Astone <ales.astone@gmail.com>
+Date: Sun, 29 Sep 2019 17:56:49 +0200
+Subject: [PATCH 22/63] recovery: sdcard is data/media/0
+
+Change-Id: Ie9978ac8b526c11199f72c4362ae3313218b48d4
+---
+ install/fuse_install.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/install/fuse_install.cpp b/install/fuse_install.cpp
+index 83b7e2c5..268dc1fb 100644
+--- a/install/fuse_install.cpp
++++ b/install/fuse_install.cpp
+@@ -39,7 +39,7 @@
+ #include "install/install.h"
+ #include "recovery_utils/roots.h"
+ 
+-static constexpr const char* SDCARD_ROOT = "/sdcard";
++static constexpr const char* SDCARD_ROOT = "/data/media/0";
+ // How long (in seconds) we wait for the fuse-provided package file to
+ // appear, before timing out.
+ static constexpr int SDCARD_INSTALL_TIMEOUT = 10;
+@@ -143,7 +143,7 @@ static bool StartInstallPackageFuse(std::string_view path) {
+   if (android::base::StartsWith(path, SDCARD_ROOT)) {
+     // The installation process expects to find the sdcard unmounted. Unmount it with MNT_DETACH so
+     // that our open file continues to work but new references see it as unmounted.
+-    umount2(SDCARD_ROOT, MNT_DETACH);
++    umount2("/data", MNT_DETACH);
+   }
+ 
+   return run_fuse_sideload(std::move(fuse_data_provider)) == 0;
+-- 
+2.34.0
+

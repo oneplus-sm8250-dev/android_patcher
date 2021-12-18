@@ -1,0 +1,36 @@
+From 307e38d47e1f5c3657aba547139c63f98eabdf55 Mon Sep 17 00:00:00 2001
+From: Yinchu Chen <chenyc5@motorola.com>
+Date: Fri, 3 Apr 2020 17:19:11 +0800
+Subject: [PATCH 5/8] Bluetooth string: removed id="sender" in bt_sm_2_1_
+
+As there is no value assignment for string id="sender" in string bt_sm_2_1,
+%1$s will show as garbled char for the user while the capacity of the device is full
+
+bug: b/153128298
+
+Signed-off-by: Yinchu Chen <chenyc5@motorola.com>
+
+Change-Id: Iec7da3fa32b2133263d18bbe3a2f187aa7be99f0
+---
+ res/values/strings.xml | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/res/values/strings.xml b/res/values/strings.xml
+index 1212b3e69..9e148320d 100644
+--- a/res/values/strings.xml
++++ b/res/values/strings.xml
+@@ -176,9 +176,9 @@
+     <string name="bt_toast_6">Stopped sending file to \u0022<xliff:g id="recipient">%1$s</xliff:g>\u0022</string>
+ 
+     <!-- Bluetooth System Messages [CHAR LIMIT=NONE] -->
+-    <string name="bt_sm_2_1_nosdcard">There isn\'t enough space in USB storage to save the file from \u0022<xliff:g id="sender">%1$s</xliff:g>\u0022</string>
++    <string name="bt_sm_2_1_nosdcard">There isn\'t enough space in USB storage to save the file.</string>
+     <!-- Bluetooth System Messages -->
+-    <string name="bt_sm_2_1_default">There isn\'t enough space on the SD card to save the file from \u0022<xliff:g id="sender">%1$s</xliff:g>\u0022</string>
++    <string name="bt_sm_2_1_default">There isn\'t enough space on the SD card to save the file.</string>
+     <string name="bt_sm_2_2">Space needed: <xliff:g id="size">%1$s</xliff:g></string>
+ 
+     <string name="ErrorTooManyRequests">Too many requests are being processed. Try again later.</string>
+-- 
+2.34.0
+
