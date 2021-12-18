@@ -1,0 +1,33 @@
+From 997d0706fc2f34a2ef3ff7dc0b4f91e022bc8f02 Mon Sep 17 00:00:00 2001
+From: Ricardo Cerqueira <ricardo@cyngn.com>
+Date: Tue, 2 Aug 2016 09:36:20 +0100
+Subject: [PATCH 2/3] libOmxSw encoders require proprietary headers.
+
+Change-Id: Iac6497df24008e231e3a72a54581d09a6c6b30bf
+---
+ mm-video-v4l2/vidc/venc/Android.mk | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm-video-v4l2/vidc/venc/Android.mk b/mm-video-v4l2/vidc/venc/Android.mk
+index ac53ea9b8..ab838a69d 100644
+--- a/mm-video-v4l2/vidc/venc/Android.mk
++++ b/mm-video-v4l2/vidc/venc/Android.mk
+@@ -129,6 +129,7 @@ ifneq ($(call is-board-platform-in-list, $(TARGETS_THAT_DONT_NEED_SW_VENC_MPEG4)
+ # 			Make the Shared library (libOmxSwVencMpeg4)
+ # ---------------------------------------------------------------------------------
+ 
++ifneq ($(QCPATH),)
+ include $(CLEAR_VARS)
+ 
+ libmm-venc-inc      += $(TARGET_OUT_HEADERS)/mm-video/swvenc
+@@ -177,6 +178,7 @@ LOCAL_SRC_FILES   := src/omx_video_base.cpp
+ LOCAL_SRC_FILES   += src/omx_swvenc_mpeg4.cpp
+ 
+ include $(BUILD_SHARED_LIBRARY)
++endif # QCPATH
+ endif
+ 
+ 
+-- 
+2.34.0
+

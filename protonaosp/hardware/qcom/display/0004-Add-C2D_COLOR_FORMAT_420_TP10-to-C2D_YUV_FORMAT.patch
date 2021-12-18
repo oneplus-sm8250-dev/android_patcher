@@ -1,0 +1,28 @@
+From 84ad980153b53c0a78b3825def40d656ea36d550 Mon Sep 17 00:00:00 2001
+From: LuK1337 <priv.luk@gmail.com>
+Date: Thu, 12 Jul 2018 20:37:38 +0200
+Subject: [PATCH 4/7] Add C2D_COLOR_FORMAT_420_TP10 to C2D_YUV_FORMAT
+
+* It seems like CAF forgot to include it in public HALs,
+  breaking compilation for libc2dcolorconvert target.
+
+Change-Id: I0e3efc0eb6eccaa250e24f1056cc3db8935e5821
+---
+ libcopybit/c2d2.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/libcopybit/c2d2.h b/libcopybit/c2d2.h
+index 315a3ba50..821a6d577 100644
+--- a/libcopybit/c2d2.h
++++ b/libcopybit/c2d2.h
+@@ -207,6 +207,7 @@ typedef enum {
+     C2D_COLOR_FORMAT_422_Y42B     = 174,
+ 
+     C2D_COLOR_FORMAT_800_Y800     = 190,
++    C2D_COLOR_FORMAT_420_TP10     = 191,
+ 
+ } C2D_YUV_FORMAT;
+ 
+-- 
+2.34.0
+

@@ -1,0 +1,42 @@
+From 30d185b626ac10772621b3cef93d0bd493f6fda1 Mon Sep 17 00:00:00 2001
+From: Alexander Koskovich <zvnexus@outlook.com>
+Date: Thu, 15 Oct 2020 04:38:53 -0700
+Subject: [PATCH 3/7] configs: kona: Disable DLKM.
+
+Change-Id: I6007ed4314a4c0fe2d0f9096820e2e48639a801f
+---
+ configs/kona/kona.mk | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/configs/kona/kona.mk b/configs/kona/kona.mk
+index 7de107a37..561acca07 100644
+--- a/configs/kona/kona.mk
++++ b/configs/kona/kona.mk
+@@ -49,7 +49,7 @@ AUDIO_FEATURE_ENABLED_EXTENDED_COMPRESS_FORMAT := true
+ DOLBY_ENABLE := false
+ endif
+ 
+-AUDIO_FEATURE_ENABLED_DLKM := true
++AUDIO_FEATURE_ENABLED_DLKM := false
+ BOARD_SUPPORTS_SOUND_TRIGGER := true
+ BOARD_SUPPORTS_GCS := false
+ AUDIO_FEATURE_ENABLED_INSTANCE_ID := true
+@@ -132,7 +132,6 @@ BOARD_VENDOR_KERNEL_MODULES := \
+     $(KERNEL_MODULES_OUT)/audio_native.ko \
+     $(KERNEL_MODULES_OUT)/audio_machine_kona.ko \
+     $(KERNEL_MODULES_OUT)/audio_snd_event.ko
+-endif
+ 
+ BOARD_VENDOR_KERNEL_MODULES += \
+     $(KERNEL_MODULES_OUT)/qca_cld3_wlan.ko
+@@ -166,6 +165,7 @@ AUDIO_DLKM += audio_machine_kona.ko
+ AUDIO_DLKM += audio_snd_event.ko
+ 
+ PRODUCT_PACKAGES += $(AUDIO_DLKM)
++endif
+ 
+ ifneq ($(strip $(TARGET_USES_RRO)), true)
+ #Audio Specific device overlays
+-- 
+2.34.0
+

@@ -1,0 +1,55 @@
+From 539f296f4bc5268395329efb564228141cc0e34a Mon Sep 17 00:00:00 2001
+From: Atman <masteratman@gmail.com>
+Date: Thu, 4 Jul 2019 17:36:59 +0000
+Subject: [PATCH 2/7] Add missing includes.
+
+* pthread.h include was missing so we add it.
+* Fixes compilation with BOARD_VNDK_VERSION.
+
+Change-Id: I297a0fc0cf4763b3550e1a8d37f2653b77b6e3a8
+---
+ hal/audio_extn/gef.c    | 1 +
+ hal/audio_hw_extn_api.c | 2 ++
+ hal/platform_info.c     | 1 +
+ 3 files changed, 4 insertions(+)
+
+diff --git a/hal/audio_extn/gef.c b/hal/audio_extn/gef.c
+index 69b1e4148..dc70717e6 100644
+--- a/hal/audio_extn/gef.c
++++ b/hal/audio_extn/gef.c
+@@ -39,6 +39,7 @@
+ #include "audio_hw.h"
+ #include "platform.h"
+ #include "platform_api.h"
++#include <pthread.h>
+ #include <sys/stat.h>
+ #include <stdlib.h>
+ #include <dlfcn.h>
+diff --git a/hal/audio_hw_extn_api.c b/hal/audio_hw_extn_api.c
+index 4fece7ea3..6d8901d68 100644
+--- a/hal/audio_hw_extn_api.c
++++ b/hal/audio_hw_extn_api.c
+@@ -42,6 +42,8 @@
+ #include "audio_extn.h"
+ #include "audio_hw_extn_api.h"
+ 
++#include <pthread.h>
++
+ #ifdef DYNAMIC_LOG_ENABLED
+ #include <log_xml_parser.h>
+ #define LOG_MASK HAL_MOD_FILE_AUDIO_HW_EXTN_API
+diff --git a/hal/platform_info.c b/hal/platform_info.c
+index 4ad5a5cc3..84f56a10b 100644
+--- a/hal/platform_info.c
++++ b/hal/platform_info.c
+@@ -41,6 +41,7 @@
+ #include "platform_api.h"
+ #include "audio_extn.h"
+ #include <platform.h>
++#include <pthread.h>
+ #include <math.h>
+ 
+ #ifdef DYNAMIC_LOG_ENABLED
+-- 
+2.34.0
+

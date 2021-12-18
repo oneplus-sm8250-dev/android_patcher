@@ -1,0 +1,197 @@
+From d57c314d2990058b50e3f078ba8b986e5af2d6a7 Mon Sep 17 00:00:00 2001
+From: Pig <pig.priv@gmail.com>
+Date: Sat, 19 Sep 2020 09:19:29 +0800
+Subject: [PATCH 7/7] display: Drop LOCAL_COPY_HEADERS usage
+
+LOCAL_COPY_HEADERS is deprecated, so remove all its usages
+to avoid build warnings.
+
+Change-Id: I964a11f036e03fb9fa2dec05a1698c118b06b421
+---
+ common.mk                 | 23 -----------------------
+ gpu_tonemapper/Android.mk |  6 ------
+ include/Android.mk        | 16 ----------------
+ libcopybit/Android.mk     |  6 ------
+ libdebug/Android.mk       |  2 --
+ libdrmutils/Android.mk    |  2 --
+ sdm/libs/core/Android.mk  | 27 ---------------------------
+ sdm/libs/utils/Android.mk | 17 -----------------
+ 8 files changed, 99 deletions(-)
+
+diff --git a/common.mk b/common.mk
+index 16b0574c4..c9c2773f1 100644
+--- a/common.mk
++++ b/common.mk
+@@ -43,29 +43,6 @@ ifeq ($(LLVM_SA), true)
+     common_flags += --compile-and-analyze --analyzer-perf --analyzer-Werror
+ endif
+ 
+-common_includes := system/core/base/include
+-CHECK_VERSION_LE = $(shell if [ $(1) -le $(2) ] ; then echo true ; else echo false ; fi)
+-PLATFORM_SDK_NOUGAT = 25
+-ifeq "REL" "$(PLATFORM_VERSION_CODENAME)"
+-ifeq ($(call CHECK_VERSION_LE, $(PLATFORM_SDK_VERSION), $(PLATFORM_SDK_NOUGAT)), true)
+-version_flag := -D__NOUGAT__
+-
+-# These include paths are deprecated post N
+-common_includes += $(display_top)/libqdutils
+-common_includes += $(display_top)/libqservice
+-common_includes += $(display_top)/gpu_tonemapper
+-ifneq ($(TARGET_IS_HEADLESS), true)
+-    common_includes += $(display_top)/libcopybit
+-endif
+-
+-common_includes += $(display_top)/include
+-common_includes += $(display_top)/sdm/include
+-common_flags += -isystem $(TARGET_OUT_HEADERS)/qcom/display
+-endif
+-endif
+-
+-common_header_export_path := qcom/display
+-
+ #Common libraries external to display HAL
+ common_libs := liblog libutils libcutils libhardware
+ common_deps  :=
+diff --git a/gpu_tonemapper/Android.mk b/gpu_tonemapper/Android.mk
+index ac0eb6086..2c9708f6d 100644
+--- a/gpu_tonemapper/Android.mk
++++ b/gpu_tonemapper/Android.mk
+@@ -1,12 +1,6 @@
+ LOCAL_PATH := $(call my-dir)
+ include $(LOCAL_PATH)/../common.mk
+ 
+-include $(CLEAR_VARS)
+-LOCAL_COPY_HEADERS_TO     := $(common_header_export_path)
+-LOCAL_COPY_HEADERS        := TonemapFactory.h Tonemapper.h
+-LOCAL_VENDOR_MODULE       := true
+-include $(BUILD_COPY_HEADERS)
+-
+ include $(CLEAR_VARS)
+ LOCAL_MODULE              := libgpu_tonemapper
+ LOCAL_SANITIZE            := integer_overflow
+diff --git a/include/Android.mk b/include/Android.mk
+index aac2cec4c..c89137df1 100644
+--- a/include/Android.mk
++++ b/include/Android.mk
+@@ -1,19 +1,3 @@
+ LOCAL_PATH:= $(call my-dir)
+ include $(LOCAL_PATH)/../common.mk
+ include $(CLEAR_VARS)
+-
+-# Legacy header copy. This is deprecated.
+-# Modules using these headers should shift to using
+-# LOCAL_HEADER_LIBRARIES := display_headers
+-LOCAL_VENDOR_MODULE           := true
+-LOCAL_COPY_HEADERS_TO         := $(common_header_export_path)
+-LOCAL_COPY_HEADERS            := display_properties.h \
+-                                 dpps_control_interface.h \
+-                                 ../libqdutils/qd_utils.h \
+-                                 ../libqdutils/display_config.h \
+-                                 ../libqservice/QServiceUtils.h \
+-                                 ../libqservice/IQService.h \
+-                                 ../libqservice/IQHDMIClient.h \
+-                                 ../libqservice/IQClient.h
+-
+-include $(BUILD_COPY_HEADERS)
+diff --git a/libcopybit/Android.mk b/libcopybit/Android.mk
+index 8396d510a..84e234aae 100644
+--- a/libcopybit/Android.mk
++++ b/libcopybit/Android.mk
+@@ -15,9 +15,3 @@
+ LOCAL_PATH:= $(call my-dir)
+ include $(LOCAL_PATH)/../common.mk
+ include $(CLEAR_VARS)
+-
+-LOCAL_VENDOR_MODULE           := true
+-LOCAL_COPY_HEADERS_TO         := $(common_header_export_path)
+-LOCAL_COPY_HEADERS            := copybit.h copybit_priv.h c2d2.h
+-#Copy the headers regardless of whether copybit is built
+-include $(BUILD_COPY_HEADERS)
+diff --git a/libdebug/Android.mk b/libdebug/Android.mk
+index 4d188043c..d99f9f614 100644
+--- a/libdebug/Android.mk
++++ b/libdebug/Android.mk
+@@ -9,7 +9,5 @@ LOCAL_SHARED_LIBRARIES        := libdl
+ LOCAL_CFLAGS                  := -DLOG_TAG=\"SDM\" -Wall -Werror -fno-operator-names
+ LOCAL_CLANG                   := true
+ LOCAL_SRC_FILES               := debug_handler.cpp
+-LOCAL_COPY_HEADERS_TO         := qcom/display
+-LOCAL_COPY_HEADERS            := debug_handler.h
+ 
+ include $(BUILD_SHARED_LIBRARY)
+diff --git a/libdrmutils/Android.mk b/libdrmutils/Android.mk
+index 4b49783e8..5a218c68d 100644
+--- a/libdrmutils/Android.mk
++++ b/libdrmutils/Android.mk
+@@ -16,8 +16,6 @@ LOCAL_CFLAGS                  += $(common_flags)
+ LOCAL_CLANG                   := true
+ LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+ LOCAL_SRC_FILES               := drm_master.cpp drm_res_mgr.cpp drm_lib_loader.cpp
+-LOCAL_COPY_HEADERS_TO         := qcom/display
+-LOCAL_COPY_HEADERS            := drm_master.h drm_res_mgr.h drm_lib_loader.h drm_logger.h drm_interface.h
+ 
+ include $(BUILD_SHARED_LIBRARY)
+ endif
+diff --git a/sdm/libs/core/Android.mk b/sdm/libs/core/Android.mk
+index c6d6febf5..798585dfa 100644
+--- a/sdm/libs/core/Android.mk
++++ b/sdm/libs/core/Android.mk
+@@ -49,30 +49,3 @@ ifneq ($(TARGET_IS_HEADLESS), true)
+ endif
+ 
+ include $(BUILD_SHARED_LIBRARY)
+-
+-SDM_HEADER_PATH := ../../include
+-include $(CLEAR_VARS)
+-LOCAL_VENDOR_MODULE           := true
+-LOCAL_COPY_HEADERS_TO         := $(common_header_export_path)/sdm/core
+-LOCAL_COPY_HEADERS             = $(SDM_HEADER_PATH)/core/buffer_allocator.h \
+-                                 $(SDM_HEADER_PATH)/core/buffer_sync_handler.h \
+-                                 $(SDM_HEADER_PATH)/core/core_interface.h \
+-                                 $(SDM_HEADER_PATH)/core/display_interface.h \
+-                                 $(SDM_HEADER_PATH)/core/layer_buffer.h \
+-                                 $(SDM_HEADER_PATH)/core/layer_stack.h \
+-                                 $(SDM_HEADER_PATH)/core/sdm_types.h \
+-                                 $(SDM_HEADER_PATH)/core/socket_handler.h \
+-                                 $(SDM_HEADER_PATH)/core/dpps_interface.h
+-include $(BUILD_COPY_HEADERS)
+-
+-include $(CLEAR_VARS)
+-LOCAL_VENDOR_MODULE           := true
+-LOCAL_COPY_HEADERS_TO         := $(common_header_export_path)/sdm/private
+-LOCAL_COPY_HEADERS             = $(SDM_HEADER_PATH)/private/color_interface.h \
+-                                 $(SDM_HEADER_PATH)/private/color_params.h \
+-                                 $(SDM_HEADER_PATH)/private/extension_interface.h \
+-                                 $(SDM_HEADER_PATH)/private/hw_info_types.h \
+-                                 $(SDM_HEADER_PATH)/private/partial_update_interface.h \
+-                                 $(SDM_HEADER_PATH)/private/resource_interface.h \
+-                                 $(SDM_HEADER_PATH)/private/strategy_interface.h
+-include $(BUILD_COPY_HEADERS)
+diff --git a/sdm/libs/utils/Android.mk b/sdm/libs/utils/Android.mk
+index c47419344..6a3b6a6ad 100644
+--- a/sdm/libs/utils/Android.mk
++++ b/sdm/libs/utils/Android.mk
+@@ -18,20 +18,3 @@ LOCAL_SRC_FILES               := debug.cpp \
+ 
+ LOCAL_SHARED_LIBRARIES        := libdisplaydebug
+ include $(BUILD_SHARED_LIBRARY)
+-
+-SDM_HEADER_PATH := ../../include
+-include $(CLEAR_VARS)
+-LOCAL_VENDOR_MODULE           := true
+-LOCAL_COPY_HEADERS_TO         := $(common_header_export_path)/sdm/utils
+-LOCAL_COPY_HEADERS             = $(SDM_HEADER_PATH)/utils/constants.h \
+-                                 $(SDM_HEADER_PATH)/utils/debug.h \
+-                                 $(SDM_HEADER_PATH)/utils/formats.h \
+-                                 $(SDM_HEADER_PATH)/utils/locker.h \
+-                                 $(SDM_HEADER_PATH)/utils/rect.h \
+-                                 $(SDM_HEADER_PATH)/utils/sys.h \
+-                                 $(SDM_HEADER_PATH)/utils/sync_task.h \
+-                                 $(SDM_HEADER_PATH)/utils/utils.h \
+-                                 $(SDM_HEADER_PATH)/utils/fence.h \
+-                                 $(SDM_HEADER_PATH)/utils/factory.h
+-
+-include $(BUILD_COPY_HEADERS)
+-- 
+2.34.0
+

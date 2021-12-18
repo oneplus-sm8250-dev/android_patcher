@@ -1,0 +1,469 @@
+From 21dfe65f683ae46251103c1cd88efd68421589b0 Mon Sep 17 00:00:00 2001
+From: Daniel Hillenbrand <codeworkx@cyanogenmod.org>
+Date: Thu, 23 May 2013 10:10:00 +0530
+Subject: [PATCH 4/7] hal: Support the audio amplifier hook.
+
+* Original legacy HAL commit:
+  Ib236598a5888b2af19bcfb81e285f644a0e84c0d
+* Example: https://review.lineageos.org/74733
+
+ (Cyanogen: Refactored to be an audio_extn)
+
+Change-Id: Ic944a9f7059c78b79322dae9c787cdd8bb029cff
+
+audio: add amplifier stream start/standby operations
+
+Change-Id: I5de7ad7a0467e7cf822c9c0870a755c03d05e884
+
+hal: Convert libaudioamp to audio_amplifier HAL
+
+Change-Id: I1d0f63a46989d1792d7a5e08d2bdb6344ebafa31
+
+hal: Notify amplifier of device enable/disable
+
+Change-Id: Ice808c9b55a9e3bc8bafe5ca3ff555377d38dd8f
+
+hal: enable amplifier earlier
+
+Change-Id: Id876e8f836e3ce1ee5f8186ca9c0e6ef5f37182c
+
+hal: only open the amplifier once
+
+Change-Id: Ie9bbff74123e90b71e95809a84dcb3bbe9ba82fe
+
+hal: notify amplifier of parameter changes
+
+Change-Id: Iecc020c0347ae7c43d27183186e06dcefef7a0dd
+
+hal: Clean up audio amplifier usage
+
+ * Externalize it into an extension file similar to the rest.
+
+Change-Id: I03de7efa9bab8870099028170fa471dfffe1ce84
+
+audio: add amplifier hooks for stream parameter manipulation
+
+hal: Use log/log.h instead of cutils/log.h
+
+Change-Id: I6e52524cc650eea234fbcf64ed17104dd8a3f001
+
+[Pig]: Clang-format
+
+audio_amplifier: Add new hook for setting amp feedback
+
+Change-Id: I6de5e9c9dbbb6214b166f30628734aeb406c8a2a
+
+Change-Id: I16a76475cb58a710d229648d77024379bfc499d5
+---
+ hal/Android.mk                   |   6 ++
+ hal/audio_extn/audio_amplifier.c | 143 +++++++++++++++++++++++++++++++
+ hal/audio_extn/audio_amplifier.h |  53 ++++++++++++
+ hal/audio_hw.c                   |  38 ++++++++
+ hal/audio_hw.h                   |   3 +
+ 5 files changed, 243 insertions(+)
+ create mode 100644 hal/audio_extn/audio_amplifier.c
+ create mode 100644 hal/audio_extn/audio_amplifier.h
+
+diff --git a/hal/Android.mk b/hal/Android.mk
+index 1bd13429d..faf632c4e 100644
+--- a/hal/Android.mk
++++ b/hal/Android.mk
+@@ -359,6 +359,12 @@ ifeq ($(strip $(AUDIO_FEATURE_ENABLED_AHAL_EXT)),true)
+     LOCAL_SHARED_LIBRARIES += vendor.qti.hardware.audiohalext@1.0
+ endif
+ 
++ifeq ($(strip $(AUDIO_FEATURE_ENABLED_EXT_AMPLIFIER)),true)
++    LOCAL_CFLAGS += -DEXT_AMPLIFIER_ENABLED
++    LOCAL_SRC_FILES += audio_extn/audio_amplifier.c
++    LOCAL_SHARED_LIBRARIES += libhardware
++endif
++
+ LOCAL_CFLAGS += -D_GNU_SOURCE
+ LOCAL_CFLAGS += -Wall -Werror
+ 
+diff --git a/hal/audio_extn/audio_amplifier.c b/hal/audio_extn/audio_amplifier.c
+new file mode 100644
+index 000000000..043c10f3d
+--- /dev/null
++++ b/hal/audio_extn/audio_amplifier.c
+@@ -0,0 +1,143 @@
++/*
++ * Copyright (c) 2016 The CyanogenMod Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#define LOG_TAG "audio_amplifier"
++
++#include <log/log.h>
++#include <dlfcn.h>
++#include <stdbool.h>
++#include <stdlib.h>
++
++#include "audio_hw.h"
++#include "platform.h"
++
++struct amplifier_data {
++    struct audio_device* adev;
++    amplifier_device_t* hw;
++};
++
++struct amplifier_data amp;
++
++int amplifier_open(void* adev) {
++    int rc;
++    amplifier_module_t* module;
++    amp.adev = (struct audio_device*)adev;
++
++    rc = hw_get_module(AMPLIFIER_HARDWARE_MODULE_ID, (const hw_module_t**)&module);
++    if (rc) {
++        ALOGV("%s: Failed to obtain reference to amplifier module: %s\n", __func__, strerror(-rc));
++        return -ENODEV;
++    }
++
++    rc = amplifier_device_open((const hw_module_t*)module, &amp.hw);
++    if (rc) {
++        ALOGV("%s: Failed to open amplifier hardware device: %s\n", __func__, strerror(-rc));
++        amp.hw = NULL;
++
++        return -ENODEV;
++    }
++
++    return 0;
++}
++
++int amplifier_set_input_devices(uint32_t devices) {
++    if (amp.hw && amp.hw->set_input_devices) return amp.hw->set_input_devices(amp.hw, devices);
++
++    return 0;
++}
++
++int amplifier_set_output_devices(uint32_t devices) {
++    if (amp.hw && amp.hw->set_output_devices) return amp.hw->set_output_devices(amp.hw, devices);
++
++    return 0;
++}
++
++int amplifier_enable_devices(uint32_t devices, bool enable) {
++    bool is_output = devices < SND_DEVICE_OUT_END;
++
++    if (amp.hw && amp.hw->enable_output_devices && is_output)
++        return amp.hw->enable_output_devices(amp.hw, devices, enable);
++
++    if (amp.hw && amp.hw->enable_input_devices && !is_output)
++        return amp.hw->enable_input_devices(amp.hw, devices, enable);
++
++    return 0;
++}
++
++int amplifier_set_mode(audio_mode_t mode) {
++    if (amp.hw && amp.hw->set_mode) return amp.hw->set_mode(amp.hw, mode);
++
++    return 0;
++}
++
++int amplifier_output_stream_start(struct audio_stream_out* stream, bool offload) {
++    if (amp.hw && amp.hw->output_stream_start)
++        return amp.hw->output_stream_start(amp.hw, stream, offload);
++
++    return 0;
++}
++
++int amplifier_input_stream_start(struct audio_stream_in* stream) {
++    if (amp.hw && amp.hw->input_stream_start) return amp.hw->input_stream_start(amp.hw, stream);
++
++    return 0;
++}
++
++int amplifier_output_stream_standby(struct audio_stream_out* stream) {
++    if (amp.hw && amp.hw->output_stream_standby)
++        return amp.hw->output_stream_standby(amp.hw, stream);
++
++    return 0;
++}
++
++int amplifier_input_stream_standby(struct audio_stream_in* stream) {
++    if (amp.hw && amp.hw->input_stream_standby) return amp.hw->input_stream_standby(amp.hw, stream);
++
++    return 0;
++}
++
++int amplifier_set_parameters(struct str_parms* parms) {
++    if (amp.hw && amp.hw->set_parameters) return amp.hw->set_parameters(amp.hw, parms);
++
++    return 0;
++}
++
++int amplifier_out_set_parameters(struct str_parms* parms) {
++    if (amp.hw && amp.hw->out_set_parameters) return amp.hw->out_set_parameters(amp.hw, parms);
++
++    return 0;
++}
++
++int amplifier_in_set_parameters(struct str_parms* parms) {
++    if (amp.hw && amp.hw->in_set_parameters) return amp.hw->in_set_parameters(amp.hw, parms);
++
++    return 0;
++}
++
++int amplifier_set_feedback(void* adev, uint32_t devices, bool enable) {
++    amp.adev = (struct audio_device*)adev;
++    if (amp.hw && amp.hw->set_feedback)
++        return amp.hw->set_feedback(amp.hw, amp.adev, devices, enable);
++    return 0;
++}
++
++int amplifier_close(void) {
++    if (amp.hw) amplifier_device_close(amp.hw);
++
++    amp.hw = NULL;
++
++    return 0;
++}
+diff --git a/hal/audio_extn/audio_amplifier.h b/hal/audio_extn/audio_amplifier.h
+new file mode 100644
+index 000000000..7607392ea
+--- /dev/null
++++ b/hal/audio_extn/audio_amplifier.h
+@@ -0,0 +1,53 @@
++/*
++ * Copyright (c) 2016 The CyanogenMod Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef EXTN_AMPLIFIER_H
++#define EXTN_AMPLIFIER_H
++
++#ifndef EXT_AMPLIFIER_ENABLED
++#define amplifier_open(adev) (0)
++#define amplifier_set_input_devices(devices) (0)
++#define amplifier_set_output_devices(devices) (0)
++#define amplifier_enable_devices(devices, enable) (0)
++#define amplifier_set_mode(mode) (0)
++#define amplifier_output_stream_start(stream, offload) (0)
++#define amplifier_input_stream_start(stream) (0)
++#define amplifier_output_stream_standby(stream) (0)
++#define amplifier_input_stream_standby(stream) (0)
++#define amplifier_set_parameters(parms) (0)
++#define amplifier_out_set_parameters(parms) (0)
++#define amplifier_in_set_parameters(parms) (0)
++#define amplifier_set_feedback(adev, devices, enable) (0)
++#define amplifier_close() (0)
++#else
++
++int amplifier_open(void* adev);
++int amplifier_set_input_devices(uint32_t devices);
++int amplifier_set_output_devices(uint32_t devices);
++int amplifier_enable_devices(uint32_t devices, bool enable);
++int amplifier_set_mode(audio_mode_t mode);
++int amplifier_output_stream_start(struct audio_stream_out* stream, bool offload);
++int amplifier_input_stream_start(struct audio_stream_in* stream);
++int amplifier_output_stream_standby(struct audio_stream_out* stream);
++int amplifier_input_stream_standby(struct audio_stream_in* stream);
++int amplifier_set_parameters(struct str_parms* parms);
++int amplifier_out_set_parameters(struct str_parms* parms);
++int amplifier_in_set_parameters(struct str_parms* parms);
++int amplifier_set_feedback(void* adev, uint32_t devices, bool enable);
++int amplifier_close(void);
++#endif
++
++#endif
+diff --git a/hal/audio_hw.c b/hal/audio_hw.c
+index 6fbbee331..1ec9b1820 100644
+--- a/hal/audio_hw.c
++++ b/hal/audio_hw.c
+@@ -85,6 +85,8 @@
+ 
+ #include "sound/asound.h"
+ 
++#include "audio_amplifier.h"
++
+ #ifdef DYNAMIC_LOG_ENABLED
+ #include <log_xml_parser.h>
+ #define LOG_MASK HAL_MOD_FILE_AUDIO_HW
+@@ -1385,6 +1387,7 @@ int enable_snd_device(struct audio_device *adev,
+             goto err;
+         }
+         audio_extn_dev_arbi_acquire(snd_device);
++        amplifier_enable_devices(snd_device, true);
+         if (audio_extn_spkr_prot_start_processing(snd_device)) {
+             ALOGE("%s: spkr_start_processing failed", __func__);
+             audio_extn_dev_arbi_release(snd_device);
+@@ -1450,6 +1453,7 @@ int enable_snd_device(struct audio_device *adev,
+         }
+         audio_extn_dev_arbi_acquire(snd_device);
+         audio_route_apply_and_update_path(adev->audio_route, device_name);
++        amplifier_set_feedback(adev, snd_device, true);
+ 
+         if (SND_DEVICE_OUT_HEADPHONES == snd_device &&
+             !adev->native_playback_enabled &&
+@@ -1521,6 +1525,7 @@ int disable_snd_device(struct audio_device *adev,
+             platform_set_speaker_gain_in_combo(adev, snd_device, false);
+         } else {
+             audio_route_reset_and_update_path(adev->audio_route, device_name);
++            amplifier_enable_devices(snd_device, false);
+         }
+ 
+         if (snd_device == SND_DEVICE_OUT_BT_A2DP) {
+@@ -1551,6 +1556,7 @@ int disable_snd_device(struct audio_device *adev,
+         }
+ 
+         audio_extn_utils_release_snd_device(snd_device);
++        amplifier_set_feedback(adev, snd_device, false);
+     } else {
+         if (platform_split_snd_device(adev->platform,
+                     snd_device,
+@@ -2924,6 +2930,10 @@ int select_devices(struct audio_device *adev, audio_usecase_t uc_id)
+         disable_snd_device(adev, usecase->in_snd_device);
+     }
+ 
++    /* Rely on amplifier_set_devices to distinguish between in/out devices */
++    amplifier_set_input_devices(in_snd_device);
++    amplifier_set_output_devices(out_snd_device);
++
+     /* Applicable only on the targets that has external modem.
+      * New device information should be sent to modem before enabling
+      * the devices to reduce in-call device switch time.
+@@ -4538,6 +4548,9 @@ static int out_standby(struct audio_stream *stream)
+         }
+ 
+         pthread_mutex_lock(&adev->lock);
++
++        amplifier_output_stream_standby((struct audio_stream_out *) stream);
++
+         out->standby = true;
+         if (out->usecase == USECASE_COMPRESS_VOIP_CALL) {
+             voice_extn_compress_voip_close_output_stream(stream);
+@@ -5038,6 +5051,8 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
+     if (!parms)
+         goto error;
+ 
++    amplifier_out_set_parameters(parms);
++
+     err = platform_get_controller_stream_from_params(parms, &ext_controller,
+                                                        &ext_stream);
+     if (err == 0) {
+@@ -5891,6 +5906,11 @@ static ssize_t out_write(struct audio_stream_out *stream, const void *buffer,
+             ret = voice_extn_compress_voip_start_output_stream(out);
+         else
+             ret = start_output_stream(out);
++
++        if (ret == 0)
++            amplifier_output_stream_start(stream,
++                    is_offload_usecase(out->usecase));
++
+         /* ToDo: If use case is compress offload should return 0 */
+         if (ret != 0) {
+             out->standby = true;
+@@ -6792,6 +6812,8 @@ static int in_standby(struct audio_stream *stream)
+             adev->adm_deregister_stream(adev->adm_data, in->capture_handle);
+ 
+         pthread_mutex_lock(&adev->lock);
++        amplifier_input_stream_standby((struct audio_stream_in *) stream);
++
+         in->standby = true;
+         if (in->usecase == USECASE_COMPRESS_VOIP_CALL) {
+             do_stop = false;
+@@ -6976,6 +6998,9 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
+ 
+     if (!parms)
+         goto error;
++
++    amplifier_in_set_parameters(parms);
++
+     lock_input_stream(in);
+     pthread_mutex_lock(&adev->lock);
+ 
+@@ -7124,6 +7149,10 @@ static ssize_t in_read(struct audio_stream_in *stream, void *buffer,
+             if (adev->num_va_sessions < UINT_MAX)
+                 adev->num_va_sessions++;
+         }
++
++        if (ret == 0)
++            amplifier_input_stream_start(stream);
++
+         pthread_mutex_unlock(&adev->lock);
+         if (ret != 0) {
+             goto exit;
+@@ -9007,6 +9036,7 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
+         }
+     }
+ 
++    amplifier_set_parameters(parms);
+     audio_extn_set_parameters(adev, parms);
+ done:
+     str_parms_destroy(parms);
+@@ -9135,6 +9165,8 @@ static int adev_set_mode(struct audio_hw_device *dev, audio_mode_t mode)
+     if (adev->mode != mode) {
+         ALOGD("%s: mode %d , prev_mode %d \n", __func__, mode , adev->mode);
+         adev->prev_mode = adev->mode; /* prev_mode is kept to handle voip concurrency*/
++        if (amplifier_set_mode(mode) != 0)
++            ALOGE("Failed setting amplifier mode");
+         adev->mode = mode;
+         if (mode == AUDIO_MODE_CALL_SCREEN) {
+             adev->current_call_output = adev->primary_output;
+@@ -10293,6 +10325,8 @@ static int adev_close(hw_device_t *device)
+     if ((--audio_device_ref_count) == 0) {
+          if (audio_extn_spkr_prot_is_enabled())
+              audio_extn_spkr_prot_deinit();
++        if (amplifier_close() != 0)
++            ALOGE("Amplifier close failed");
+         audio_extn_battery_properties_listener_deinit();
+         audio_extn_snd_mon_unregister_listener(adev);
+         audio_extn_sound_trigger_deinit(adev);
+@@ -10724,6 +10758,10 @@ static int adev_open(const hw_module_t *module, const char *name,
+     adev->vr_audio_mode_enabled = false;
+ 
+     audio_extn_ds2_enable(adev);
++
++    if (amplifier_open(adev) != 0)
++        ALOGE("Amplifier initialization failed");
++
+     *device = &adev->device.common;
+ 
+     if (k_enable_extended_precision)
+diff --git a/hal/audio_hw.h b/hal/audio_hw.h
+index 32271bb17..ff1f29303 100644
+--- a/hal/audio_hw.h
++++ b/hal/audio_hw.h
+@@ -42,6 +42,7 @@
+ #include <cutils/str_parms.h>
+ #include <cutils/list.h>
+ #include <cutils/hashmap.h>
++#include <hardware/audio_amplifier.h>
+ #include <hardware/audio.h>
+ #include <tinyalsa/asoundlib.h>
+ #include <tinycompress/tinycompress.h>
+@@ -746,6 +747,8 @@ struct audio_device {
+     Hashmap *io_streams_map;
+     bool a2dp_started;
+     bool ha_proxy_enable;
++
++    amplifier_device_t *amp;
+ };
+ 
+ struct audio_patch_record {
+-- 
+2.34.0
+

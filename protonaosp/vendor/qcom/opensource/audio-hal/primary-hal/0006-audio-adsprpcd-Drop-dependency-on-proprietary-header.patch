@@ -1,0 +1,63 @@
+From 7c9a8168a54a68dde91ef61287fa0b57c45f9a4d Mon Sep 17 00:00:00 2001
+From: LuK1337 <priv.luk@gmail.com>
+Date: Fri, 9 Oct 2020 18:34:38 +0200
+Subject: [PATCH 6/7] audio: adsprpcd: Drop dependency on proprietary headers
+ and fix build errors
+
+Change-Id: Ibbcd009333337cd41f2e6bf70391914b75f8a3ba
+---
+ adsprpcd/Android.bp | 2 --
+ adsprpcd/adsprpcd.c | 9 ++++++---
+ 2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/adsprpcd/Android.bp b/adsprpcd/Android.bp
+index 7e6a8e7f7..f91ad2f3a 100644
+--- a/adsprpcd/Android.bp
++++ b/adsprpcd/Android.bp
+@@ -3,8 +3,6 @@ cc_binary {
+ 
+     srcs: ["adsprpcd.c"],
+ 
+-    header_libs: ["libfastrpcshippable_headers"],
+-
+     shared_libs: [
+         "liblog",
+         "libdl",
+diff --git a/adsprpcd/adsprpcd.c b/adsprpcd/adsprpcd.c
+index a44c0133c..89004e786 100644
+--- a/adsprpcd/adsprpcd.c
++++ b/adsprpcd/adsprpcd.c
+@@ -31,17 +31,21 @@
+ #define VERIFY_PRINT_ERROR
+ #endif
+ 
++#define VERIFY_EPRINTF ALOGE
++#define VERIFY_IPRINTF ALOGI
++
+ #include <stdio.h>
+ #include <dlfcn.h>
+ #include <unistd.h>
+-#include "verify.h"
+-#include "AEEStdErr.h"
+ 
++#include <log/log.h>
+ 
+ #ifndef ADSP_DEFAULT_LISTENER_NAME
+ #define ADSP_DEFAULT_LISTENER_NAME "libadsp_default_listener.so"
+ #endif
+ 
++#define AEE_ECONNREFUSED 0x72
++
+ typedef int (*adsp_default_listener_start_t)(int argc, char *argv[]);
+ 
+ int main(int argc, char *argv[]) {
+@@ -71,6 +75,5 @@ int main(int argc, char *argv[]) {
+     usleep(25000);
+   }
+   VERIFY_EPRINTF("audio adsp daemon exiting %x", nErr);
+-bail:
+   return nErr;
+ }
+-- 
+2.34.0
+

@@ -1,0 +1,41 @@
+From 191a81eff7b4382f82645d43e322855b6d3ce1ad Mon Sep 17 00:00:00 2001
+From: George Burgess IV <gbiv@google.com>
+Date: Fri, 26 Jun 2020 01:06:50 -0700
+Subject: [PATCH 1/7] hwc_session: move a break
+
+As written, this loop only runs once, which makes clang's new warning
+unhappy:
+
+hardware/qcom/sm8150/display/sdm/libs/hwc2/hwc_session.cpp:934:51:
+error: loop will run at most once (loop increment never executed)
+[-Werror,-Wunreachable-code-loop-increment]
+
+Chatting with qcom, this appears to be a bug, and the best fix is to
+move the `break` into the `if`.
+
+Same fix as aosp/Icb64eed5b894b9188f5265094587dd802207ba66.
+
+Bug: 150166387
+Test: TreeHugger
+Change-Id: Id28a784b819f0451610f9489fd2717da21b8d4a8
+---
+ composer/hwc_session.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/composer/hwc_session.cpp b/composer/hwc_session.cpp
+index f12263bad..cba02406e 100644
+--- a/composer/hwc_session.cpp
++++ b/composer/hwc_session.cpp
+@@ -828,8 +828,8 @@ void HWCSession::HandlePendingRefresh() {
+   for (size_t i = 0; i < pending_refresh_.size(); i++) {
+     if (pending_refresh_.test(i)) {
+       callbacks_.Refresh(i);
++      break;
+     }
+-    break;
+   }
+ 
+   pending_refresh_.reset();
+-- 
+2.34.0
+
