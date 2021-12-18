@@ -1,0 +1,58 @@
+From fc3dd980ac78a2938f9de5cf839c002904de23ec Mon Sep 17 00:00:00 2001
+From: Vishalcj17 <vishalcj@aospa.co>
+Date: Mon, 18 Oct 2021 13:43:28 +0900
+Subject: [PATCH 2/2] vibrator: Define AIDL library version
+
+Change-Id: I7f9534809da68d93946d64c1a7b780c95b750e29
+---
+ aidl/Android.bp | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/aidl/Android.bp b/aidl/Android.bp
+index ab58e3b..0cbc6cf 100644
+--- a/aidl/Android.bp
++++ b/aidl/Android.bp
+@@ -15,9 +15,9 @@ cc_library_shared {
+         "liblog",
+         "libqtivibratoreffect",
+         "libbinder_ndk",
+-        "android.hardware.vibrator-ndk_platform",
++        "android.hardware.vibrator-V1-ndk_platform",
+     ],
+-    include_dirs: ["system/core/base/include"],
++    include_dirs: ["system/libbase/include"],
+     export_include_dirs: ["include"]
+ }
+ 
+@@ -38,7 +38,7 @@ cc_binary {
+         "libutils",
+         "libbase",
+         "libbinder_ndk",
+-        "android.hardware.vibrator-ndk_platform",
++        "android.hardware.vibrator-V1-ndk_platform",
+         "vendor.qti.hardware.vibrator.impl",
+     ],
+ }
+@@ -57,9 +57,8 @@ cc_library_shared {
+         "liblog",
+         "libqtivibratoreffect",
+         "libqtivibratoreffectoffload",
+-        "libsoc_helper",
+         "libbinder_ndk",
+-        "android.hardware.vibrator-ndk_platform",
++        "android.hardware.vibrator-V1-ndk_platform",
+     ],
+     export_include_dirs: ["include"]
+ }
+@@ -81,7 +80,7 @@ cc_binary {
+         "libutils",
+         "libbase",
+         "libbinder_ndk",
+-        "android.hardware.vibrator-ndk_platform",
++        "android.hardware.vibrator-V1-ndk_platform",
+         "vendor.qti.hardware.vibrator.offload.impl",
+     ],
+ }
+-- 
+2.34.0
+
