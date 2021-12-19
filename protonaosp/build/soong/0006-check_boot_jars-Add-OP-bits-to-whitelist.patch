@@ -1,0 +1,28 @@
+From 423156e14c79a62ffc1afe0d8b5f27d19216013b Mon Sep 17 00:00:00 2001
+From: YumeMichi <do4suki@gmail.com>
+Date: Mon, 20 Dec 2021 01:03:56 +0800
+Subject: [PATCH 6/6] check_boot_jars: Add OP bits to whitelist
+
+Signed-off-by: YumeMichi <do4suki@gmail.com>
+Change-Id: I4d2f2e80bc225ca4bb801894030b231cf26c46c1
+---
+ scripts/check_boot_jars/package_allowed_list.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/scripts/check_boot_jars/package_allowed_list.txt b/scripts/check_boot_jars/package_allowed_list.txt
+index 30d11d0d5..5747c3e32 100644
+--- a/scripts/check_boot_jars/package_allowed_list.txt
++++ b/scripts/check_boot_jars/package_allowed_list.txt
+@@ -259,3 +259,9 @@ qcom.fmradio
+ ###################################################
+ # IFAA Manager used for Alipay and/or WeChat payment
+ org\.ifaa\.android\.manager.*
++
++###################################################
++# OnePlus bits
++com\.oneplus.*
++net\.oneplus.*
++vendor\.oneplus.*
+-- 
+2.34.0
+

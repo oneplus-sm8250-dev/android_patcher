@@ -1,7 +1,7 @@
 From 2b7cd4c8d550970d0b8a6e03e15edbd64842796f Mon Sep 17 00:00:00 2001
 From: Sam Mortimer <sam@mortimer.me.uk>
 Date: Thu, 5 Sep 2019 15:16:13 -0700
-Subject: [PATCH 3/5] soong: Add PathForSourceRelaxed
+Subject: [PATCH 3/6] soong: Add PathForSourceRelaxed
 
 Used by vendor/lineage generated kernel header module.
 
