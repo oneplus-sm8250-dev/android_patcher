@@ -1,7 +1,7 @@
-From ffd385d480f50ed83691fb423525109b95d4afa2 Mon Sep 17 00:00:00 2001
+From e048a3584ff6ebe364bf6868cc1eab2c5406cf53 Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Thu, 30 May 2019 11:43:07 -0500
-Subject: [PATCH 4/6] [master] libc: Set __bionic_asm_align to 64 for arm and
+Subject: [PATCH 4/8] [master] libc: Set __bionic_asm_align to 64 for arm and
  arm64
 
 This way, critical string functions are always at the start of a
@@ -43,5 +43,5 @@ index ee51a8e78..c0b969cbd 100644
  #undef __bionic_asm_function_type
  #define __bionic_asm_function_type %function
 -- 
-2.34.0
+2.34.1
 

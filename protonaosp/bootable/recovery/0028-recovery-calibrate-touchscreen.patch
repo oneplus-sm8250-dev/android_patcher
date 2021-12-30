@@ -1,4 +1,4 @@
-From ed2287dae4adec363682da464050f81bd6c4fa2f Mon Sep 17 00:00:00 2001
+From fddf6314c455f4be09314831e2c3e9a15c088fd3 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Tue, 6 Aug 2019 16:30:02 +0200
 Subject: [PATCH 28/63] recovery: calibrate touchscreen
@@ -88,5 +88,5 @@ index f4148945..2155557c 100644
            OnTouchTrack();
            touch_saw_x_ = touch_saw_y_ = false;
 -- 
-2.34.0
+2.34.1
 

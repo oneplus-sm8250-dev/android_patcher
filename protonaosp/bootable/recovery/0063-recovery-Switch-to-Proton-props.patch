@@ -1,4 +1,4 @@
-From 01375b163696579d01e1b192addd969f3814c3c3 Mon Sep 17 00:00:00 2001
+From ecdf0ca6cc391445937b42c1a0612c98dddc9b60 Mon Sep 17 00:00:00 2001
 From: DarkJoker360 <simoespo159@gmail.com>
 Date: Fri, 16 Jul 2021 20:39:20 +0200
 Subject: [PATCH 63/63] recovery: Switch to Proton props
@@ -34,5 +34,5 @@ index a96b9de4..8907f099 100644
    };
    if (android::base::GetBoolProperty("ro.build.ab_update", false)) {
 -- 
-2.34.0
+2.34.1
 

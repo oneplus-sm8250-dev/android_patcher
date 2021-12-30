@@ -1,0 +1,1584 @@
+From 4666eb8cb8f9343f6f96e095f64c2485d68cd970 Mon Sep 17 00:00:00 2001
+From: Vladimir Marko <vmarko@google.com>
+Date: Tue, 23 Mar 2021 16:32:52 +0000
+Subject: [PATCH 05/13] [master] Inline IRT frame push/pop into JNI stubs.
+
+Golem results for art-opt-cc (higher is better):
+linux-ia32                       before after
+NativeDowncallStaticNormal       25.704 26.839 (+4.414%)
+NativeDowncallStaticNormal6      23.857 25.086 (+5.152%)
+NativeDowncallStaticNormalRefs6  23.704 25.248 (+6.513%)
+NativeDowncallVirtualNormal      25.578 27.000 (+5.560%)
+NativeDowncallVirtualNormal6     23.704 24.925 (+5.153%)
+NativeDowncallVirtualNormalRefs6 23.704 25.074 (+5.870%)
+NativeDowncallStaticFast         100.65 149.13 (+48.17%)
+NativeDowncallStaticFast6        78.304 107.39 (+37.71%)
+NativeDowncallStaticFastRefs6    76.962 104.45 (+35.71%)
+NativeDowncallVirtualFast        100.40 147.28 (+46.69%)
+NativeDowncallVirtualFast6       79.302 106.34 (+34.10%)
+NativeDowncallVirtualFastRef26   76.617 103.29 (+34.82%)
+linux-x64                        before after
+NativeDowncallStaticNormal       26.083 26.987 (+3.465%)
+NativeDowncallStaticNormal6      24.606 25.411 (+3.271%)
+NativeDowncallStaticNormalRefs6  24.150 25.086 (+3.877%)
+NativeDowncallVirtualNormal      25.743 26.812 (+4.156%)
+NativeDowncallVirtualNormal6     24.294 25.248 (+3.927%)
+NativeDowncallVirtualNormalRefs6 23.857 25.086 (+5.152%)
+NativeDowncallStaticFast         109.95 133.10 (+21.06%)
+NativeDowncallStaticFast6        90.274 109.12 (+20.87%)
+NativeDowncallStaticFastRefs6    87.282 105.29 (+20.63%)
+NativeDowncallVirtualFast        104.00 127.55 (+22.65%)
+NativeDowncallVirtualFast6       88.191 106.73 (+21.02%)
+NativeDowncallVirtualFastRef26   85.530 102.09 (+19.36%)
+linux-armv7                      before after
+NativeDowncallStaticNormal       6.1148 6.3694 (+4.316%)
+NativeDowncallStaticNormal6      5.6845 5.9026 (+3.837%)
+NativeDowncallStaticNormalRefs6  5.4054 5.6022 (+3.641%)
+NativeDowncallVirtualNormal      5.4726 5.7088 (+4.316%)
+NativeDowncallVirtualNormal6     5.1789 5.3685 (+3.660%)
+NativeDowncallVirtualNormalRefs6 4.9140 5.0902 (+3.586%)
+NativeDowncallStaticFast         16.683 18.058 (+8.239%)
+NativeDowncallStaticFast6        13.951 14.896 (+6.770%)
+NativeDowncallStaticFastRefs6    12.279 13.006 (+5.919%)
+NativeDowncallVirtualFast        16.161 17.848 (+10.44%)
+NativeDowncallVirtualFast6       14.085 15.196 (+7.892%)
+NativeDowncallVirtualFastRef26   12.089 12.897 (+6.683%)
+linux-armv8                      before after
+NativeDowncallStaticNormal       6.0663 6.4229 (+5.879%)
+NativeDowncallStaticNormal6      5.7252 6.0437 (+5.563%)
+NativeDowncallStaticNormalRefs6  5.3114 5.5814 (+5.082%)
+NativeDowncallVirtualNormal      5.8795 6.2651 (+6.558%)
+NativeDowncallVirtualNormal6     5.6232 5.9494 (+5.801%)
+NativeDowncallVirtualNormalRefs6 5.1862 5.4429 (+4.948%)
+NativeDowncallStaticFast         17.638 19.183 (+8.760%)
+NativeDowncallStaticFast6        14.903 16.161 (+8.438%)
+NativeDowncallStaticFastRefs6    12.475 13.235 (+6.094%)
+NativeDowncallVirtualFast        15.826 17.848 (+12.78%)
+NativeDowncallVirtualFast6       14.064 15.504 (+10.24%)
+NativeDowncallVirtualFastRef26   11.628 12.475 (+7.285%)
+
+Test: m test-art-host-gtest
+Test: testrunner.py --host --optimizing
+Test: run-gtests.sh
+Test: testrunner.py --target --optimizing
+Bug: 172332525
+Change-Id: I5ecfa7a661f08ab63dd2a75d666e1c1b9121935f
+---
+ compiler/jni/jni_compiler_test.cc             |  35 ++---
+ .../jni/quick/arm/calling_convention_arm.cc   |  20 +--
+ .../jni/quick/arm/calling_convention_arm.h    |   3 +-
+ .../quick/arm64/calling_convention_arm64.cc   |  20 +--
+ .../quick/arm64/calling_convention_arm64.h    |   3 +-
+ compiler/jni/quick/calling_convention.h       |  11 +-
+ compiler/jni/quick/jni_compiler.cc            | 144 ++++++++++++------
+ .../jni/quick/x86/calling_convention_x86.cc   |  15 +-
+ .../jni/quick/x86/calling_convention_x86.h    |   3 +-
+ .../quick/x86_64/calling_convention_x86_64.cc |  15 +-
+ .../quick/x86_64/calling_convention_x86_64.h  |   3 +-
+ .../utils/arm/jni_macro_assembler_arm_vixl.cc |  34 ++++-
+ .../utils/arm/jni_macro_assembler_arm_vixl.h  |   4 +
+ .../utils/arm64/jni_macro_assembler_arm64.cc  |  49 +++++-
+ .../utils/arm64/jni_macro_assembler_arm64.h   |   4 +
+ compiler/utils/jni_macro_assembler.h          |   6 +
+ compiler/utils/x86/jni_macro_assembler_x86.cc |  52 +++++--
+ compiler/utils/x86/jni_macro_assembler_x86.h  |   4 +
+ .../x86_64/jni_macro_assembler_x86_64.cc      |  55 ++++---
+ .../utils/x86_64/jni_macro_assembler_x86_64.h |   4 +
+ runtime/arch/arm/jni_frame_arm.h              |   2 +-
+ runtime/arch/arm64/jni_frame_arm64.h          |   2 +-
+ runtime/entrypoints/quick/quick_entrypoints.h |  48 +++---
+ .../quick/quick_entrypoints_list.h            |  18 +--
+ .../quick/quick_jni_entrypoints.cc            |  87 ++++-------
+ .../quick/quick_trampoline_entrypoints.cc     |  20 ++-
+ runtime/jni/jni_env_ext.cc                    |  14 +-
+ runtime/jni/jni_env_ext.h                     |   6 +-
+ runtime/oat.h                                 |   4 +-
+ 29 files changed, 401 insertions(+), 284 deletions(-)
+
+diff --git a/compiler/jni/jni_compiler_test.cc b/compiler/jni/jni_compiler_test.cc
+index dc5304ccf0..e3d0abb7d3 100644
+--- a/compiler/jni/jni_compiler_test.cc
++++ b/compiler/jni/jni_compiler_test.cc
+@@ -411,24 +411,20 @@ class JniCompilerTest : public CommonCompilerTest {
+     }
+   };
+ 
+-  static uint32_t JniMethodStartSynchronizedOverride(jobject to_lock, Thread* self);
+-  static void JniMethodEndSynchronizedOverride(uint32_t saved_local_ref_cookie,
+-                                               jobject locked,
+-                                               Thread* self);
++  static void JniMethodStartSynchronizedOverride(jobject to_lock, Thread* self);
++  static void JniMethodEndSynchronizedOverride(jobject locked, Thread* self);
+   static mirror::Object* JniMethodEndWithReferenceSynchronizedOverride(
+       jobject result,
+-      uint32_t saved_local_ref_cookie,
+       jobject locked,
+       Thread* self);
+ 
+-  using StartSynchronizedType = uint32_t (*)(jobject, Thread*);
+-  using EndSynchronizedType = void (*)(uint32_t, jobject, Thread*);
+-  using EndWithReferenceSynchronizedType = mirror::Object* (*)(jobject, uint32_t, jobject, Thread*);
++  using StartSynchronizedType = void (*)(jobject, Thread*);
++  using EndSynchronizedType = void (*)(jobject, Thread*);
++  using EndWithReferenceSynchronizedType = mirror::Object* (*)(jobject, jobject, Thread*);
+ 
+   static StartSynchronizedType jni_method_start_synchronized_original_;
+   static EndSynchronizedType jni_method_end_synchronized_original_;
+   static EndWithReferenceSynchronizedType jni_method_end_with_reference_synchronized_original_;
+-  static uint32_t saved_local_ref_cookie_;
+   static jobject locked_object_;
+ 
+   bool check_generic_jni_;
+@@ -441,35 +437,24 @@ JniCompilerTest::StartSynchronizedType JniCompilerTest::jni_method_start_synchro
+ JniCompilerTest::EndSynchronizedType JniCompilerTest::jni_method_end_synchronized_original_;
+ JniCompilerTest::EndWithReferenceSynchronizedType
+     JniCompilerTest::jni_method_end_with_reference_synchronized_original_;
+-uint32_t JniCompilerTest::saved_local_ref_cookie_;
+ jobject JniCompilerTest::locked_object_;
+ 
+-uint32_t JniCompilerTest::JniMethodStartSynchronizedOverride(jobject to_lock, Thread* self) {
++void JniCompilerTest::JniMethodStartSynchronizedOverride(jobject to_lock, Thread* self) {
+   locked_object_ = to_lock;
+-  uint32_t cookie = jni_method_start_synchronized_original_(to_lock, self);
+-  saved_local_ref_cookie_ = cookie;
+-  return cookie;
++  jni_method_start_synchronized_original_(to_lock, self);
+ }
+ 
+-void JniCompilerTest::JniMethodEndSynchronizedOverride(uint32_t saved_local_ref_cookie,
+-                                                       jobject locked,
+-                                                       Thread* self) {
+-  EXPECT_EQ(saved_local_ref_cookie_, saved_local_ref_cookie);
++void JniCompilerTest::JniMethodEndSynchronizedOverride(jobject locked, Thread* self) {
+   EXPECT_EQ(locked_object_, locked);
+-  jni_method_end_synchronized_original_(saved_local_ref_cookie, locked, self);
++  jni_method_end_synchronized_original_(locked, self);
+ }
+ 
+ mirror::Object* JniCompilerTest::JniMethodEndWithReferenceSynchronizedOverride(
+     jobject result,
+-    uint32_t saved_local_ref_cookie,
+     jobject locked,
+     Thread* self) {
+-  EXPECT_EQ(saved_local_ref_cookie_, saved_local_ref_cookie);
+   EXPECT_EQ(locked_object_, locked);
+-  return jni_method_end_with_reference_synchronized_original_(result,
+-                                                              saved_local_ref_cookie,
+-                                                              locked,
+-                                                              self);
++  return jni_method_end_with_reference_synchronized_original_(result, locked, self);
+ }
+ 
+ // Test the normal compiler and normal generic JNI only.
+diff --git a/compiler/jni/quick/arm/calling_convention_arm.cc b/compiler/jni/quick/arm/calling_convention_arm.cc
+index d849c28a2d..4d0d813186 100644
+--- a/compiler/jni/quick/arm/calling_convention_arm.cc
++++ b/compiler/jni/quick/arm/calling_convention_arm.cc
+@@ -385,15 +385,17 @@ uint32_t ArmJniCallingConvention::FpSpillMask() const {
+   return is_critical_native_ ? 0u : kFpCalleeSpillMask;
+ }
+ 
+-ManagedRegister ArmJniCallingConvention::SavedLocalReferenceCookieRegister() const {
+-  // The r5 is callee-save register in both managed and native ABIs.
+-  // It is saved in the stack frame and it has no special purpose like `tr`.
+-  static_assert((kCoreCalleeSpillMask & (1u << R5)) != 0u);  // Managed callee save register.
+-  return ArmManagedRegister::FromCoreRegister(R5);
+-}
+-
+-ManagedRegister ArmJniCallingConvention::ReturnScratchRegister() const {
+-  return ArmManagedRegister::FromCoreRegister(R2);
++ArrayRef<const ManagedRegister> ArmJniCallingConvention::CalleeSaveScratchRegisters() const {
++  DCHECK(!IsCriticalNative());
++  // Use R5-R8, R10-R11 from managed callee saves.
++  constexpr size_t kStart = 0u;
++  constexpr size_t kLength = 6u;
++  static_assert(kCalleeSaveRegisters[kStart].Equals(ArmManagedRegister::FromCoreRegister(R5)));
++  static_assert(kCalleeSaveRegisters[kStart + kLength - 1u].Equals(
++                    ArmManagedRegister::FromCoreRegister(R11)));
++  static_assert((kCoreCalleeSpillMask & (1u << R9)) == 0u);  // Does not contain thread register R9.
++  static_assert((kCoreCalleeSpillMask & ~kAapcsCoreCalleeSpillMask) == 0u);
++  return ArrayRef<const ManagedRegister>(kCalleeSaveRegisters).SubArray(kStart, kLength);
+ }
+ 
+ size_t ArmJniCallingConvention::FrameSize() const {
+diff --git a/compiler/jni/quick/arm/calling_convention_arm.h b/compiler/jni/quick/arm/calling_convention_arm.h
+index 985d971418..fad60c8429 100644
+--- a/compiler/jni/quick/arm/calling_convention_arm.h
++++ b/compiler/jni/quick/arm/calling_convention_arm.h
+@@ -67,8 +67,7 @@ class ArmJniCallingConvention final : public JniCallingConvention {
+   size_t FrameSize() const override;
+   size_t OutFrameSize() const override;
+   ArrayRef<const ManagedRegister> CalleeSaveRegisters() const override;
+-  ManagedRegister SavedLocalReferenceCookieRegister() const override;
+-  ManagedRegister ReturnScratchRegister() const override;
++  ArrayRef<const ManagedRegister> CalleeSaveScratchRegisters() const override;
+   uint32_t CoreSpillMask() const override;
+   uint32_t FpSpillMask() const override;
+   bool IsCurrentParamInRegister() override;
+diff --git a/compiler/jni/quick/arm64/calling_convention_arm64.cc b/compiler/jni/quick/arm64/calling_convention_arm64.cc
+index 1a13689033..83b936a0b4 100644
+--- a/compiler/jni/quick/arm64/calling_convention_arm64.cc
++++ b/compiler/jni/quick/arm64/calling_convention_arm64.cc
+@@ -232,15 +232,17 @@ uint32_t Arm64JniCallingConvention::FpSpillMask() const {
+   return is_critical_native_ ? 0u : kFpCalleeSpillMask;
+ }
+ 
+-ManagedRegister Arm64JniCallingConvention::SavedLocalReferenceCookieRegister() const {
+-  // The w21 is callee-save register in both managed and native ABIs.
+-  // It is saved in the stack frame and it has no special purpose like `tr`.
+-  static_assert((kCoreCalleeSpillMask & (1u << W21)) != 0u);  // Managed callee save register.
+-  return Arm64ManagedRegister::FromWRegister(W21);
+-}
+-
+-ManagedRegister Arm64JniCallingConvention::ReturnScratchRegister() const {
+-  return ManagedRegister::NoRegister();
++ArrayRef<const ManagedRegister> Arm64JniCallingConvention::CalleeSaveScratchRegisters() const {
++  DCHECK(!IsCriticalNative());
++  // Use X21-X29 from native callee saves.
++  constexpr size_t kStart = 2u;
++  constexpr size_t kLength = 9u;
++  static_assert(kAapcs64CalleeSaveRegisters[kStart].Equals(
++                    Arm64ManagedRegister::FromXRegister(X21)));
++  static_assert(kAapcs64CalleeSaveRegisters[kStart + kLength - 1u].Equals(
++                    Arm64ManagedRegister::FromXRegister(X29)));
++  static_assert((kAapcs64CoreCalleeSpillMask & ~kCoreCalleeSpillMask) == 0u);
++  return ArrayRef<const ManagedRegister>(kAapcs64CalleeSaveRegisters).SubArray(kStart, kLength);
+ }
+ 
+ size_t Arm64JniCallingConvention::FrameSize() const {
+diff --git a/compiler/jni/quick/arm64/calling_convention_arm64.h b/compiler/jni/quick/arm64/calling_convention_arm64.h
+index e1e9407663..0836160c0f 100644
+--- a/compiler/jni/quick/arm64/calling_convention_arm64.h
++++ b/compiler/jni/quick/arm64/calling_convention_arm64.h
+@@ -58,8 +58,7 @@ class Arm64JniCallingConvention final : public JniCallingConvention {
+   size_t FrameSize() const override;
+   size_t OutFrameSize() const override;
+   ArrayRef<const ManagedRegister> CalleeSaveRegisters() const override;
+-  ManagedRegister SavedLocalReferenceCookieRegister() const override;
+-  ManagedRegister ReturnScratchRegister() const override;
++  ArrayRef<const ManagedRegister> CalleeSaveScratchRegisters() const override;
+   uint32_t CoreSpillMask() const override;
+   uint32_t FpSpillMask() const override;
+   bool IsCurrentParamInRegister() override;
+diff --git a/compiler/jni/quick/calling_convention.h b/compiler/jni/quick/calling_convention.h
+index c11e09dc60..e62fc33a85 100644
+--- a/compiler/jni/quick/calling_convention.h
++++ b/compiler/jni/quick/calling_convention.h
+@@ -315,12 +315,11 @@ class JniCallingConvention : public CallingConvention {
+   // Callee save registers to spill prior to native code (which may clobber)
+   virtual ArrayRef<const ManagedRegister> CalleeSaveRegisters() const = 0;
+ 
+-  // Register where the segment state of the local indirect reference table is saved.
+-  // This must be a native callee-save register without another special purpose.
+-  virtual ManagedRegister SavedLocalReferenceCookieRegister() const = 0;
+-
+-  // An extra scratch register live after the call
+-  virtual ManagedRegister ReturnScratchRegister() const = 0;
++  // Subset of core callee save registers that can be used for arbitrary purposes after
++  // constructing the JNI transition frame. These should be managed callee-saves as well.
++  // These should not include special purpose registers such as thread register.
++  // JNI compiler currently requires at least 3 callee save scratch registers.
++  virtual ArrayRef<const ManagedRegister> CalleeSaveScratchRegisters() const = 0;
+ 
+   // Spill mask values
+   virtual uint32_t CoreSpillMask() const = 0;
+diff --git a/compiler/jni/quick/jni_compiler.cc b/compiler/jni/quick/jni_compiler.cc
+index cdd0263729..25eb919c53 100644
+--- a/compiler/jni/quick/jni_compiler.cc
++++ b/compiler/jni/quick/jni_compiler.cc
+@@ -50,6 +50,19 @@
+ 
+ namespace art {
+ 
++constexpr size_t kIRTCookieSize = JniCallingConvention::SavedLocalReferenceCookieSize();
++
++template <PointerSize kPointerSize>
++static void PushLocalReferenceFrame(JNIMacroAssembler<kPointerSize>* jni_asm,
++                                    ManagedRegister jni_env_reg,
++                                    ManagedRegister saved_cookie_reg,
++                                    ManagedRegister temp_reg);
++template <PointerSize kPointerSize>
++static void PopLocalReferenceFrame(JNIMacroAssembler<kPointerSize>* jni_asm,
++                                   ManagedRegister jni_env_reg,
++                                   ManagedRegister saved_cookie_reg,
++                                   ManagedRegister temp_reg);
++
+ template <PointerSize kPointerSize>
+ static void CopyParameter(JNIMacroAssembler<kPointerSize>* jni_asm,
+                           ManagedRuntimeCallingConvention* mr_conv,
+@@ -194,11 +207,9 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+   //     method and the current thread.
+   const char* jni_end_shorty;
+   if (reference_return && is_synchronized) {
+-    jni_end_shorty = "ILL";
+-  } else if (reference_return) {
+     jni_end_shorty = "IL";
+-  } else if (is_synchronized) {
+-    jni_end_shorty = "VL";
++  } else if (reference_return) {
++    jni_end_shorty = "I";
+   } else {
+     jni_end_shorty = "V";
+   }
+@@ -275,18 +286,15 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+   }
+ 
+   // 5. Call into appropriate JniMethodStart passing Thread* so that transition out of Runnable
+-  //    can occur. The result is the saved JNI local state that is restored by the exit call. We
+-  //    abuse the JNI calling convention here, that is guaranteed to support passing 2 pointer
+-  //    arguments.
+-  constexpr size_t cookie_size = JniCallingConvention::SavedLocalReferenceCookieSize();
+-  ManagedRegister saved_cookie_register = ManagedRegister::NoRegister();
++  //    can occur. We abuse the JNI calling convention here, that is guaranteed to support passing
++  //    two pointer arguments.
+   if (LIKELY(!is_critical_native)) {
+     // Skip this for @CriticalNative methods. They do not call JniMethodStart.
+-    ThreadOffset<kPointerSize> jni_start(
++    ThreadOffset<kPointerSize> jni_start =
+         GetJniEntrypointThreadOffset<kPointerSize>(JniEntrypoint::kStart,
+                                                    reference_return,
+                                                    is_synchronized,
+-                                                   is_fast_native).SizeValue());
++                                                   is_fast_native);
+     main_jni_conv->ResetIterator(FrameOffset(main_out_arg_size));
+     if (is_synchronized) {
+       // Pass object for locking.
+@@ -322,13 +330,33 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+     if (is_synchronized) {  // Check for exceptions from monitor enter.
+       __ ExceptionPoll(main_out_arg_size);
+     }
++  }
+ 
+-    // Store into stack_frame[saved_cookie_offset] the return value of JniMethodStart.
+-    saved_cookie_register = main_jni_conv->SavedLocalReferenceCookieRegister();
+-    __ Move(saved_cookie_register, main_jni_conv->IntReturnRegister(), cookie_size);
++  // 6. Push local reference frame.
++  // Skip this for @CriticalNative methods, they cannot use any references.
++  ManagedRegister jni_env_reg = ManagedRegister::NoRegister();
++  ManagedRegister saved_cookie_reg = ManagedRegister::NoRegister();
++  ManagedRegister callee_save_temp = ManagedRegister::NoRegister();
++  if (LIKELY(!is_critical_native)) {
++    // To pop the local reference frame later, we shall need the JNI environment pointer
++    // as well as the cookie, so we preserve them across calls in callee-save registers.
++    // Managed callee-saves were already saved, so these registers are now available.
++    ArrayRef<const ManagedRegister> callee_save_scratch_regs =
++        main_jni_conv->CalleeSaveScratchRegisters();
++    CHECK_GE(callee_save_scratch_regs.size(), 3u);  // At least 3 for each supported architecture.
++    jni_env_reg = callee_save_scratch_regs[0];
++    saved_cookie_reg = __ CoreRegisterWithSize(callee_save_scratch_regs[1], kIRTCookieSize);
++    callee_save_temp = __ CoreRegisterWithSize(callee_save_scratch_regs[2], kIRTCookieSize);
++
++    // Load the JNI environment pointer.
++    __ LoadRawPtrFromThread(jni_env_reg, Thread::JniEnvOffset<kPointerSize>());
++
++    // Push the local reference frame.
++    PushLocalReferenceFrame<kPointerSize>(
++        jni_asm.get(), jni_env_reg, saved_cookie_reg, callee_save_temp);
+   }
+ 
+-  // 6. Fill arguments.
++  // 7. Fill arguments.
+   if (UNLIKELY(is_critical_native)) {
+     ArenaVector<ArgumentLocation> src_args(allocator.Adapter());
+     ArenaVector<ArgumentLocation> dest_args(allocator.Adapter());
+@@ -388,7 +416,7 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+       CopyParameter(jni_asm.get(), mr_conv.get(), main_jni_conv.get());
+     }
+ 
+-    // 7. For static method, create jclass argument as a pointer to the method's declaring class.
++    // 8. For static method, create jclass argument as a pointer to the method's declaring class.
+     if (is_static) {
+       main_jni_conv->ResetIterator(FrameOffset(main_out_arg_size));
+       main_jni_conv->Next();  // Skip JNIEnv*
+@@ -413,18 +441,17 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+     // Set the iterator back to the incoming Method*.
+     main_jni_conv->ResetIterator(FrameOffset(main_out_arg_size));
+ 
+-    // 8. Create 1st argument, the JNI environment ptr.
+-    // Register that will hold local indirect reference table
++    // 9. Create 1st argument, the JNI environment ptr.
+     if (main_jni_conv->IsCurrentParamInRegister()) {
+-      ManagedRegister jni_env = main_jni_conv->CurrentParamRegister();
+-      __ LoadRawPtrFromThread(jni_env, Thread::JniEnvOffset<kPointerSize>());
++      ManagedRegister jni_env_arg = main_jni_conv->CurrentParamRegister();
++      __ Move(jni_env_arg, jni_env_reg, static_cast<size_t>(kPointerSize));
+     } else {
+-      FrameOffset jni_env = main_jni_conv->CurrentParamStackOffset();
+-      __ CopyRawPtrFromThread(jni_env, Thread::JniEnvOffset<kPointerSize>());
++      FrameOffset jni_env_arg_offset = main_jni_conv->CurrentParamStackOffset();
++      __ Store(jni_env_arg_offset, jni_env_reg, static_cast<size_t>(kPointerSize));
+     }
+   }
+ 
+-  // 9. Plant call to native code associated with method.
++  // 10. Plant call to native code associated with method.
+   MemberOffset jni_entrypoint_offset =
+       ArtMethod::EntryPointFromJniOffset(InstructionSetPointerSize(instruction_set));
+   if (UNLIKELY(is_critical_native)) {
+@@ -442,7 +469,7 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+     }
+   }
+ 
+-  // 10. Fix differences in result widths.
++  // 11. Fix differences in result widths.
+   if (main_jni_conv->RequiresSmallResultTypeExtension()) {
+     DCHECK(main_jni_conv->HasSmallReturnType());
+     CHECK(!is_critical_native || !main_jni_conv->UseTailCall());
+@@ -458,7 +485,7 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+     }
+   }
+ 
+-  // 11. Process return value
++  // 12. Process return value
+   bool spill_return_value = main_jni_conv->SpillsReturnValue();
+   FrameOffset return_save_location =
+       spill_return_value ? main_jni_conv->ReturnValueSaveLocation() : FrameOffset(0);
+@@ -504,26 +531,17 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+     }
+     end_jni_conv->ResetIterator(FrameOffset(end_out_arg_size));
+ 
+-    // 12. Call JniMethodEnd
+-    ThreadOffset<kPointerSize> jni_end(
++    // 13. Call JniMethodEnd
++    ThreadOffset<kPointerSize> jni_end =
+         GetJniEntrypointThreadOffset<kPointerSize>(JniEntrypoint::kEnd,
+                                                    reference_return,
+                                                    is_synchronized,
+-                                                   is_fast_native).SizeValue());
++                                                   is_fast_native);
+     if (reference_return) {
+       // Pass result.
+       SetNativeParameter(jni_asm.get(), end_jni_conv.get(), end_jni_conv->ReturnRegister());
+       end_jni_conv->Next();
+     }
+-    // Pass saved local reference state.
+-    if (end_jni_conv->IsCurrentParamOnStack()) {
+-      FrameOffset out_off = end_jni_conv->CurrentParamStackOffset();
+-      __ Store(out_off, saved_cookie_register, cookie_size);
+-    } else {
+-      ManagedRegister out_reg = end_jni_conv->CurrentParamRegister();
+-      __ Move(out_reg, saved_cookie_register, cookie_size);
+-    }
+-    end_jni_conv->Next();
+     if (is_synchronized) {
+       // Pass object for unlocking.
+       if (is_static) {
+@@ -563,26 +581,32 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+       __ CallFromThread(jni_end);
+     }
+ 
+-    // 13. Reload return value
++    // 14. Reload return value
+     if (spill_return_value) {
+       __ Load(mr_conv->ReturnRegister(), return_save_location, mr_conv->SizeOfReturnValue());
+     }
+   }  // if (!is_critical_native)
+ 
+-  // 14. Move frame up now we're done with the out arg space.
++  // 15. Pop local reference frame.
++  if (!is_critical_native) {
++    PopLocalReferenceFrame<kPointerSize>(
++        jni_asm.get(), jni_env_reg, saved_cookie_reg, callee_save_temp);
++  }
++
++  // 16. Move frame up now we're done with the out arg space.
+   //     @CriticalNative remove out args together with the frame in RemoveFrame().
+   if (LIKELY(!is_critical_native)) {
+     __ DecreaseFrameSize(current_out_arg_size);
+     current_frame_size -= current_out_arg_size;
+   }
+ 
+-  // 15. Process pending exceptions from JNI call or monitor exit.
++  // 17. Process pending exceptions from JNI call or monitor exit.
+   //     @CriticalNative methods do not need exception poll in the stub.
+   if (LIKELY(!is_critical_native)) {
+     __ ExceptionPoll(/* stack_adjust= */ 0);
+   }
+ 
+-  // 16. Remove activation - need to restore callee save registers since the GC may have changed
++  // 18. Remove activation - need to restore callee save registers since the GC may have changed
+   //     them.
+   DCHECK_EQ(jni_asm->cfi().GetCurrentCFAOffset(), static_cast<int>(current_frame_size));
+   if (LIKELY(!is_critical_native) || !main_jni_conv->UseTailCall()) {
+@@ -593,7 +617,7 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+     DCHECK_EQ(jni_asm->cfi().GetCurrentCFAOffset(), static_cast<int>(current_frame_size));
+   }
+ 
+-  // 17. Read barrier slow path for the declaring class in the method for a static call.
++  // 19. Read barrier slow path for the declaring class in the method for a static call.
+   //     Skip this for @CriticalNative because we're not passing a `jclass` to the native method.
+   if (kUseReadBarrier && is_static && !is_critical_native) {
+     __ Bind(jclass_read_barrier_slow_path.get());
+@@ -649,7 +673,7 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+     }
+   }
+ 
+-  // 18. Finalize code generation
++  // 20. Finalize code generation
+   __ FinalizeCode();
+   size_t cs = __ CodeSize();
+   std::vector<uint8_t> managed_code(cs);
+@@ -664,6 +688,40 @@ static JniCompiledMethod ArtJniCompileMethodInternal(const CompilerOptions& comp
+                            ArrayRef<const uint8_t>(*jni_asm->cfi().data()));
+ }
+ 
++template <PointerSize kPointerSize>
++static void PushLocalReferenceFrame(JNIMacroAssembler<kPointerSize>* jni_asm,
++                                    ManagedRegister jni_env_reg,
++                                    ManagedRegister saved_cookie_reg,
++                                    ManagedRegister temp_reg) {
++  const size_t pointer_size = static_cast<size_t>(kPointerSize);
++  const MemberOffset jni_env_cookie_offset = JNIEnvExt::LocalRefCookieOffset(pointer_size);
++  const MemberOffset jni_env_segment_state_offset = JNIEnvExt::SegmentStateOffset(pointer_size);
++
++  // Load the old cookie that we shall need to restore.
++  __ Load(saved_cookie_reg, jni_env_reg, jni_env_cookie_offset, kIRTCookieSize);
++
++  // Set the cookie in JNI environment to the current segment state.
++  __ Load(temp_reg, jni_env_reg, jni_env_segment_state_offset, kIRTCookieSize);
++  __ Store(jni_env_reg, jni_env_cookie_offset, temp_reg, kIRTCookieSize);
++}
++
++template <PointerSize kPointerSize>
++static void PopLocalReferenceFrame(JNIMacroAssembler<kPointerSize>* jni_asm,
++                                   ManagedRegister jni_env_reg,
++                                   ManagedRegister saved_cookie_reg,
++                                   ManagedRegister temp_reg) {
++  const size_t pointer_size = static_cast<size_t>(kPointerSize);
++  const MemberOffset jni_env_cookie_offset = JNIEnvExt::LocalRefCookieOffset(pointer_size);
++  const MemberOffset jni_env_segment_state_offset = JNIEnvExt::SegmentStateOffset(pointer_size);
++
++  // Set the current segment state to the current cookie in JNI environment.
++  __ Load(temp_reg, jni_env_reg, jni_env_cookie_offset, kIRTCookieSize);
++  __ Store(jni_env_reg, jni_env_segment_state_offset, temp_reg, kIRTCookieSize);
++
++  // Restore the cookie in JNI environment to the saved value.
++  __ Store(jni_env_reg, jni_env_cookie_offset, saved_cookie_reg, kIRTCookieSize);
++}
++
+ // Copy a single parameter from the managed to the JNI calling convention.
+ template <PointerSize kPointerSize>
+ static void CopyParameter(JNIMacroAssembler<kPointerSize>* jni_asm,
+diff --git a/compiler/jni/quick/x86/calling_convention_x86.cc b/compiler/jni/quick/x86/calling_convention_x86.cc
+index 1baffc57da..e45a211e05 100644
+--- a/compiler/jni/quick/x86/calling_convention_x86.cc
++++ b/compiler/jni/quick/x86/calling_convention_x86.cc
+@@ -71,15 +71,12 @@ static constexpr uint32_t kNativeFpCalleeSpillMask = 0u;
+ 
+ // Calling convention
+ 
+-ManagedRegister X86JniCallingConvention::SavedLocalReferenceCookieRegister() const {
+-  // The EBP is callee-save register in both managed and native ABIs.
+-  // It is saved in the stack frame and it has no special purpose like `tr` on arm/arm64.
+-  static_assert((kCoreCalleeSpillMask & (1u << EBP)) != 0u);  // Managed callee save register.
+-  return X86ManagedRegister::FromCpuRegister(EBP);
+-}
+-
+-ManagedRegister X86JniCallingConvention::ReturnScratchRegister() const {
+-  return ManagedRegister::NoRegister();  // No free regs, so assembler uses push/pop
++ArrayRef<const ManagedRegister> X86JniCallingConvention::CalleeSaveScratchRegisters() const {
++  DCHECK(!IsCriticalNative());
++  // All managed callee-save registers are available.
++  static_assert((kCoreCalleeSpillMask & ~kNativeCoreCalleeSpillMask) == 0u);
++  static_assert(kFpCalleeSpillMask == 0u);
++  return ArrayRef<const ManagedRegister>(kCalleeSaveRegisters);
+ }
+ 
+ static ManagedRegister ReturnRegisterForShorty(const char* shorty, bool jni) {
+diff --git a/compiler/jni/quick/x86/calling_convention_x86.h b/compiler/jni/quick/x86/calling_convention_x86.h
+index cbb362c774..d589dbdba0 100644
+--- a/compiler/jni/quick/x86/calling_convention_x86.h
++++ b/compiler/jni/quick/x86/calling_convention_x86.h
+@@ -63,8 +63,7 @@ class X86JniCallingConvention final : public JniCallingConvention {
+   size_t FrameSize() const override;
+   size_t OutFrameSize() const override;
+   ArrayRef<const ManagedRegister> CalleeSaveRegisters() const override;
+-  ManagedRegister SavedLocalReferenceCookieRegister() const override;
+-  ManagedRegister ReturnScratchRegister() const override;
++  ArrayRef<const ManagedRegister> CalleeSaveScratchRegisters() const override;
+   uint32_t CoreSpillMask() const override;
+   uint32_t FpSpillMask() const override;
+   bool IsCurrentParamInRegister() override;
+diff --git a/compiler/jni/quick/x86_64/calling_convention_x86_64.cc b/compiler/jni/quick/x86_64/calling_convention_x86_64.cc
+index 33a921b79b..ed40c5f37a 100644
+--- a/compiler/jni/quick/x86_64/calling_convention_x86_64.cc
++++ b/compiler/jni/quick/x86_64/calling_convention_x86_64.cc
+@@ -91,15 +91,12 @@ static constexpr uint32_t kNativeFpCalleeSpillMask =
+ 
+ // Calling convention
+ 
+-ManagedRegister X86_64JniCallingConvention::SavedLocalReferenceCookieRegister() const {
+-  // The RBX is callee-save register in both managed and native ABIs.
+-  // It is saved in the stack frame and it has no special purpose like `tr` on arm/arm64.
+-  static_assert((kCoreCalleeSpillMask & (1u << RBX)) != 0u);  // Managed callee save register.
+-  return X86_64ManagedRegister::FromCpuRegister(RBX);
+-}
+-
+-ManagedRegister X86_64JniCallingConvention::ReturnScratchRegister() const {
+-  return ManagedRegister::NoRegister();  // No free regs, so assembler uses push/pop
++ArrayRef<const ManagedRegister> X86_64JniCallingConvention::CalleeSaveScratchRegisters() const {
++  DCHECK(!IsCriticalNative());
++  // All native callee-save registers are available.
++  static_assert((kNativeCoreCalleeSpillMask & ~kCoreCalleeSpillMask) == 0u);
++  static_assert(kNativeFpCalleeSpillMask == 0u);
++  return ArrayRef<const ManagedRegister>(kNativeCalleeSaveRegisters);
+ }
+ 
+ static ManagedRegister ReturnRegisterForShorty(const char* shorty, bool jni ATTRIBUTE_UNUSED) {
+diff --git a/compiler/jni/quick/x86_64/calling_convention_x86_64.h b/compiler/jni/quick/x86_64/calling_convention_x86_64.h
+index f9d6fc00e4..80453c3edb 100644
+--- a/compiler/jni/quick/x86_64/calling_convention_x86_64.h
++++ b/compiler/jni/quick/x86_64/calling_convention_x86_64.h
+@@ -58,8 +58,7 @@ class X86_64JniCallingConvention final : public JniCallingConvention {
+   size_t FrameSize() const override;
+   size_t OutFrameSize() const override;
+   ArrayRef<const ManagedRegister> CalleeSaveRegisters() const override;
+-  ManagedRegister SavedLocalReferenceCookieRegister() const override;
+-  ManagedRegister ReturnScratchRegister() const override;
++  ArrayRef<const ManagedRegister> CalleeSaveScratchRegisters() const override;
+   uint32_t CoreSpillMask() const override;
+   uint32_t FpSpillMask() const override;
+   bool IsCurrentParamInRegister() override;
+diff --git a/compiler/utils/arm/jni_macro_assembler_arm_vixl.cc b/compiler/utils/arm/jni_macro_assembler_arm_vixl.cc
+index 70a1939b59..c23d682275 100644
+--- a/compiler/utils/arm/jni_macro_assembler_arm_vixl.cc
++++ b/compiler/utils/arm/jni_macro_assembler_arm_vixl.cc
+@@ -37,7 +37,7 @@ namespace arm {
+ #define ___   asm_.GetVIXLAssembler()->
+ #endif
+ 
+-// The AAPCS requires 8-byte alignement. This is not as strict as the Managed ABI stack alignment.
++// The AAPCS requires 8-byte alignment. This is not as strict as the Managed ABI stack alignment.
+ static constexpr size_t kAapcsStackAlignment = 8u;
+ static_assert(kAapcsStackAlignment < kStackAlignment);
+ 
+@@ -267,7 +267,21 @@ void ArmVIXLJNIMacroAssembler::DecreaseFrameSize(size_t adjust) {
+   }
+ }
+ 
++ManagedRegister ArmVIXLJNIMacroAssembler::CoreRegisterWithSize(ManagedRegister src, size_t size) {
++  DCHECK(src.AsArm().IsCoreRegister());
++  DCHECK_EQ(size, 4u);
++  return src;
++}
++
+ void ArmVIXLJNIMacroAssembler::Store(FrameOffset dest, ManagedRegister m_src, size_t size) {
++  Store(ArmManagedRegister::FromCoreRegister(SP), MemberOffset(dest.Int32Value()), m_src, size);
++}
++
++void ArmVIXLJNIMacroAssembler::Store(ManagedRegister m_base,
++                                     MemberOffset offs,
++                                     ManagedRegister m_src,
++                                     size_t size) {
++  ArmManagedRegister base = m_base.AsArm();
+   ArmManagedRegister src = m_src.AsArm();
+   if (src.IsNoRegister()) {
+     CHECK_EQ(0u, size);
+@@ -275,19 +289,19 @@ void ArmVIXLJNIMacroAssembler::Store(FrameOffset dest, ManagedRegister m_src, si
+     CHECK_EQ(4u, size);
+     UseScratchRegisterScope temps(asm_.GetVIXLAssembler());
+     temps.Exclude(AsVIXLRegister(src));
+-    asm_.StoreToOffset(kStoreWord, AsVIXLRegister(src), sp, dest.Int32Value());
++    asm_.StoreToOffset(kStoreWord, AsVIXLRegister(src), AsVIXLRegister(base), offs.Int32Value());
+   } else if (src.IsRegisterPair()) {
+     CHECK_EQ(8u, size);
+     ___ Strd(AsVIXLRegisterPairLow(src),
+              AsVIXLRegisterPairHigh(src),
+-             MemOperand(sp, dest.Int32Value()));
++             MemOperand(AsVIXLRegister(base), offs.Int32Value()));
+   } else if (src.IsSRegister()) {
+     CHECK_EQ(4u, size);
+-    asm_.StoreSToOffset(AsVIXLSRegister(src), sp, dest.Int32Value());
++    asm_.StoreSToOffset(AsVIXLSRegister(src), AsVIXLRegister(base), offs.Int32Value());
+   } else {
+     CHECK_EQ(8u, size);
+     CHECK(src.IsDRegister()) << src;
+-    asm_.StoreDToOffset(AsVIXLDRegister(src), sp, dest.Int32Value());
++    asm_.StoreDToOffset(AsVIXLDRegister(src), AsVIXLRegister(base), offs.Int32Value());
+   }
+ }
+ 
+@@ -373,6 +387,13 @@ void ArmVIXLJNIMacroAssembler::Load(ManagedRegister m_dst, FrameOffset src, size
+   return Load(m_dst.AsArm(), sp, src.Int32Value(), size);
+ }
+ 
++void ArmVIXLJNIMacroAssembler::Load(ManagedRegister m_dst,
++                                    ManagedRegister m_base,
++                                    MemberOffset offs,
++                                    size_t size) {
++  return Load(m_dst.AsArm(), AsVIXLRegister(m_base.AsArm()), offs.Int32Value(), size);
++}
++
+ void ArmVIXLJNIMacroAssembler::LoadFromThread(ManagedRegister m_dst,
+                                               ThreadOffset32 src,
+                                               size_t size) {
+@@ -1050,8 +1071,7 @@ void ArmVIXLJNIMacroAssembler::MemoryBarrier(ManagedRegister scratch ATTRIBUTE_U
+   UNIMPLEMENTED(FATAL);
+ }
+ 
+-void ArmVIXLJNIMacroAssembler::Load(ArmManagedRegister
+-                                    dest,
++void ArmVIXLJNIMacroAssembler::Load(ArmManagedRegister dest,
+                                     vixl32::Register base,
+                                     int32_t offset,
+                                     size_t size) {
+diff --git a/compiler/utils/arm/jni_macro_assembler_arm_vixl.h b/compiler/utils/arm/jni_macro_assembler_arm_vixl.h
+index 248fc67dc6..d98f688c66 100644
+--- a/compiler/utils/arm/jni_macro_assembler_arm_vixl.h
++++ b/compiler/utils/arm/jni_macro_assembler_arm_vixl.h
+@@ -61,8 +61,11 @@ class ArmVIXLJNIMacroAssembler final
+   void IncreaseFrameSize(size_t adjust) override;
+   void DecreaseFrameSize(size_t adjust) override;
+ 
++  ManagedRegister CoreRegisterWithSize(ManagedRegister src, size_t size) override;
++
+   // Store routines.
+   void Store(FrameOffset offs, ManagedRegister src, size_t size) override;
++  void Store(ManagedRegister base, MemberOffset offs, ManagedRegister src, size_t size) override;
+   void StoreRef(FrameOffset dest, ManagedRegister src) override;
+   void StoreRawPtr(FrameOffset dest, ManagedRegister src) override;
+ 
+@@ -76,6 +79,7 @@ class ArmVIXLJNIMacroAssembler final
+ 
+   // Load routines.
+   void Load(ManagedRegister dest, FrameOffset src, size_t size) override;
++  void Load(ManagedRegister dest, ManagedRegister base, MemberOffset offs, size_t size) override;
+ 
+   void LoadFromThread(ManagedRegister dest,
+                       ThreadOffset32 src,
+diff --git a/compiler/utils/arm64/jni_macro_assembler_arm64.cc b/compiler/utils/arm64/jni_macro_assembler_arm64.cc
+index c4dbd3f48c..33fff55cb6 100644
+--- a/compiler/utils/arm64/jni_macro_assembler_arm64.cc
++++ b/compiler/utils/arm64/jni_macro_assembler_arm64.cc
+@@ -37,7 +37,7 @@ namespace arm64 {
+ #define reg_d(D) Arm64Assembler::reg_d(D)
+ #define reg_s(S) Arm64Assembler::reg_s(S)
+ 
+-// The AAPCS64 requires 16-byte alignement. This is the same as the Managed ABI stack alignment.
++// The AAPCS64 requires 16-byte alignment. This is the same as the Managed ABI stack alignment.
+ static constexpr size_t kAapcs64StackAlignment = 16u;
+ static_assert(kAapcs64StackAlignment == kStackAlignment);
+ 
+@@ -77,6 +77,30 @@ void Arm64JNIMacroAssembler::DecreaseFrameSize(size_t adjust) {
+   }
+ }
+ 
++ManagedRegister Arm64JNIMacroAssembler::CoreRegisterWithSize(ManagedRegister m_src, size_t size) {
++  DCHECK(size == 4u || size == 8u) << size;
++  Arm64ManagedRegister src = m_src.AsArm64();
++  // Switch between X and W registers using the `XRegister` and `WRegister` enumerations.
++  static_assert(W0 == static_cast<std::underlying_type_t<XRegister>>(X0));
++  static_assert(W30 == static_cast<std::underlying_type_t<XRegister>>(X30));
++  static_assert(WSP == static_cast<std::underlying_type_t<XRegister>>(SP));
++  static_assert(WZR == static_cast<std::underlying_type_t<XRegister>>(XZR));
++  if (src.IsXRegister()) {
++    if (size == 8u) {
++      return m_src;
++    }
++    auto id = static_cast<std::underlying_type_t<XRegister>>(src.AsXRegister());
++    return Arm64ManagedRegister::FromWRegister(enum_cast<WRegister>(id));
++  } else {
++    CHECK(src.IsWRegister());
++    if (size == 4u) {
++      return m_src;
++    }
++    auto id = static_cast<std::underlying_type_t<WRegister>>(src.AsWRegister());
++    return Arm64ManagedRegister::FromXRegister(enum_cast<XRegister>(id));
++  }
++}
++
+ void Arm64JNIMacroAssembler::AddConstant(XRegister rd, int32_t value, Condition cond) {
+   AddConstant(rd, rd, value, cond);
+ }
+@@ -132,20 +156,28 @@ void Arm64JNIMacroAssembler::StoreDToOffset(DRegister source, XRegister base, in
+ }
+ 
+ void Arm64JNIMacroAssembler::Store(FrameOffset offs, ManagedRegister m_src, size_t size) {
++  Store(Arm64ManagedRegister::FromXRegister(SP), MemberOffset(offs.Int32Value()), m_src, size);
++}
++
++void Arm64JNIMacroAssembler::Store(ManagedRegister m_base,
++                                   MemberOffset offs,
++                                   ManagedRegister m_src,
++                                   size_t size) {
++  Arm64ManagedRegister base = m_base.AsArm64();
+   Arm64ManagedRegister src = m_src.AsArm64();
+   if (src.IsNoRegister()) {
+     CHECK_EQ(0u, size);
+   } else if (src.IsWRegister()) {
+     CHECK_EQ(4u, size);
+-    StoreWToOffset(kStoreWord, src.AsWRegister(), SP, offs.Int32Value());
++    StoreWToOffset(kStoreWord, src.AsWRegister(), base.AsXRegister(), offs.Int32Value());
+   } else if (src.IsXRegister()) {
+     CHECK_EQ(8u, size);
+-    StoreToOffset(src.AsXRegister(), SP, offs.Int32Value());
++    StoreToOffset(src.AsXRegister(), base.AsXRegister(), offs.Int32Value());
+   } else if (src.IsSRegister()) {
+-    StoreSToOffset(src.AsSRegister(), SP, offs.Int32Value());
++    StoreSToOffset(src.AsSRegister(), base.AsXRegister(), offs.Int32Value());
+   } else {
+     CHECK(src.IsDRegister()) << src;
+-    StoreDToOffset(src.AsDRegister(), SP, offs.Int32Value());
++    StoreDToOffset(src.AsDRegister(), base.AsXRegister(), offs.Int32Value());
+   }
+ }
+ 
+@@ -280,6 +312,13 @@ void Arm64JNIMacroAssembler::Load(ManagedRegister m_dst, FrameOffset src, size_t
+   return Load(m_dst.AsArm64(), SP, src.Int32Value(), size);
+ }
+ 
++void Arm64JNIMacroAssembler::Load(ManagedRegister m_dst,
++                                  ManagedRegister m_base,
++                                  MemberOffset offs,
++                                  size_t size) {
++  return Load(m_dst.AsArm64(), m_base.AsArm64().AsXRegister(), offs.Int32Value(), size);
++}
++
+ void Arm64JNIMacroAssembler::LoadFromThread(ManagedRegister m_dst,
+                                             ThreadOffset64 src,
+                                             size_t size) {
+diff --git a/compiler/utils/arm64/jni_macro_assembler_arm64.h b/compiler/utils/arm64/jni_macro_assembler_arm64.h
+index ad027d330f..2c4b25256a 100644
+--- a/compiler/utils/arm64/jni_macro_assembler_arm64.h
++++ b/compiler/utils/arm64/jni_macro_assembler_arm64.h
+@@ -64,8 +64,11 @@ class Arm64JNIMacroAssembler final : public JNIMacroAssemblerFwd<Arm64Assembler,
+   void IncreaseFrameSize(size_t adjust) override;
+   void DecreaseFrameSize(size_t adjust) override;
+ 
++  ManagedRegister CoreRegisterWithSize(ManagedRegister src, size_t size) override;
++
+   // Store routines.
+   void Store(FrameOffset offs, ManagedRegister src, size_t size) override;
++  void Store(ManagedRegister base, MemberOffset offs, ManagedRegister src, size_t size) override;
+   void StoreRef(FrameOffset dest, ManagedRegister src) override;
+   void StoreRawPtr(FrameOffset dest, ManagedRegister src) override;
+   void StoreImmediateToFrame(FrameOffset dest, uint32_t imm) override;
+@@ -75,6 +78,7 @@ class Arm64JNIMacroAssembler final : public JNIMacroAssemblerFwd<Arm64Assembler,
+ 
+   // Load routines.
+   void Load(ManagedRegister dest, FrameOffset src, size_t size) override;
++  void Load(ManagedRegister dest, ManagedRegister base, MemberOffset offs, size_t size) override;
+   void LoadFromThread(ManagedRegister dest, ThreadOffset64 src, size_t size) override;
+   void LoadRef(ManagedRegister dest, FrameOffset src) override;
+   void LoadRef(ManagedRegister dest,
+diff --git a/compiler/utils/jni_macro_assembler.h b/compiler/utils/jni_macro_assembler.h
+index d62112211b..a9d9f546e9 100644
+--- a/compiler/utils/jni_macro_assembler.h
++++ b/compiler/utils/jni_macro_assembler.h
+@@ -111,8 +111,13 @@ class JNIMacroAssembler : public DeletableArenaObject<kArenaAllocAssembler> {
+   virtual void IncreaseFrameSize(size_t adjust) = 0;
+   virtual void DecreaseFrameSize(size_t adjust) = 0;
+ 
++  // Return the same core register but with correct size if the architecture-specific
++  // ManagedRegister has different representation for different sizes.
++  virtual ManagedRegister CoreRegisterWithSize(ManagedRegister src, size_t size) = 0;
++
+   // Store routines
+   virtual void Store(FrameOffset offs, ManagedRegister src, size_t size) = 0;
++  virtual void Store(ManagedRegister base, MemberOffset offs, ManagedRegister src, size_t size) = 0;
+   virtual void StoreRef(FrameOffset dest, ManagedRegister src) = 0;
+   virtual void StoreRawPtr(FrameOffset dest, ManagedRegister src) = 0;
+ 
+@@ -129,6 +134,7 @@ class JNIMacroAssembler : public DeletableArenaObject<kArenaAllocAssembler> {
+ 
+   // Load routines
+   virtual void Load(ManagedRegister dest, FrameOffset src, size_t size) = 0;
++  virtual void Load(ManagedRegister dest, ManagedRegister base, MemberOffset offs, size_t size) = 0;
+ 
+   virtual void LoadFromThread(ManagedRegister dest,
+                               ThreadOffset<kPointerSize> src,
+diff --git a/compiler/utils/x86/jni_macro_assembler_x86.cc b/compiler/utils/x86/jni_macro_assembler_x86.cc
+index 2710eb1912..3c8844723d 100644
+--- a/compiler/utils/x86/jni_macro_assembler_x86.cc
++++ b/compiler/utils/x86/jni_macro_assembler_x86.cc
+@@ -127,33 +127,48 @@ static void DecreaseFrameSizeImpl(X86Assembler* assembler, size_t adjust) {
+   }
+ }
+ 
++ManagedRegister X86JNIMacroAssembler::CoreRegisterWithSize(ManagedRegister src, size_t size) {
++  DCHECK(src.AsX86().IsCpuRegister());
++  DCHECK_EQ(size, 4u);
++  return src;
++}
++
+ void X86JNIMacroAssembler::DecreaseFrameSize(size_t adjust) {
+   DecreaseFrameSizeImpl(&asm_, adjust);
+ }
+ 
+ void X86JNIMacroAssembler::Store(FrameOffset offs, ManagedRegister msrc, size_t size) {
++  Store(X86ManagedRegister::FromCpuRegister(ESP), MemberOffset(offs.Int32Value()), msrc, size);
++}
++
++void X86JNIMacroAssembler::Store(ManagedRegister mbase,
++                                 MemberOffset offs,
++                                 ManagedRegister msrc,
++                                 size_t size) {
++  X86ManagedRegister base = mbase.AsX86();
+   X86ManagedRegister src = msrc.AsX86();
+   if (src.IsNoRegister()) {
+     CHECK_EQ(0u, size);
+   } else if (src.IsCpuRegister()) {
+     CHECK_EQ(4u, size);
+-    __ movl(Address(ESP, offs), src.AsCpuRegister());
++    __ movl(Address(base.AsCpuRegister(), offs), src.AsCpuRegister());
+   } else if (src.IsRegisterPair()) {
+     CHECK_EQ(8u, size);
+-    __ movl(Address(ESP, offs), src.AsRegisterPairLow());
+-    __ movl(Address(ESP, FrameOffset(offs.Int32Value()+4)), src.AsRegisterPairHigh());
++    __ movl(Address(base.AsCpuRegister(), offs), src.AsRegisterPairLow());
++    __ movl(Address(base.AsCpuRegister(), FrameOffset(offs.Int32Value()+4)),
++            src.AsRegisterPairHigh());
+   } else if (src.IsX87Register()) {
+     if (size == 4) {
+-      __ fstps(Address(ESP, offs));
++      __ fstps(Address(base.AsCpuRegister(), offs));
+     } else {
+-      __ fstpl(Address(ESP, offs));
++      __ fstpl(Address(base.AsCpuRegister(), offs));
+     }
+   } else {
+     CHECK(src.IsXmmRegister());
+     if (size == 4) {
+-      __ movss(Address(ESP, offs), src.AsXmmRegister());
++      __ movss(Address(base.AsCpuRegister(), offs), src.AsXmmRegister());
+     } else {
+-      __ movsd(Address(ESP, offs), src.AsXmmRegister());
++      __ movsd(Address(base.AsCpuRegister(), offs), src.AsXmmRegister());
+     }
+   }
+ }
+@@ -191,28 +206,37 @@ void X86JNIMacroAssembler::StoreSpanning(FrameOffset /*dst*/,
+ }
+ 
+ void X86JNIMacroAssembler::Load(ManagedRegister mdest, FrameOffset src, size_t size) {
++  Load(mdest, X86ManagedRegister::FromCpuRegister(ESP), MemberOffset(src.Int32Value()), size);
++}
++
++void X86JNIMacroAssembler::Load(ManagedRegister mdest,
++                                ManagedRegister mbase,
++                                MemberOffset offs,
++                                size_t size) {
+   X86ManagedRegister dest = mdest.AsX86();
++  X86ManagedRegister base = mbase.AsX86();
+   if (dest.IsNoRegister()) {
+     CHECK_EQ(0u, size);
+   } else if (dest.IsCpuRegister()) {
+     CHECK_EQ(4u, size);
+-    __ movl(dest.AsCpuRegister(), Address(ESP, src));
++    __ movl(dest.AsCpuRegister(), Address(base.AsCpuRegister(), offs));
+   } else if (dest.IsRegisterPair()) {
+     CHECK_EQ(8u, size);
+-    __ movl(dest.AsRegisterPairLow(), Address(ESP, src));
+-    __ movl(dest.AsRegisterPairHigh(), Address(ESP, FrameOffset(src.Int32Value()+4)));
++    __ movl(dest.AsRegisterPairLow(), Address(base.AsCpuRegister(), offs));
++    __ movl(dest.AsRegisterPairHigh(),
++            Address(base.AsCpuRegister(), FrameOffset(offs.Int32Value()+4)));
+   } else if (dest.IsX87Register()) {
+     if (size == 4) {
+-      __ flds(Address(ESP, src));
++      __ flds(Address(base.AsCpuRegister(), offs));
+     } else {
+-      __ fldl(Address(ESP, src));
++      __ fldl(Address(base.AsCpuRegister(), offs));
+     }
+   } else {
+     CHECK(dest.IsXmmRegister());
+     if (size == 4) {
+-      __ movss(dest.AsXmmRegister(), Address(ESP, src));
++      __ movss(dest.AsXmmRegister(), Address(base.AsCpuRegister(), offs));
+     } else {
+-      __ movsd(dest.AsXmmRegister(), Address(ESP, src));
++      __ movsd(dest.AsXmmRegister(), Address(base.AsCpuRegister(), offs));
+     }
+   }
+ }
+diff --git a/compiler/utils/x86/jni_macro_assembler_x86.h b/compiler/utils/x86/jni_macro_assembler_x86.h
+index 448a7f4abd..1f9355a69b 100644
+--- a/compiler/utils/x86/jni_macro_assembler_x86.h
++++ b/compiler/utils/x86/jni_macro_assembler_x86.h
+@@ -54,8 +54,11 @@ class X86JNIMacroAssembler final : public JNIMacroAssemblerFwd<X86Assembler, Poi
+   void IncreaseFrameSize(size_t adjust) override;
+   void DecreaseFrameSize(size_t adjust) override;
+ 
++  ManagedRegister CoreRegisterWithSize(ManagedRegister src, size_t size) override;
++
+   // Store routines
+   void Store(FrameOffset offs, ManagedRegister src, size_t size) override;
++  void Store(ManagedRegister base, MemberOffset offs, ManagedRegister src, size_t size) override;
+   void StoreRef(FrameOffset dest, ManagedRegister src) override;
+   void StoreRawPtr(FrameOffset dest, ManagedRegister src) override;
+ 
+@@ -69,6 +72,7 @@ class X86JNIMacroAssembler final : public JNIMacroAssemblerFwd<X86Assembler, Poi
+ 
+   // Load routines
+   void Load(ManagedRegister dest, FrameOffset src, size_t size) override;
++  void Load(ManagedRegister dest, ManagedRegister base, MemberOffset offs, size_t size) override;
+ 
+   void LoadFromThread(ManagedRegister dest, ThreadOffset32 src, size_t size) override;
+ 
+diff --git a/compiler/utils/x86_64/jni_macro_assembler_x86_64.cc b/compiler/utils/x86_64/jni_macro_assembler_x86_64.cc
+index b5e17d16bc..d9f05dfe8b 100644
+--- a/compiler/utils/x86_64/jni_macro_assembler_x86_64.cc
++++ b/compiler/utils/x86_64/jni_macro_assembler_x86_64.cc
+@@ -151,35 +151,44 @@ void X86_64JNIMacroAssembler::DecreaseFrameSize(size_t adjust) {
+   DecreaseFrameSizeImpl(adjust, &asm_);
+ }
+ 
++ManagedRegister X86_64JNIMacroAssembler::CoreRegisterWithSize(ManagedRegister src, size_t size) {
++  DCHECK(src.AsX86_64().IsCpuRegister());
++  DCHECK(size == 4u || size == 8u) << size;
++  return src;
++}
++
+ void X86_64JNIMacroAssembler::Store(FrameOffset offs, ManagedRegister msrc, size_t size) {
++  Store(X86_64ManagedRegister::FromCpuRegister(RSP), MemberOffset(offs.Int32Value()), msrc, size);
++}
++
++void X86_64JNIMacroAssembler::Store(ManagedRegister mbase,
++                                    MemberOffset offs,
++                                    ManagedRegister msrc,
++                                    size_t size) {
++  X86_64ManagedRegister base = mbase.AsX86_64();
+   X86_64ManagedRegister src = msrc.AsX86_64();
+   if (src.IsNoRegister()) {
+     CHECK_EQ(0u, size);
+   } else if (src.IsCpuRegister()) {
+     if (size == 4) {
+       CHECK_EQ(4u, size);
+-      __ movl(Address(CpuRegister(RSP), offs), src.AsCpuRegister());
++      __ movl(Address(base.AsCpuRegister(), offs), src.AsCpuRegister());
+     } else {
+       CHECK_EQ(8u, size);
+-      __ movq(Address(CpuRegister(RSP), offs), src.AsCpuRegister());
++      __ movq(Address(base.AsCpuRegister(), offs), src.AsCpuRegister());
+     }
+-  } else if (src.IsRegisterPair()) {
+-    CHECK_EQ(0u, size);
+-    __ movq(Address(CpuRegister(RSP), offs), src.AsRegisterPairLow());
+-    __ movq(Address(CpuRegister(RSP), FrameOffset(offs.Int32Value()+4)),
+-            src.AsRegisterPairHigh());
+   } else if (src.IsX87Register()) {
+     if (size == 4) {
+-      __ fstps(Address(CpuRegister(RSP), offs));
++      __ fstps(Address(base.AsCpuRegister(), offs));
+     } else {
+-      __ fstpl(Address(CpuRegister(RSP), offs));
++      __ fstpl(Address(base.AsCpuRegister(), offs));
+     }
+   } else {
+     CHECK(src.IsXmmRegister());
+     if (size == 4) {
+-      __ movss(Address(CpuRegister(RSP), offs), src.AsXmmRegister());
++      __ movss(Address(base.AsCpuRegister(), offs), src.AsXmmRegister());
+     } else {
+-      __ movsd(Address(CpuRegister(RSP), offs), src.AsXmmRegister());
++      __ movsd(Address(base.AsCpuRegister(), offs), src.AsXmmRegister());
+     }
+   }
+ }
+@@ -218,33 +227,37 @@ void X86_64JNIMacroAssembler::StoreSpanning(FrameOffset /*dst*/,
+ }
+ 
+ void X86_64JNIMacroAssembler::Load(ManagedRegister mdest, FrameOffset src, size_t size) {
++  Load(mdest, X86_64ManagedRegister::FromCpuRegister(RSP), MemberOffset(src.Int32Value()), size);
++}
++
++void X86_64JNIMacroAssembler::Load(ManagedRegister mdest,
++                                   ManagedRegister mbase,
++                                   MemberOffset offs,
++                                   size_t size) {
+   X86_64ManagedRegister dest = mdest.AsX86_64();
++  X86_64ManagedRegister base = mbase.AsX86_64();
+   if (dest.IsNoRegister()) {
+     CHECK_EQ(0u, size);
+   } else if (dest.IsCpuRegister()) {
+     if (size == 4) {
+       CHECK_EQ(4u, size);
+-      __ movl(dest.AsCpuRegister(), Address(CpuRegister(RSP), src));
++      __ movl(dest.AsCpuRegister(), Address(base.AsCpuRegister(), offs));
+     } else {
+       CHECK_EQ(8u, size);
+-      __ movq(dest.AsCpuRegister(), Address(CpuRegister(RSP), src));
++      __ movq(dest.AsCpuRegister(), Address(base.AsCpuRegister(), offs));
+     }
+-  } else if (dest.IsRegisterPair()) {
+-    CHECK_EQ(0u, size);
+-    __ movq(dest.AsRegisterPairLow(), Address(CpuRegister(RSP), src));
+-    __ movq(dest.AsRegisterPairHigh(), Address(CpuRegister(RSP), FrameOffset(src.Int32Value()+4)));
+   } else if (dest.IsX87Register()) {
+     if (size == 4) {
+-      __ flds(Address(CpuRegister(RSP), src));
++      __ flds(Address(base.AsCpuRegister(), offs));
+     } else {
+-      __ fldl(Address(CpuRegister(RSP), src));
++      __ fldl(Address(base.AsCpuRegister(), offs));
+     }
+   } else {
+     CHECK(dest.IsXmmRegister());
+     if (size == 4) {
+-      __ movss(dest.AsXmmRegister(), Address(CpuRegister(RSP), src));
++      __ movss(dest.AsXmmRegister(), Address(base.AsCpuRegister(), offs));
+     } else {
+-      __ movsd(dest.AsXmmRegister(), Address(CpuRegister(RSP), src));
++      __ movsd(dest.AsXmmRegister(), Address(base.AsCpuRegister(), offs));
+     }
+   }
+ }
+diff --git a/compiler/utils/x86_64/jni_macro_assembler_x86_64.h b/compiler/utils/x86_64/jni_macro_assembler_x86_64.h
+index a5f7bbb05f..f1ec74fe73 100644
+--- a/compiler/utils/x86_64/jni_macro_assembler_x86_64.h
++++ b/compiler/utils/x86_64/jni_macro_assembler_x86_64.h
+@@ -55,8 +55,11 @@ class X86_64JNIMacroAssembler final : public JNIMacroAssemblerFwd<X86_64Assemble
+   void IncreaseFrameSize(size_t adjust) override;
+   void DecreaseFrameSize(size_t adjust) override;
+ 
++  ManagedRegister CoreRegisterWithSize(ManagedRegister src, size_t size) override;
++
+   // Store routines
+   void Store(FrameOffset offs, ManagedRegister src, size_t size) override;
++  void Store(ManagedRegister base, MemberOffset offs, ManagedRegister src, size_t size) override;
+   void StoreRef(FrameOffset dest, ManagedRegister src) override;
+   void StoreRawPtr(FrameOffset dest, ManagedRegister src) override;
+ 
+@@ -70,6 +73,7 @@ class X86_64JNIMacroAssembler final : public JNIMacroAssemblerFwd<X86_64Assemble
+ 
+   // Load routines
+   void Load(ManagedRegister dest, FrameOffset src, size_t size) override;
++  void Load(ManagedRegister dest, ManagedRegister base, MemberOffset offs, size_t size) override;
+ 
+   void LoadFromThread(ManagedRegister dest, ThreadOffset64 src, size_t size) override;
+ 
+diff --git a/runtime/arch/arm/jni_frame_arm.h b/runtime/arch/arm/jni_frame_arm.h
+index 2263873ff2..8c56af18d1 100644
+--- a/runtime/arch/arm/jni_frame_arm.h
++++ b/runtime/arch/arm/jni_frame_arm.h
+@@ -30,7 +30,7 @@ namespace arm {
+ constexpr size_t kFramePointerSize = static_cast<size_t>(PointerSize::k32);
+ static_assert(kArmPointerSize == PointerSize::k32, "Unexpected ARM pointer size");
+ 
+-// The AAPCS requires 8-byte alignement. This is not as strict as the Managed ABI stack alignment.
++// The AAPCS requires 8-byte alignment. This is not as strict as the Managed ABI stack alignment.
+ static constexpr size_t kAapcsStackAlignment = 8u;
+ static_assert(kAapcsStackAlignment < kStackAlignment);
+ 
+diff --git a/runtime/arch/arm64/jni_frame_arm64.h b/runtime/arch/arm64/jni_frame_arm64.h
+index 17e7434af3..9f691d06f2 100644
+--- a/runtime/arch/arm64/jni_frame_arm64.h
++++ b/runtime/arch/arm64/jni_frame_arm64.h
+@@ -30,7 +30,7 @@ namespace arm64 {
+ constexpr size_t kFramePointerSize = static_cast<size_t>(PointerSize::k64);
+ static_assert(kArm64PointerSize == PointerSize::k64, "Unexpected ARM64 pointer size");
+ 
+-// The AAPCS64 requires 16-byte alignement. This is the same as the Managed ABI stack alignment.
++// The AAPCS64 requires 16-byte alignment. This is the same as the Managed ABI stack alignment.
+ static constexpr size_t kAapcs64StackAlignment = 16u;
+ static_assert(kAapcs64StackAlignment == kStackAlignment);
+ 
+diff --git a/runtime/entrypoints/quick/quick_entrypoints.h b/runtime/entrypoints/quick/quick_entrypoints.h
+index d41a276325..3f7c2302f2 100644
+--- a/runtime/entrypoints/quick/quick_entrypoints.h
++++ b/runtime/entrypoints/quick/quick_entrypoints.h
+@@ -54,50 +54,38 @@ struct PACKED(4) QuickEntryPoints {
+ 
+ // JNI entrypoints.
+ // TODO: NO_THREAD_SAFETY_ANALYSIS due to different control paths depending on fast JNI.
+-extern uint32_t JniMethodStart(Thread* self) NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern uint32_t JniMethodFastStart(Thread* self) NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern uint32_t JniMethodStartSynchronized(jobject to_lock, Thread* self)
++extern void JniMethodStart(Thread* self) NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
++extern void JniMethodFastStart(Thread* self) NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
++extern void JniMethodStartSynchronized(jobject to_lock, Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern void JniMethodEnd(uint32_t saved_local_ref_cookie, Thread* self)
++extern void JniMethodEnd(Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern void JniMethodFastEnd(uint32_t saved_local_ref_cookie, Thread* self)
++extern void JniMethodFastEnd(Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern void JniMethodEndSynchronized(uint32_t saved_local_ref_cookie, jobject locked,
+-                                     Thread* self)
++extern void JniMethodEndSynchronized(jobject locked, Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern mirror::Object* JniMethodEndWithReference(jobject result, uint32_t saved_local_ref_cookie,
+-                                                 Thread* self)
++extern mirror::Object* JniMethodEndWithReference(jobject result, Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern mirror::Object* JniMethodFastEndWithReference(jobject result,
+-                                                     uint32_t saved_local_ref_cookie,
+-                                                     Thread* self)
++extern mirror::Object* JniMethodFastEndWithReference(jobject result, Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-
+-
+ extern mirror::Object* JniMethodEndWithReferenceSynchronized(jobject result,
+-                                                             uint32_t saved_local_ref_cookie,
+-                                                             jobject locked, Thread* self)
++                                                             jobject locked,
++                                                             Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+ 
+ // JNI entrypoints when monitoring entry/exit.
+-extern uint32_t JniMonitoredMethodStart(Thread* self) NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern uint32_t JniMonitoredMethodStartSynchronized(jobject to_lock, Thread* self)
++extern void JniMonitoredMethodStart(Thread* self) NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
++extern void JniMonitoredMethodStartSynchronized(jobject to_lock, Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern void JniMonitoredMethodEnd(uint32_t saved_local_ref_cookie, Thread* self)
++extern void JniMonitoredMethodEnd(Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern void JniMonitoredMethodEndSynchronized(uint32_t saved_local_ref_cookie,
+-                                              jobject locked,
+-                                              Thread* self)
++extern void JniMonitoredMethodEndSynchronized(jobject locked, Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-extern mirror::Object* JniMonitoredMethodEndWithReference(jobject result,
+-                                                          uint32_t saved_local_ref_cookie,
+-                                                          Thread* self)
++extern mirror::Object* JniMonitoredMethodEndWithReference(jobject result, Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+-
+-extern mirror::Object* JniMonitoredMethodEndWithReferenceSynchronized(
+-    jobject result,
+-    uint32_t saved_local_ref_cookie,
+-    jobject locked, Thread* self)
++extern mirror::Object* JniMonitoredMethodEndWithReferenceSynchronized(jobject result,
++                                                                      jobject locked,
++                                                                      Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS HOT_ATTR;
+ 
+ 
+diff --git a/runtime/entrypoints/quick/quick_entrypoints_list.h b/runtime/entrypoints/quick/quick_entrypoints_list.h
+index 78e4dbc131..5deb55752f 100644
+--- a/runtime/entrypoints/quick/quick_entrypoints_list.h
++++ b/runtime/entrypoints/quick/quick_entrypoints_list.h
+@@ -72,15 +72,15 @@
+ \
+   V(AputObject, void, mirror::Array*, int32_t, mirror::Object*) \
+ \
+-  V(JniMethodStart, uint32_t, Thread*) \
+-  V(JniMethodFastStart, uint32_t, Thread*) \
+-  V(JniMethodStartSynchronized, uint32_t, jobject, Thread*) \
+-  V(JniMethodEnd, void, uint32_t, Thread*) \
+-  V(JniMethodFastEnd, void, uint32_t, Thread*) \
+-  V(JniMethodEndSynchronized, void, uint32_t, jobject, Thread*) \
+-  V(JniMethodEndWithReference, mirror::Object*, jobject, uint32_t, Thread*) \
+-  V(JniMethodFastEndWithReference, mirror::Object*, jobject, uint32_t, Thread*) \
+-  V(JniMethodEndWithReferenceSynchronized, mirror::Object*, jobject, uint32_t, jobject, Thread*) \
++  V(JniMethodStart, void, Thread*) \
++  V(JniMethodFastStart, void, Thread*) \
++  V(JniMethodStartSynchronized, void, jobject, Thread*) \
++  V(JniMethodEnd, void, Thread*) \
++  V(JniMethodFastEnd, void, Thread*) \
++  V(JniMethodEndSynchronized, void, jobject, Thread*) \
++  V(JniMethodEndWithReference, mirror::Object*, jobject, Thread*) \
++  V(JniMethodFastEndWithReference, mirror::Object*, jobject, Thread*) \
++  V(JniMethodEndWithReferenceSynchronized, mirror::Object*, jobject, jobject, Thread*) \
+   V(QuickGenericJniTrampoline, void, ArtMethod*) \
+ \
+   V(LockObject, void, mirror::Object*) \
+diff --git a/runtime/entrypoints/quick/quick_jni_entrypoints.cc b/runtime/entrypoints/quick/quick_jni_entrypoints.cc
+index 3ac7ecae73..d09e21dbdf 100644
+--- a/runtime/entrypoints/quick/quick_jni_entrypoints.cc
++++ b/runtime/entrypoints/quick/quick_jni_entrypoints.cc
+@@ -60,27 +60,15 @@ extern void ReadBarrierJni(mirror::CompressedReference<mirror::Class>* declaring
+ }
+ 
+ // Called on entry to fast JNI, push a new local reference table only.
+-extern uint32_t JniMethodFastStart(Thread* self) {
+-  JNIEnvExt* env = self->GetJniEnv();
+-  DCHECK(env != nullptr);
+-  uint32_t saved_local_ref_cookie = bit_cast<uint32_t>(env->GetLocalRefCookie());
+-  env->SetLocalRefCookie(env->GetLocalsSegmentState());
+-
++extern void JniMethodFastStart(Thread* self) {
+   if (kIsDebugBuild) {
+     ArtMethod* native_method = *self->GetManagedStack()->GetTopQuickFrame();
+     CHECK(native_method->IsFastNative()) << native_method->PrettyMethod();
+   }
+-
+-  return saved_local_ref_cookie;
+ }
+ 
+ // Called on entry to JNI, transition out of Runnable and release share of mutator_lock_.
+-extern uint32_t JniMethodStart(Thread* self) {
+-  JNIEnvExt* env = self->GetJniEnv();
+-  DCHECK(env != nullptr);
+-  uint32_t saved_local_ref_cookie = bit_cast<uint32_t>(env->GetLocalRefCookie());
+-  env->SetLocalRefCookie(env->GetLocalsSegmentState());
+-
++extern void JniMethodStart(Thread* self) {
+   if (kIsDebugBuild) {
+     ArtMethod* native_method = *self->GetManagedStack()->GetTopQuickFrame();
+     CHECK(!native_method->IsFastNative()) << native_method->PrettyMethod();
+@@ -88,12 +76,11 @@ extern uint32_t JniMethodStart(Thread* self) {
+ 
+   // Transition out of runnable.
+   self->TransitionFromRunnableToSuspended(kNative);
+-  return saved_local_ref_cookie;
+ }
+ 
+-extern uint32_t JniMethodStartSynchronized(jobject to_lock, Thread* self) {
++extern void JniMethodStartSynchronized(jobject to_lock, Thread* self) {
+   self->DecodeJObject(to_lock)->MonitorEnter(self);
+-  return JniMethodStart(self);
++  JniMethodStart(self);
+ }
+ 
+ // TODO: NO_THREAD_SAFETY_ANALYSIS due to different control paths depending on fast JNI.
+@@ -159,35 +146,27 @@ static inline void UnlockJniSynchronizedMethod(jobject locked, Thread* self)
+ // TODO: These should probably be templatized or macro-ized.
+ // Otherwise there's just too much repetitive boilerplate.
+ 
+-extern void JniMethodEnd(uint32_t saved_local_ref_cookie, Thread* self) {
++extern void JniMethodEnd(Thread* self) {
+   GoToRunnable(self);
+-  PopLocalReferences(saved_local_ref_cookie, self);
+ }
+ 
+-extern void JniMethodFastEnd(uint32_t saved_local_ref_cookie, Thread* self) {
++extern void JniMethodFastEnd(Thread* self) {
+   GoToRunnableFast(self);
+-  PopLocalReferences(saved_local_ref_cookie, self);
+ }
+ 
+-extern void JniMethodEndSynchronized(uint32_t saved_local_ref_cookie,
+-                                     jobject locked,
+-                                     Thread* self) {
++extern void JniMethodEndSynchronized(jobject locked, Thread* self) {
+   GoToRunnable(self);
+   UnlockJniSynchronizedMethod(locked, self);  // Must decode before pop.
+-  PopLocalReferences(saved_local_ref_cookie, self);
+ }
+ 
+ // Common result handling for EndWithReference.
+-static mirror::Object* JniMethodEndWithReferenceHandleResult(jobject result,
+-                                                             uint32_t saved_local_ref_cookie,
+-                                                             Thread* self)
++static mirror::Object* JniMethodEndWithReferenceHandleResult(jobject result, Thread* self)
+     NO_THREAD_SAFETY_ANALYSIS {
+   // Must decode before pop. The 'result' may not be valid in case of an exception, though.
+   ObjPtr<mirror::Object> o;
+   if (!self->IsExceptionPending()) {
+     o = self->DecodeJObject(result);
+   }
+-  PopLocalReferences(saved_local_ref_cookie, self);
+   // Process result.
+   if (UNLIKELY(self->GetJniEnv()->IsCheckJniEnabled())) {
+     // CheckReferenceResult can resolve types.
+@@ -199,27 +178,22 @@ static mirror::Object* JniMethodEndWithReferenceHandleResult(jobject result,
+   return o.Ptr();
+ }
+ 
+-extern mirror::Object* JniMethodFastEndWithReference(jobject result,
+-                                                     uint32_t saved_local_ref_cookie,
+-                                                     Thread* self) {
++extern mirror::Object* JniMethodFastEndWithReference(jobject result, Thread* self) {
+   GoToRunnableFast(self);
+-  return JniMethodEndWithReferenceHandleResult(result, saved_local_ref_cookie, self);
++  return JniMethodEndWithReferenceHandleResult(result, self);
+ }
+ 
+-extern mirror::Object* JniMethodEndWithReference(jobject result,
+-                                                 uint32_t saved_local_ref_cookie,
+-                                                 Thread* self) {
++extern mirror::Object* JniMethodEndWithReference(jobject result, Thread* self) {
+   GoToRunnable(self);
+-  return JniMethodEndWithReferenceHandleResult(result, saved_local_ref_cookie, self);
++  return JniMethodEndWithReferenceHandleResult(result, self);
+ }
+ 
+ extern mirror::Object* JniMethodEndWithReferenceSynchronized(jobject result,
+-                                                             uint32_t saved_local_ref_cookie,
+                                                              jobject locked,
+                                                              Thread* self) {
+   GoToRunnable(self);
+   UnlockJniSynchronizedMethod(locked, self);
+-  return JniMethodEndWithReferenceHandleResult(result, saved_local_ref_cookie, self);
++  return JniMethodEndWithReferenceHandleResult(result, self);
+ }
+ 
+ extern uint64_t GenericJniMethodEnd(Thread* self,
+@@ -251,8 +225,10 @@ extern uint64_t GenericJniMethodEnd(Thread* self,
+   }
+   char return_shorty_char = called->GetShorty()[0];
+   if (return_shorty_char == 'L') {
+-    return reinterpret_cast<uint64_t>(JniMethodEndWithReferenceHandleResult(
+-        result.l, saved_local_ref_cookie, self));
++    uint64_t ret =
++        reinterpret_cast<uint64_t>(JniMethodEndWithReferenceHandleResult(result.l, self));
++    PopLocalReferences(saved_local_ref_cookie, self);
++    return ret;
+   } else {
+     if (LIKELY(!critical_native)) {
+       PopLocalReferences(saved_local_ref_cookie, self);
+@@ -290,44 +266,37 @@ extern uint64_t GenericJniMethodEnd(Thread* self,
+   }
+ }
+ 
+-extern uint32_t JniMonitoredMethodStart(Thread* self) {
+-  uint32_t result = JniMethodStart(self);
++extern void JniMonitoredMethodStart(Thread* self) {
++  JniMethodStart(self);
+   MONITOR_JNI(PaletteNotifyBeginJniInvocation);
+-  return result;
+ }
+ 
+-extern uint32_t JniMonitoredMethodStartSynchronized(jobject to_lock, Thread* self) {
+-  uint32_t result = JniMethodStartSynchronized(to_lock, self);
++extern void JniMonitoredMethodStartSynchronized(jobject to_lock, Thread* self) {
++  JniMethodStartSynchronized(to_lock, self);
+   MONITOR_JNI(PaletteNotifyBeginJniInvocation);
+-  return result;
+ }
+ 
+-extern void JniMonitoredMethodEnd(uint32_t saved_local_ref_cookie, Thread* self) {
++extern void JniMonitoredMethodEnd(Thread* self) {
+   MONITOR_JNI(PaletteNotifyEndJniInvocation);
+-  return JniMethodEnd(saved_local_ref_cookie, self);
++  JniMethodEnd(self);
+ }
+ 
+-extern void JniMonitoredMethodEndSynchronized(uint32_t saved_local_ref_cookie,
+-                                             jobject locked,
+-                                             Thread* self) {
++extern void JniMonitoredMethodEndSynchronized(jobject locked, Thread* self) {
+   MONITOR_JNI(PaletteNotifyEndJniInvocation);
+-  return JniMethodEndSynchronized(saved_local_ref_cookie, locked, self);
++  JniMethodEndSynchronized(locked, self);
+ }
+ 
+-extern mirror::Object* JniMonitoredMethodEndWithReference(jobject result,
+-                                                          uint32_t saved_local_ref_cookie,
+-                                                          Thread* self) {
++extern mirror::Object* JniMonitoredMethodEndWithReference(jobject result, Thread* self) {
+   MONITOR_JNI(PaletteNotifyEndJniInvocation);
+-  return JniMethodEndWithReference(result, saved_local_ref_cookie, self);
++  return JniMethodEndWithReference(result, self);
+ }
+ 
+ extern mirror::Object* JniMonitoredMethodEndWithReferenceSynchronized(
+     jobject result,
+-    uint32_t saved_local_ref_cookie,
+     jobject locked,
+     Thread* self) {
+   MONITOR_JNI(PaletteNotifyEndJniInvocation);
+-  return JniMethodEndWithReferenceSynchronized(result, saved_local_ref_cookie, locked, self);
++  return JniMethodEndWithReferenceSynchronized(result, locked, self);
+ }
+ 
+ }  // namespace art
+diff --git a/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc b/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc
+index eaa9f4eebb..a4159ae1ff 100644
+--- a/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc
++++ b/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc
+@@ -2119,27 +2119,33 @@ extern "C" const void* artQuickGenericJniTrampoline(Thread* self,
+     }
+   }
+ 
+-  uint32_t cookie;
+-  uint32_t* sp32;
+   // Skip calling JniMethodStart for @CriticalNative.
+   if (LIKELY(!critical_native)) {
+-    // Start JNI, save the cookie.
++    // Start JNI.
+     if (called->IsSynchronized()) {
+       DCHECK(normal_native) << " @FastNative and synchronize is not supported";
+       jobject lock = GetGenericJniSynchronizationObject(self, called);
+-      cookie = JniMethodStartSynchronized(lock, self);
++      JniMethodStartSynchronized(lock, self);
+       if (self->IsExceptionPending()) {
+         return nullptr;  // Report error.
+       }
+     } else {
+       if (fast_native) {
+-        cookie = JniMethodFastStart(self);
++        JniMethodFastStart(self);
+       } else {
+         DCHECK(normal_native);
+-        cookie = JniMethodStart(self);
++        JniMethodStart(self);
+       }
+     }
+-    sp32 = reinterpret_cast<uint32_t*>(managed_sp);
++
++    // Push local reference frame.
++    JNIEnvExt* env = self->GetJniEnv();
++    DCHECK(env != nullptr);
++    uint32_t cookie = bit_cast<uint32_t>(env->GetLocalRefCookie());
++    env->SetLocalRefCookie(env->GetLocalsSegmentState());
++
++    // Save the cookie on the stack.
++    uint32_t* sp32 = reinterpret_cast<uint32_t*>(managed_sp);
+     *(sp32 - 1) = cookie;
+   }
+ 
+diff --git a/runtime/jni/jni_env_ext.cc b/runtime/jni/jni_env_ext.cc
+index 6e46c24744..4b77145aa6 100644
+--- a/runtime/jni/jni_env_ext.cc
++++ b/runtime/jni/jni_env_ext.cc
+@@ -151,23 +151,23 @@ static size_t JNIEnvSize(size_t pointer_size) {
+   return pointer_size;
+ }
+ 
+-Offset JNIEnvExt::SegmentStateOffset(size_t pointer_size) {
++MemberOffset JNIEnvExt::SegmentStateOffset(size_t pointer_size) {
+   size_t locals_offset = JNIEnvSize(pointer_size) +
+                          2 * pointer_size +          // Thread* self + JavaVMExt* vm.
+                          4 +                         // local_ref_cookie.
+                          (pointer_size - 4);         // Padding.
+   size_t irt_segment_state_offset =
+       IndirectReferenceTable::SegmentStateOffset(pointer_size).Int32Value();
+-  return Offset(locals_offset + irt_segment_state_offset);
++  return MemberOffset(locals_offset + irt_segment_state_offset);
+ }
+ 
+-Offset JNIEnvExt::LocalRefCookieOffset(size_t pointer_size) {
+-  return Offset(JNIEnvSize(pointer_size) +
+-                2 * pointer_size);          // Thread* self + JavaVMExt* vm
++MemberOffset JNIEnvExt::LocalRefCookieOffset(size_t pointer_size) {
++  return MemberOffset(JNIEnvSize(pointer_size) +
++                      2 * pointer_size);          // Thread* self + JavaVMExt* vm
+ }
+ 
+-Offset JNIEnvExt::SelfOffset(size_t pointer_size) {
+-  return Offset(JNIEnvSize(pointer_size));
++MemberOffset JNIEnvExt::SelfOffset(size_t pointer_size) {
++  return MemberOffset(JNIEnvSize(pointer_size));
+ }
+ 
+ // Use some defining part of the caller's frame as the identifying mark for the JNI segment.
+diff --git a/runtime/jni/jni_env_ext.h b/runtime/jni/jni_env_ext.h
+index 2fae8d286d..4abb454187 100644
+--- a/runtime/jni/jni_env_ext.h
++++ b/runtime/jni/jni_env_ext.h
+@@ -46,9 +46,9 @@ class JNIEnvExt : public JNIEnv {
+   // Creates a new JNIEnvExt. Returns null on error, in which case error_msg
+   // will contain a description of the error.
+   static JNIEnvExt* Create(Thread* self, JavaVMExt* vm, std::string* error_msg);
+-  static Offset SegmentStateOffset(size_t pointer_size);
+-  static Offset LocalRefCookieOffset(size_t pointer_size);
+-  static Offset SelfOffset(size_t pointer_size);
++  static MemberOffset SegmentStateOffset(size_t pointer_size);
++  static MemberOffset LocalRefCookieOffset(size_t pointer_size);
++  static MemberOffset SelfOffset(size_t pointer_size);
+   static jint GetEnvHandler(JavaVMExt* vm, /*out*/void** out, jint version);
+ 
+   ~JNIEnvExt();
+diff --git a/runtime/oat.h b/runtime/oat.h
+index 31a328d979..95eb0e14ed 100644
+--- a/runtime/oat.h
++++ b/runtime/oat.h
+@@ -32,8 +32,8 @@ class InstructionSetFeatures;
+ class PACKED(4) OatHeader {
+  public:
+   static constexpr std::array<uint8_t, 4> kOatMagic { { 'o', 'a', 't', '\n' } };
+-  // Last oat version changed reason: Disable partial LSE b/197818595.
+-  static constexpr std::array<uint8_t, 4> kOatVersion { { '1', '9', '9', '\0' } };
++  // Last oat version changed reason: Inline IRT frame push/pop into JNI stubs.
++  static constexpr std::array<uint8_t, 4> kOatVersion { { '2', '0', '3', '\0' } };
+ 
+   static constexpr const char* kDex2OatCmdLineKey = "dex2oat-cmdline";
+   static constexpr const char* kDebuggableKey = "debuggable";
+-- 
+2.34.1
+

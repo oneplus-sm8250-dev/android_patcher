@@ -1,4 +1,4 @@
-From a69f4fdd5d6f60f61a5616bcc45d542b0effbb4f Mon Sep 17 00:00:00 2001
+From 8dc9e7abb9d629f4458efe06b0c7a4860733cb05 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Mon, 17 Dec 2018 15:57:44 -0800
 Subject: [PATCH 07/63] recovery: Provide sideload cancellation
@@ -157,5 +157,5 @@ index c20e5978..fc37cf09 100644
    {
      std::lock_guard<std::mutex> lg(key_queue_mutex);
 -- 
-2.34.0
+2.34.1
 

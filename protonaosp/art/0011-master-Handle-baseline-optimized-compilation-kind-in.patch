@@ -1,0 +1,118 @@
+From 118d2c01fbdce266b340078cf4c233371f32401a Mon Sep 17 00:00:00 2001
+From: Nicolas Geoffray <ngeoffray@google.com>
+Date: Mon, 29 Nov 2021 14:47:21 +0000
+Subject: [PATCH 11/13] [master] Handle baseline/optimized compilation kind in
+ the runtime.
+
+It used to be adjusted in the compiler, but that does not work anymore
+as the compiler now always requests a baseline compilation to have a
+profiling info.
+
+Test: 457-regs
+Bug: 146423102
+Change-Id: I522bc515ef1c6f8737ada311265a6f8e0f4db3fd
+---
+ compiler/jit/jit_compiler.cc               |  4 ++++
+ compiler/jit/jit_compiler.h                |  2 ++
+ compiler/optimizing/optimizing_compiler.cc |  5 -----
+ runtime/jit/jit.cc                         | 13 +++++++++++++
+ runtime/jit/jit.h                          |  1 +
+ runtime/jit/jit_code_cache.cc              |  3 ++-
+ 6 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/compiler/jit/jit_compiler.cc b/compiler/jit/jit_compiler.cc
+index f819cd8c97..44a4283ae1 100644
+--- a/compiler/jit/jit_compiler.cc
++++ b/compiler/jit/jit_compiler.cc
+@@ -208,5 +208,9 @@ bool JitCompiler::CompileMethod(
+   return success;
+ }
+ 
++bool JitCompiler::IsBaselineCompiler() const {
++  return compiler_options_->IsBaseline();
++}
++
+ }  // namespace jit
+ }  // namespace art
+diff --git a/compiler/jit/jit_compiler.h b/compiler/jit/jit_compiler.h
+index 9dd84f0e0a..8e9966db0e 100644
+--- a/compiler/jit/jit_compiler.h
++++ b/compiler/jit/jit_compiler.h
+@@ -48,6 +48,8 @@ class JitCompiler : public JitCompilerInterface {
+     return *compiler_options_.get();
+   }
+ 
++  bool IsBaselineCompiler() const override;
++
+   bool GenerateDebugInfo() override;
+ 
+   void ParseCompilerOptions() override;
+diff --git a/compiler/optimizing/optimizing_compiler.cc b/compiler/optimizing/optimizing_compiler.cc
+index b6ab9fb1b5..6740c57467 100644
+--- a/compiler/optimizing/optimizing_compiler.cc
++++ b/compiler/optimizing/optimizing_compiler.cc
+@@ -1228,11 +1228,6 @@ bool OptimizingCompiler::JitCompile(Thread* self,
+                                     CompilationKind compilation_kind,
+                                     jit::JitLogger* jit_logger) {
+   const CompilerOptions& compiler_options = GetCompilerOptions();
+-  // If the baseline flag was explicitly passed, change the compilation kind
+-  // from optimized to baseline.
+-  if (compiler_options.IsBaseline() && compilation_kind == CompilationKind::kOptimized) {
+-    compilation_kind = CompilationKind::kBaseline;
+-  }
+   DCHECK(compiler_options.IsJitCompiler());
+   DCHECK_EQ(compiler_options.IsJitCompilerForSharedCode(), code_cache->IsSharedRegion(*region));
+   StackHandleScope<3> hs(self);
+diff --git a/runtime/jit/jit.cc b/runtime/jit/jit.cc
+index 876e12091c..0caf83dc04 100644
+--- a/runtime/jit/jit.cc
++++ b/runtime/jit/jit.cc
+@@ -299,6 +299,19 @@ bool Jit::CompileMethod(ArtMethod* method,
+   DCHECK(Runtime::Current()->UseJitCompilation());
+   DCHECK(!method->IsRuntimeMethod());
+ 
++  // If the baseline flag was explicitly passed in the compiler options, change the compilation kind
++  // from optimized to baseline.
++  if (jit_compiler_->IsBaselineCompiler() && compilation_kind == CompilationKind::kOptimized) {
++    compilation_kind = CompilationKind::kBaseline;
++  }
++
++  // If we're asked to compile baseline, but we cannot allocate profiling infos,
++  // change the compilation kind to optimized.
++  if ((compilation_kind == CompilationKind::kBaseline) &&
++      !GetCodeCache()->CanAllocateProfilingInfo()) {
++    compilation_kind = CompilationKind::kOptimized;
++  }
++
+   RuntimeCallbacks* cb = Runtime::Current()->GetRuntimeCallbacks();
+   // Don't compile the method if it has breakpoints.
+   if (cb->IsMethodBeingInspected(method) && !cb->IsMethodSafeToJit(method)) {
+diff --git a/runtime/jit/jit.h b/runtime/jit/jit.h
+index a6e484f563..33a3861b99 100644
+--- a/runtime/jit/jit.h
++++ b/runtime/jit/jit.h
+@@ -203,6 +203,7 @@ class JitCompilerInterface {
+       REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+   virtual bool GenerateDebugInfo() = 0;
+   virtual void ParseCompilerOptions() = 0;
++  virtual bool IsBaselineCompiler() const;
+ 
+   virtual std::vector<uint8_t> PackElfFileForJIT(ArrayRef<const JITCodeEntry*> elf_files,
+                                                  ArrayRef<const void*> removed_symbols,
+diff --git a/runtime/jit/jit_code_cache.cc b/runtime/jit/jit_code_cache.cc
+index 9d9a7d3bd4..5ac68a7337 100644
+--- a/runtime/jit/jit_code_cache.cc
++++ b/runtime/jit/jit_code_cache.cc
+@@ -1650,7 +1650,8 @@ bool JitCodeCache::NotifyCompilationOf(ArtMethod* method,
+     }
+     return new_compilation;
+   } else {
+-    if (CanAllocateProfilingInfo() && (compilation_kind == CompilationKind::kBaseline)) {
++    if (compilation_kind == CompilationKind::kBaseline) {
++      DCHECK(CanAllocateProfilingInfo());
+       bool has_profiling_info = false;
+       {
+         MutexLock mu(self, *Locks::jit_lock_);
+-- 
+2.34.1
+

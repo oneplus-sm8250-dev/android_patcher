@@ -1,0 +1,34 @@
+From c142fe40cd7f0d00f3d050fc74b689e941fddbb9 Mon Sep 17 00:00:00 2001
+From: Lokesh Gidra <lokeshgidra@google.com>
+Date: Thu, 2 Dec 2021 19:27:15 -0800
+Subject: [PATCH 13/13] [master] Restrict addressOf() API to non-movable
+ primitive arrays
+
+Returning a native pointer to object arrays can lead to a lot of issues.
+Some of them are listed in the bug.
+
+Test: manual
+Bug: 208920634
+Change-Id: I75153bf90eb3c054fb299cceabb2639073976bf4
+---
+ runtime/native/dalvik_system_VMRuntime.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/runtime/native/dalvik_system_VMRuntime.cc b/runtime/native/dalvik_system_VMRuntime.cc
+index 842590408d..03d4fda2ac 100644
+--- a/runtime/native/dalvik_system_VMRuntime.cc
++++ b/runtime/native/dalvik_system_VMRuntime.cc
+@@ -161,6 +161,10 @@ static jlong VMRuntime_addressOf(JNIEnv* env, jobject, jobject javaArray) {
+     ThrowIllegalArgumentException("not an array");
+     return 0;
+   }
++  if (array->IsObjectArray()) {
++    ThrowIllegalArgumentException("not a primitive array");
++    return 0;
++  }
+   if (Runtime::Current()->GetHeap()->IsMovableObject(array)) {
+     ThrowRuntimeException("Trying to get address of movable array object");
+     return 0;
+-- 
+2.34.1
+

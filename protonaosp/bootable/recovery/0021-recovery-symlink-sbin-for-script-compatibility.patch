@@ -1,4 +1,4 @@
-From bc0e1ecabbf1646a7dde11644813c7555bc775b6 Mon Sep 17 00:00:00 2001
+From 0dc7ec5cede60299de740cf305390202d4ff9c0a Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Fri, 6 Sep 2019 12:36:55 +0200
 Subject: [PATCH 21/63] recovery: symlink /sbin for script compatibility
@@ -22,5 +22,5 @@ index 4306b701..eff641bd 100644
      mkdir /sdcard
      mkdir /system
 -- 
-2.34.0
+2.34.1
 

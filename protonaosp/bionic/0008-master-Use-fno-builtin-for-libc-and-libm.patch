@@ -1,0 +1,54 @@
+From 844f595973f5c518fd73f37fcf55b0ac7df5a614 Mon Sep 17 00:00:00 2001
+From: Elliott Hughes <enh@google.com>
+Date: Thu, 2 Dec 2021 14:42:16 -0800
+Subject: [PATCH 8/8] [master] Use -fno-builtin for libc and libm.
+
+clang was getting in the way of a strftime(3) optimization, and smaller
+hammers weren't working, and this seems like the right choice for libc
+anyway? If we have code that can usefully be optimized, we should do it
+in the source. In general, though, no libc/libm author should be
+ignorant of memset(3) or memcpy(3), and would have used it themselves if
+it made sense. (And the compiler isn't using profiling data or anything;
+it's just always assuming it should use the functions, and doesn't
+consider whether the cost of the calls can be amortized or not.)
+
+Test: treehugger
+Change-Id: Ia7e22623e47bfbfcfe46c1af0d95ef7e8669c0f6
+---
+ libc/Android.bp | 7 +++++++
+ libm/Android.bp | 1 +
+ 2 files changed, 8 insertions(+)
+
+diff --git a/libc/Android.bp b/libc/Android.bp
+index c802d8b08..975d65cb0 100644
+--- a/libc/Android.bp
++++ b/libc/Android.bp
+@@ -68,6 +68,13 @@ libc_common_flags = [
+ 
+     // GWP-ASan requires platform TLS.
+     "-fno-emulated-tls",
++
++    // We know clang does a lot of harm by rewriting what we've said, and sadly
++    // never see any good it does, so let's just ask it to do what we say...
++    // (The specific motivating example was clang turning a loop that would only
++    // ever touch 0, 1, or 2 bytes into a call to memset, which was never going
++    // to amortize.)
++    "-fno-builtin",
+ ]
+ 
+ // Define some common cflags
+diff --git a/libm/Android.bp b/libm/Android.bp
+index 6c3abd129..cbd105bdf 100644
+--- a/libm/Android.bp
++++ b/libm/Android.bp
+@@ -489,6 +489,7 @@ cc_library {
+         "-D_BSD_SOURCE",
+         "-DFLT_EVAL_METHOD=0",
+         "-include freebsd-compat.h",
++        "-fno-builtin",
+         "-fno-math-errno",
+         "-Wall",
+         "-Werror",
+-- 
+2.34.1
+

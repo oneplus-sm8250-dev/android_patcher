@@ -1,4 +1,4 @@
-From 2673f2ad2efa55f8d53647361d250ff26092f625 Mon Sep 17 00:00:00 2001
+From 58bb44a81bf69272412af7b8909ad46f56ef7f94 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm@cyngn.com>
 Date: Tue, 10 Mar 2020 20:17:49 +0100
 Subject: [PATCH 26/63] recovery: touch UI
@@ -810,5 +810,5 @@ index fc37cf09..f4148945 100644
  
  RecoveryUI::KeyAction RecoveryUI::CheckKey(int key, bool is_long_press) {
 -- 
-2.34.0
+2.34.1
 

@@ -1,4 +1,4 @@
-From c3f44005c7dd82c09e31296ac223f9226c5ca54e Mon Sep 17 00:00:00 2001
+From e77539f1848e290043aac1ba7d06962244ab951d Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Thu, 24 Aug 2017 13:50:01 +0000
 Subject: [PATCH 04/63] recovery: ui: Support hardware virtual keys
@@ -44,10 +44,10 @@ index 143b5d3f..66119144 100644
      if (new_path.back() == '/') {
        // Recurse down into a subdirectory.
 diff --git a/minui/events.cpp b/minui/events.cpp
-index b5c4b9f6..f65b528b 100644
+index b01e54c8..464edf02 100644
 --- a/minui/events.cpp
 +++ b/minui/events.cpp
-@@ -323,7 +323,8 @@ void ev_iterate_available_keys(const std::function<void(int)>& key_detected) {
+@@ -325,7 +325,8 @@ void ev_iterate_available_keys(const std::function<void(int)>& key_detected) {
    }
  }
  
@@ -57,7 +57,7 @@ index b5c4b9f6..f65b528b 100644
    for (size_t i = 0; i < g_ev_dev_count; ++i) {
      // Use unsigned long to match ioctl's parameter type.
      unsigned long ev_bits[BITS_TO_LONGS(EV_MAX)] = {};  // NOLINT
-@@ -339,6 +340,8 @@ void ev_iterate_touch_inputs(const std::function<void(int)>& key_detected) {
+@@ -341,6 +342,8 @@ void ev_iterate_touch_inputs(const std::function<void(int)>& key_detected) {
        continue;
      }
  
@@ -317,5 +317,5 @@ index 8e5dd11b..c20e5978 100644
        ProcessKey(KEY_POWER, 1);  // press power key
        ProcessKey(KEY_POWER, 0);  // and release it
 -- 
-2.34.0
+2.34.1
 

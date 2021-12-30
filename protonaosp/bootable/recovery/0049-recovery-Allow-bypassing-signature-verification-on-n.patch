@@ -1,4 +1,4 @@
-From d4bbbb258b0c0a474c3ea736441f101deb0a9476 Mon Sep 17 00:00:00 2001
+From 65bdd73fa290bfe343d279916309d3b8c67a926b Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Thu, 21 Jun 2018 00:57:24 +0200
 Subject: [PATCH 49/63] recovery: Allow bypassing signature verification on
@@ -144,5 +144,5 @@ index d750d7a1..3a944c84 100644
    const int touch_low_threshold_;
    const int touch_high_threshold_;
 -- 
-2.34.0
+2.34.1
 

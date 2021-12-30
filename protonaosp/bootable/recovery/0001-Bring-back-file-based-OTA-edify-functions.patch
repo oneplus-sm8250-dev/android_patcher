@@ -1,4 +1,4 @@
-From 6acb8f1d320cb9ebe84ae39b4bf77a87bdaa7500 Mon Sep 17 00:00:00 2001
+From 318724e1be09578ff549a171bd560fa90ea273cc Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mkbestas@lineageos.org>
 Date: Thu, 19 Sep 2019 21:42:12 +0300
 Subject: [PATCH 01/63] Bring back file-based OTA edify functions
@@ -1480,5 +1480,5 @@ index 29596504..70a1235b 100644
  
    RegisterFunction("wipe_cache", WipeCacheFn);
 -- 
-2.34.0
+2.34.1
 

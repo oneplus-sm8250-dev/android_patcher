@@ -1,4 +1,4 @@
-From f59c1330b3076ca8c6343cecf1509d08ce21c793 Mon Sep 17 00:00:00 2001
+From dcab8b40fedd0982a91634014003dd1af199cf4e Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mkbestas@lineageos.org>
 Date: Sat, 23 Mar 2019 17:28:22 +0200
 Subject: [PATCH 05/63] recovery: Blank screen on init
@@ -57,5 +57,5 @@ index 1b113688..ce565896 100644
    layout_ = (gr_fb_width() > gr_fb_height()) ? LANDSCAPE : PORTRAIT;
    // Are we the large variant of our base layout?
 -- 
-2.34.0
+2.34.1
 

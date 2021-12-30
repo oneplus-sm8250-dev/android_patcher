@@ -1,7 +1,7 @@
-From 89015b0ad70d36b335d2c860d4c6ec2aa3e1a364 Mon Sep 17 00:00:00 2001
+From dddd2bacfe26e17bd020b102e690f18f6705fcbc Mon Sep 17 00:00:00 2001
 From: Elliott Hughes <enh@google.com>
 Date: Tue, 16 Nov 2021 11:03:19 -0800
-Subject: [PATCH 2/6] [master] Optimize the mbs fast path slightly.
+Subject: [PATCH 2/8] [master] Optimize the mbs fast path slightly.
 
 From a logcat profile:
 ```
@@ -144,5 +144,5 @@ index 352115aa7..243b2201b 100644
    return
        (ps->__seq[2] != 0) ? 3 :
 -- 
-2.34.0
+2.34.1
 

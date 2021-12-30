@@ -1,7 +1,7 @@
-From 846aedbda43f867a1e5da538d43f85ea17a0b814 Mon Sep 17 00:00:00 2001
+From e375218ca8053fdb05c773ec1b49f35d36c5fe5e Mon Sep 17 00:00:00 2001
 From: Bernhard Rosenkraenzer <Bernhard.Rosenkranzer@linaro.org>
 Date: Sat, 15 Feb 2014 20:43:47 +0100
-Subject: [PATCH 6/6] [master] libc: Import cortex-strings strlen for
+Subject: [PATCH 6/8] [master] libc: Import cortex-strings strlen for
  A7/A15/A53/A53.A57/Denver/Krait
 
 Benchmarked on Nextbit Robin (MSM8992)
@@ -338,5 +338,5 @@ index 9c5ed2911..c568ee05d 100644
 +    b       .L_start_realigned
  END(strlen_a15)
 -- 
-2.34.0
+2.34.1
 

@@ -1,4 +1,4 @@
-From 295e897f951004988fcba505677782197aa32dc1 Mon Sep 17 00:00:00 2001
+From 90eb9c8f1e9907dd402a3ae1a79c142770876169 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Thu, 24 Aug 2017 12:57:27 +0000
 Subject: [PATCH 03/63] recovery: ui: Minor cleanup for touch code
@@ -16,10 +16,10 @@ Change-Id: Idfcab54ac356face52efd69fdfdc0a6f4633a3f3
  4 files changed, 66 insertions(+), 22 deletions(-)
 
 diff --git a/minui/events.cpp b/minui/events.cpp
-index 87f81122..b5c4b9f6 100644
+index 863ac747..b01e54c8 100644
 --- a/minui/events.cpp
 +++ b/minui/events.cpp
-@@ -294,7 +294,7 @@ int ev_sync_key_state(const ev_set_key_callback& set_key_cb) {
+@@ -296,7 +296,7 @@ int ev_sync_key_state(const ev_set_key_callback& set_key_cb) {
    return 0;
  }
  
@@ -28,7 +28,7 @@ index 87f81122..b5c4b9f6 100644
    // Use unsigned long to match ioctl's parameter type.
    unsigned long ev_bits[BITS_TO_LONGS(EV_MAX)];    // NOLINT
    unsigned long key_bits[BITS_TO_LONGS(KEY_MAX)];  // NOLINT
-@@ -317,13 +317,13 @@ void ev_iterate_available_keys(const std::function<void(int)>& f) {
+@@ -319,13 +319,13 @@ void ev_iterate_available_keys(const std::function<void(int)>& f) {
  
      for (int key_code = 0; key_code <= KEY_MAX; ++key_code) {
        if (test_bit(key_code, key_bits)) {
@@ -44,7 +44,7 @@ index 87f81122..b5c4b9f6 100644
    for (size_t i = 0; i < g_ev_dev_count; ++i) {
      // Use unsigned long to match ioctl's parameter type.
      unsigned long ev_bits[BITS_TO_LONGS(EV_MAX)] = {};  // NOLINT
-@@ -341,7 +341,7 @@ void ev_iterate_touch_inputs(const std::function<void(int)>& action) {
+@@ -343,7 +343,7 @@ void ev_iterate_touch_inputs(const std::function<void(int)>& action) {
  
      for (int key_code = 0; key_code <= KEY_MAX; ++key_code) {
        if (test_bit(key_code, key_bits)) {
@@ -214,5 +214,5 @@ index f04786ab..8e5dd11b 100644
          break;
  
 -- 
-2.34.0
+2.34.1
 

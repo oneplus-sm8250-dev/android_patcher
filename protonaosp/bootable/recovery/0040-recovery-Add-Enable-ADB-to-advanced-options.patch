@@ -1,4 +1,4 @@
-From 92da47b0c8ca306441d2a649dadb61cb1ccec9e8 Mon Sep 17 00:00:00 2001
+From 1d47a3793cad03309596659a6a4aaae1a3d50f7b Mon Sep 17 00:00:00 2001
 From: LuK1337 <priv.luk@gmail.com>
 Date: Sun, 12 Apr 2020 19:04:59 +0200
 Subject: [PATCH 40/63] recovery: Add "Enable ADB" to advanced options
@@ -70,5 +70,5 @@ index f7ef7843..d95d6fdb 100644
      MENU_UPDATE = 201,
      MENU_WIPE = 202,
 -- 
-2.34.0
+2.34.1
 

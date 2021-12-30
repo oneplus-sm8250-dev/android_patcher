@@ -1,0 +1,51 @@
+From 71d9a17538040de6ba0146b1056cdf8c491dae48 Mon Sep 17 00:00:00 2001
+From: Mythri Alle <mythria@google.com>
+Date: Thu, 18 Nov 2021 14:55:55 +0000
+Subject: [PATCH 12/13] [master] Disable JIT GC when JitAtFirstUse is enabled
+
+JitAtFirstUse + JIT GC are causing few deadlocks, so disabling
+JITGC for now.
+
+bug: 147208992
+Test: art/test.py --jit-on-first-use
+Change-Id: Ia10e203ce7ea3709527e3c9f44a1488629472842
+---
+ runtime/jit/jit.cc | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/runtime/jit/jit.cc b/runtime/jit/jit.cc
+index 0caf83dc04..7cc614a1ad 100644
+--- a/runtime/jit/jit.cc
++++ b/runtime/jit/jit.cc
+@@ -241,9 +241,13 @@ Jit* Jit::Create(JitCodeCache* code_cache, JitOptions* options) {
+   // With 'perf', we want a 1-1 mapping between an address and a method.
+   // We aren't able to keep method pointers live during the instrumentation method entry trampoline
+   // so we will just disable jit-gc if we are doing that.
++  // JitAtFirstUse compiles the methods synchronously on mutator threads. While this should work
++  // in theory it is causing deadlocks in some jvmti tests related to Jit GC. Hence, disabling
++  // Jit GC for now (b/147208992).
+   if (code_cache->GetGarbageCollectCode()) {
+     code_cache->SetGarbageCollectCode(!jit_compiler_->GenerateDebugInfo() &&
+-        !Runtime::Current()->GetInstrumentation()->AreExitStubsInstalled());
++        !Runtime::Current()->GetInstrumentation()->AreExitStubsInstalled() &&
++        !jit->JitAtFirstUse());
+   }
+ 
+   VLOG(jit) << "JIT created with initial_capacity="
+@@ -1709,8 +1713,12 @@ void Jit::PostForkChildAction(bool is_system_server, bool is_zygote) {
+   jit_compiler_->ParseCompilerOptions();
+ 
+   // Adjust the status of code cache collection: the status from zygote was to not collect.
++  // JitAtFirstUse compiles the methods synchronously on mutator threads. While this should work
++  // in theory it is causing deadlocks in some jvmti tests related to Jit GC. Hence, disabling
++  // Jit GC for now (b/147208992).
+   code_cache_->SetGarbageCollectCode(!jit_compiler_->GenerateDebugInfo() &&
+-      !Runtime::Current()->GetInstrumentation()->AreExitStubsInstalled());
++      !Runtime::Current()->GetInstrumentation()->AreExitStubsInstalled() &&
++      !JitAtFirstUse());
+ 
+   if (is_system_server && HasImageWithProfile()) {
+     // Disable garbage collection: we don't want it to delete methods we're compiling
+-- 
+2.34.1
+

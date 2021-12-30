@@ -1,0 +1,555 @@
+From 966243b149e98a9ae0537b1614b66dadb2d39021 Mon Sep 17 00:00:00 2001
+From: Mythri Alle <mythria@google.com>
+Date: Wed, 27 Oct 2021 10:00:55 +0000
+Subject: [PATCH 09/13] [master] Remove unused code related to method entry /
+ exit events
+
+This Cl:
+- Drops this_object and dex_pc arguments for MethodExitEvent
+  which aren't used in any of the listeners.
+- Removes the code to maintain dex_pcs_ which were earlier used
+  by MethodEnteredEvent but are no longer used.
+
+Test: test/tes.py
+Change-Id: I0345598897004b7b6b9f26bd8940c88b5bb798f7
+---
+ openjdkjvmti/events.cc                        |  4 --
+ .../quick/quick_trampoline_entrypoints.cc     |  2 -
+ runtime/instrumentation.cc                    | 57 +++----------------
+ runtime/instrumentation.h                     | 10 +---
+ runtime/instrumentation_test.cc               |  6 +-
+ runtime/interpreter/interpreter.cc            | 14 +----
+ runtime/interpreter/interpreter_common.cc     | 11 +---
+ runtime/interpreter/interpreter_common.h      |  9 +--
+ .../interpreter/interpreter_switch_impl-inl.h | 20 ++-----
+ runtime/trace.cc                              |  2 -
+ runtime/trace.h                               |  2 -
+ tools/tracefast-plugin/tracefast.cc           |  4 --
+ 12 files changed, 19 insertions(+), 122 deletions(-)
+
+diff --git a/openjdkjvmti/events.cc b/openjdkjvmti/events.cc
+index 12aba6a24d..c69ee7b480 100644
+--- a/openjdkjvmti/events.cc
++++ b/openjdkjvmti/events.cc
+@@ -639,9 +639,7 @@ class JvmtiMethodTraceListener final : public art::instrumentation::Instrumentat
+   // TODO Maybe try to combine this with below using templates?
+   // Callback for when a method is exited with a reference return value.
+   void MethodExited(art::Thread* self,
+-                    art::Handle<art::mirror::Object> this_object ATTRIBUTE_UNUSED,
+                     art::ArtMethod* method,
+-                    uint32_t dex_pc ATTRIBUTE_UNUSED,
+                     art::instrumentation::OptionalFrame frame,
+                     art::MutableHandle<art::mirror::Object>& return_value)
+       REQUIRES_SHARED(art::Locks::mutator_lock_) override {
+@@ -694,9 +692,7 @@ class JvmtiMethodTraceListener final : public art::instrumentation::Instrumentat
+ 
+   // Call-back for when a method is exited.
+   void MethodExited(art::Thread* self,
+-                    art::Handle<art::mirror::Object> this_object ATTRIBUTE_UNUSED,
+                     art::ArtMethod* method,
+-                    uint32_t dex_pc ATTRIBUTE_UNUSED,
+                     art::instrumentation::OptionalFrame frame,
+                     art::JValue& return_value) REQUIRES_SHARED(art::Locks::mutator_lock_) override {
+     if (frame.has_value() &&
+diff --git a/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc b/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc
+index 3279f7d738..94cdc42cd6 100644
+--- a/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc
++++ b/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc
+@@ -874,9 +874,7 @@ extern "C" uint64_t artQuickProxyInvokeHandler(
+     }
+   } else if (instr->HasMethodExitListeners()) {
+     instr->MethodExitEvent(self,
+-                           soa.Decode<mirror::Object>(rcvr_jobj),
+                            proxy_method,
+-                           0,
+                            {},
+                            result);
+   }
+diff --git a/runtime/instrumentation.cc b/runtime/instrumentation.cc
+index cabd44562e..2bdce3db0a 100644
+--- a/runtime/instrumentation.cc
++++ b/runtime/instrumentation.cc
+@@ -59,9 +59,7 @@ constexpr bool kVerboseInstrumentation = false;
+ 
+ void InstrumentationListener::MethodExited(
+     Thread* thread,
+-    Handle<mirror::Object> this_object,
+     ArtMethod* method,
+-    uint32_t dex_pc,
+     OptionalFrame frame,
+     MutableHandle<mirror::Object>& return_value) {
+   DCHECK_EQ(method->GetInterfaceMethodIfProxy(kRuntimePointerSize)->GetReturnTypePrimitive(),
+@@ -69,7 +67,7 @@ void InstrumentationListener::MethodExited(
+   const void* original_ret = return_value.Get();
+   JValue v;
+   v.SetL(return_value.Get());
+-  MethodExited(thread, this_object, method, dex_pc, frame, v);
++  MethodExited(thread, method, frame, v);
+   DCHECK(original_ret == v.GetL()) << "Return value changed";
+ }
+ 
+@@ -307,7 +305,6 @@ void InstrumentationInstallStack(Thread* thread, void* arg)
+           instrumentation_stack_(thread_in->GetInstrumentationStack()),
+           instrumentation_exit_pc_(instrumentation_exit_pc),
+           reached_existing_instrumentation_frames_(false),
+-          last_return_pc_(0),
+           force_deopt_id_(force_deopt_id) {}
+ 
+     bool VisitFrame() override REQUIRES_SHARED(Locks::mutator_lock_) {
+@@ -316,7 +313,6 @@ void InstrumentationInstallStack(Thread* thread, void* arg)
+         if (kVerboseInstrumentation) {
+           LOG(INFO) << "  Skipping upcall. Frame " << GetFrameId();
+         }
+-        last_return_pc_ = 0;
+         return true;  // Ignore upcalls.
+       }
+       if (GetCurrentQuickFrame() == nullptr) {
+@@ -343,13 +339,6 @@ void InstrumentationInstallStack(Thread* thread, void* arg)
+         const InstrumentationStackFrame& frame = it->second;
+         if (m->IsRuntimeMethod()) {
+           if (frame.interpreter_entry_) {
+-            // This instrumentation frame is for an interpreter bridge and is
+-            // pushed when executing the instrumented interpreter bridge. So method
+-            // enter event must have been reported. However we need to push a DEX pc
+-            // into the dex_pcs_ list to match size of instrumentation stack.
+-            uint32_t dex_pc = dex::kDexNoIndex;
+-            dex_pcs_.push_back(dex_pc);
+-            last_return_pc_ = frame.return_pc_;
+             return true;
+           }
+         }
+@@ -372,16 +361,10 @@ void InstrumentationInstallStack(Thread* thread, void* arg)
+           // inserted by the interpreter or runtime.
+           std::string thread_name;
+           GetThread()->GetThreadName(thread_name);
+-          uint32_t dex_pc = dex::kDexNoIndex;
+-          if (last_return_pc_ != 0 && GetCurrentOatQuickMethodHeader() != nullptr) {
+-            dex_pc = GetCurrentOatQuickMethodHeader()->ToDexPc(
+-                GetCurrentQuickFrame(), last_return_pc_);
+-          }
+           LOG(FATAL) << "While walking " << thread_name << " found unexpected non-runtime method"
+                      << " without instrumentation exit return or interpreter frame."
+                      << " method is " << GetMethod()->PrettyMethod()
+-                     << " return_pc is " << std::hex << return_pc
+-                     << " dex pc: " << dex_pc;
++                     << " return_pc is " << std::hex << return_pc;
+           UNREACHABLE();
+         }
+         InstrumentationStackFrame instrumentation_frame(
+@@ -398,20 +381,12 @@ void InstrumentationInstallStack(Thread* thread, void* arg)
+         instrumentation_stack_->insert({GetReturnPcAddr(), instrumentation_frame});
+         SetReturnPc(instrumentation_exit_pc_);
+       }
+-      uint32_t dex_pc = dex::kDexNoIndex;
+-      if (last_return_pc_ != 0 && GetCurrentOatQuickMethodHeader() != nullptr) {
+-        dex_pc = GetCurrentOatQuickMethodHeader()->ToDexPc(GetCurrentQuickFrame(), last_return_pc_);
+-      }
+-      dex_pcs_.push_back(dex_pc);
+-      last_return_pc_ = return_pc;
+       return true;  // Continue.
+     }
+     std::map<uintptr_t, InstrumentationStackFrame>* const instrumentation_stack_;
+     std::vector<InstrumentationStackFrame> shadow_stack_;
+-    std::vector<uint32_t> dex_pcs_;
+     const uintptr_t instrumentation_exit_pc_;
+     bool reached_existing_instrumentation_frames_;
+-    uintptr_t last_return_pc_;
+     uint64_t force_deopt_id_;
+   };
+   if (kVerboseInstrumentation) {
+@@ -426,7 +401,6 @@ void InstrumentationInstallStack(Thread* thread, void* arg)
+   InstallStackVisitor visitor(
+       thread, context.get(), instrumentation_exit_pc, instrumentation->current_force_deopt_id_);
+   visitor.WalkStack(true);
+-  CHECK_EQ(visitor.dex_pcs_.size(), thread->GetInstrumentationStack()->size());
+ 
+   if (instrumentation->ShouldNotifyMethodEnterExitEvents()) {
+     // Create method enter events for all methods currently on the thread's stack. We only do this
+@@ -440,7 +414,6 @@ void InstrumentationInstallStack(Thread* thread, void* arg)
+         instrumentation->MethodEnterEvent(thread, (*ssi).method_);
+         ++ssi;
+       }
+-      visitor.dex_pcs_.pop_back();
+       if (!isi->second.interpreter_entry_ && !isi->second.method_->IsRuntimeMethod()) {
+         instrumentation->MethodEnterEvent(thread, isi->second.method_);
+       }
+@@ -507,8 +480,7 @@ static void InstrumentationRestoreStack(Thread* thread, void* arg)
+           // Create the method exit events. As the methods didn't really exit the result is 0.
+           // We only do this if no debugger is attached to prevent from posting events twice.
+           JValue val;
+-          instrumentation_->MethodExitEvent(thread_, instrumentation_frame.this_object_, m,
+-                                            GetDexPc(), OptionalFrame{}, val);
++          instrumentation_->MethodExitEvent(thread_, m, OptionalFrame{}, val);
+         }
+         frames_removed_++;
+       } else {
+@@ -1189,43 +1161,35 @@ void Instrumentation::MethodEnterEventImpl(Thread* thread, ArtMethod* method) co
+ 
+ template <>
+ void Instrumentation::MethodExitEventImpl(Thread* thread,
+-                                          ObjPtr<mirror::Object> this_object,
+                                           ArtMethod* method,
+-                                          uint32_t dex_pc,
+                                           OptionalFrame frame,
+                                           MutableHandle<mirror::Object>& return_value) const {
+   if (HasMethodExitListeners()) {
+-    Thread* self = Thread::Current();
+-    StackHandleScope<1> hs(self);
+-    Handle<mirror::Object> thiz(hs.NewHandle(this_object));
+     for (InstrumentationListener* listener : method_exit_listeners_) {
+       if (listener != nullptr) {
+-        listener->MethodExited(thread, thiz, method, dex_pc, frame, return_value);
++        listener->MethodExited(thread, method, frame, return_value);
+       }
+     }
+   }
+ }
+ 
+ template<> void Instrumentation::MethodExitEventImpl(Thread* thread,
+-                                                     ObjPtr<mirror::Object> this_object,
+                                                      ArtMethod* method,
+-                                                     uint32_t dex_pc,
+                                                      OptionalFrame frame,
+                                                      JValue& return_value) const {
+   if (HasMethodExitListeners()) {
+     Thread* self = Thread::Current();
+-    StackHandleScope<2> hs(self);
+-    Handle<mirror::Object> thiz(hs.NewHandle(this_object));
++    StackHandleScope<1> hs(self);
+     if (method->GetInterfaceMethodIfProxy(kRuntimePointerSize)->GetReturnTypePrimitive() !=
+         Primitive::kPrimNot) {
+       for (InstrumentationListener* listener : method_exit_listeners_) {
+         if (listener != nullptr) {
+-          listener->MethodExited(thread, thiz, method, dex_pc, frame, return_value);
++          listener->MethodExited(thread, method, frame, return_value);
+         }
+       }
+     } else {
+       MutableHandle<mirror::Object> ret(hs.NewHandle(return_value.GetL()));
+-      MethodExitEventImpl(thread, thiz.Get(), method, dex_pc, frame, ret);
++      MethodExitEventImpl(thread, method, frame, ret);
+       return_value.SetL(ret.Get());
+     }
+   }
+@@ -1518,14 +1482,9 @@ TwoWordReturn Instrumentation::PopInstrumentationStackFrame(Thread* self,
+     // Take a handle to the return value so we won't lose it if we suspend.
+     res.Assign(return_value.GetL());
+   }
+-  // TODO: improve the dex pc information here, requires knowledge of current PC as opposed to
+-  //       return_pc.
+-  uint32_t dex_pc = dex::kDexNoIndex;
+   if (!method->IsRuntimeMethod() && !instrumentation_frame.interpreter_entry_) {
+-    ObjPtr<mirror::Object> this_object = instrumentation_frame.this_object_;
+     // Note that sending the event may change the contents of *return_pc_addr.
+-    MethodExitEvent(
+-        self, this_object, instrumentation_frame.method_, dex_pc, OptionalFrame{}, return_value);
++    MethodExitEvent(self, instrumentation_frame.method_, OptionalFrame{}, return_value);
+   }
+ 
+   // Deoptimize if the caller needs to continue execution in the interpreter. Do nothing if we get
+diff --git a/runtime/instrumentation.h b/runtime/instrumentation.h
+index 09bf221872..3c6ab85ec2 100644
+--- a/runtime/instrumentation.h
++++ b/runtime/instrumentation.h
+@@ -79,9 +79,7 @@ struct InstrumentationListener {
+       REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+ 
+   virtual void MethodExited(Thread* thread,
+-                            Handle<mirror::Object> this_object,
+                             ArtMethod* method,
+-                            uint32_t dex_pc,
+                             OptionalFrame frame,
+                             MutableHandle<mirror::Object>& return_value)
+       REQUIRES_SHARED(Locks::mutator_lock_);
+@@ -90,9 +88,7 @@ struct InstrumentationListener {
+   // value (if appropriate) or use the alternate MethodExited callback instead if they need to
+   // go through a suspend point.
+   virtual void MethodExited(Thread* thread,
+-                            Handle<mirror::Object> this_object,
+                             ArtMethod* method,
+-                            uint32_t dex_pc,
+                             OptionalFrame frame,
+                             JValue& return_value)
+       REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+@@ -406,14 +402,12 @@ class Instrumentation {
+   // Inform listeners that a method has been exited.
+   template<typename T>
+   void MethodExitEvent(Thread* thread,
+-                       ObjPtr<mirror::Object> this_object,
+                        ArtMethod* method,
+-                       uint32_t dex_pc,
+                        OptionalFrame frame,
+                        T& return_value) const
+       REQUIRES_SHARED(Locks::mutator_lock_) {
+     if (UNLIKELY(HasMethodExitListeners())) {
+-      MethodExitEventImpl(thread, this_object, method, dex_pc, frame, return_value);
++      MethodExitEventImpl(thread, method, frame, return_value);
+     }
+   }
+ 
+@@ -596,9 +590,7 @@ class Instrumentation {
+       REQUIRES_SHARED(Locks::mutator_lock_);
+   template <typename T>
+   void MethodExitEventImpl(Thread* thread,
+-                           ObjPtr<mirror::Object> this_object,
+                            ArtMethod* method,
+-                           uint32_t dex_pc,
+                            OptionalFrame frame,
+                            T& return_value) const
+       REQUIRES_SHARED(Locks::mutator_lock_);
+diff --git a/runtime/instrumentation_test.cc b/runtime/instrumentation_test.cc
+index 4584d25c44..d35847efe9 100644
+--- a/runtime/instrumentation_test.cc
++++ b/runtime/instrumentation_test.cc
+@@ -61,9 +61,7 @@ class TestInstrumentationListener final : public instrumentation::Instrumentatio
+   }
+ 
+   void MethodExited(Thread* thread ATTRIBUTE_UNUSED,
+-                    Handle<mirror::Object> this_object ATTRIBUTE_UNUSED,
+                     ArtMethod* method ATTRIBUTE_UNUSED,
+-                    uint32_t dex_pc ATTRIBUTE_UNUSED,
+                     instrumentation::OptionalFrame frame ATTRIBUTE_UNUSED,
+                     MutableHandle<mirror::Object>& return_value ATTRIBUTE_UNUSED)
+       override REQUIRES_SHARED(Locks::mutator_lock_) {
+@@ -71,9 +69,7 @@ class TestInstrumentationListener final : public instrumentation::Instrumentatio
+   }
+ 
+   void MethodExited(Thread* thread ATTRIBUTE_UNUSED,
+-                    Handle<mirror::Object> this_object ATTRIBUTE_UNUSED,
+                     ArtMethod* method ATTRIBUTE_UNUSED,
+-                    uint32_t dex_pc ATTRIBUTE_UNUSED,
+                     instrumentation::OptionalFrame frame ATTRIBUTE_UNUSED,
+                     JValue& return_value ATTRIBUTE_UNUSED)
+       override REQUIRES_SHARED(Locks::mutator_lock_) {
+@@ -393,7 +389,7 @@ class InstrumentationTest : public CommonRuntimeTest {
+         break;
+       case instrumentation::Instrumentation::kMethodExited: {
+         JValue value;
+-        instr->MethodExitEvent(self, obj, method, dex_pc, {}, value);
++        instr->MethodExitEvent(self, method, {}, value);
+         break;
+       }
+       case instrumentation::Instrumentation::kMethodUnwind:
+diff --git a/runtime/interpreter/interpreter.cc b/runtime/interpreter/interpreter.cc
+index 74cb9ec221..baa55ce988 100644
+--- a/runtime/interpreter/interpreter.cc
++++ b/runtime/interpreter/interpreter.cc
+@@ -301,12 +301,7 @@ static inline JValue Execute(
+         DCHECK(Runtime::Current()->AreNonStandardExitsEnabled());
+         JValue ret = JValue();
+         PerformNonStandardReturn<MonitorState::kNoMonitorsLocked>(
+-            self,
+-            shadow_frame,
+-            ret,
+-            instrumentation,
+-            accessor.InsSize(),
+-            0);
++            self, shadow_frame, ret, instrumentation, accessor.InsSize());
+         return ret;
+       }
+       if (UNLIKELY(self->IsExceptionPending())) {
+@@ -318,12 +313,7 @@ static inline JValue Execute(
+         if (UNLIKELY(shadow_frame.GetForcePopFrame())) {
+           DCHECK(Runtime::Current()->AreNonStandardExitsEnabled());
+           PerformNonStandardReturn<MonitorState::kNoMonitorsLocked>(
+-              self,
+-              shadow_frame,
+-              ret,
+-              instrumentation,
+-              accessor.InsSize(),
+-              0);
++              self, shadow_frame, ret, instrumentation, accessor.InsSize());
+         }
+         return ret;
+       }
+diff --git a/runtime/interpreter/interpreter_common.cc b/runtime/interpreter/interpreter_common.cc
+index 4e88eda162..da8915e32a 100644
+--- a/runtime/interpreter/interpreter_common.cc
++++ b/runtime/interpreter/interpreter_common.cc
+@@ -92,21 +92,16 @@ template <typename T>
+ bool SendMethodExitEvents(Thread* self,
+                           const instrumentation::Instrumentation* instrumentation,
+                           ShadowFrame& frame,
+-                          ObjPtr<mirror::Object> thiz,
+                           ArtMethod* method,
+-                          uint32_t dex_pc,
+                           T& result) {
+   bool had_event = false;
+   // We can get additional ForcePopFrame requests during handling of these events. We should
+   // respect these and send additional instrumentation events.
+-  StackHandleScope<1> hs(self);
+-  Handle<mirror::Object> h_thiz(hs.NewHandle(thiz));
+   do {
+     frame.SetForcePopFrame(false);
+     if (UNLIKELY(instrumentation->HasMethodExitListeners() && !frame.GetSkipMethodExitEvents())) {
+       had_event = true;
+-      instrumentation->MethodExitEvent(
+-          self, h_thiz.Get(), method, dex_pc, instrumentation::OptionalFrame{ frame }, result);
++      instrumentation->MethodExitEvent(self, method, instrumentation::OptionalFrame{frame}, result);
+     }
+     // We don't send method-exit if it's a pop-frame. We still send frame_popped though.
+     if (UNLIKELY(frame.NeedsNotifyPop() && instrumentation->HasWatchedFramePopListeners())) {
+@@ -125,18 +120,14 @@ template
+ bool SendMethodExitEvents(Thread* self,
+                           const instrumentation::Instrumentation* instrumentation,
+                           ShadowFrame& frame,
+-                          ObjPtr<mirror::Object> thiz,
+                           ArtMethod* method,
+-                          uint32_t dex_pc,
+                           MutableHandle<mirror::Object>& result);
+ 
+ template
+ bool SendMethodExitEvents(Thread* self,
+                           const instrumentation::Instrumentation* instrumentation,
+                           ShadowFrame& frame,
+-                          ObjPtr<mirror::Object> thiz,
+                           ArtMethod* method,
+-                          uint32_t dex_pc,
+                           JValue& result);
+ 
+ // We execute any instrumentation events that are triggered by this exception and change the
+diff --git a/runtime/interpreter/interpreter_common.h b/runtime/interpreter/interpreter_common.h
+index 959df0010d..47e0bbad24 100644
+--- a/runtime/interpreter/interpreter_common.h
++++ b/runtime/interpreter/interpreter_common.h
+@@ -143,9 +143,7 @@ template <typename T> bool SendMethodExitEvents(
+     Thread* self,
+     const instrumentation::Instrumentation* instrumentation,
+     ShadowFrame& frame,
+-    ObjPtr<mirror::Object> thiz,
+     ArtMethod* method,
+-    uint32_t dex_pc,
+     T& result) REQUIRES_SHARED(Locks::mutator_lock_);
+ 
+ static inline ALWAYS_INLINE WARN_UNUSED bool
+@@ -200,12 +198,10 @@ static inline ALWAYS_INLINE void PerformNonStandardReturn(
+       ShadowFrame& frame,
+       JValue& result,
+       const instrumentation::Instrumentation* instrumentation,
+-      uint16_t num_dex_inst,
+-      uint32_t dex_pc) REQUIRES_SHARED(Locks::mutator_lock_) {
++      uint16_t num_dex_inst) REQUIRES_SHARED(Locks::mutator_lock_) {
+   static constexpr bool kMonitorCounting = (kMonitorState == MonitorState::kCountingMonitors);
+   ObjPtr<mirror::Object> thiz(frame.GetThisObject(num_dex_inst));
+   StackHandleScope<1u> hs(self);
+-  Handle<mirror::Object> h_thiz(hs.NewHandle(thiz));
+   if (UNLIKELY(self->IsExceptionPending())) {
+     LOG(WARNING) << "Suppressing exception for non-standard method exit: "
+                  << self->GetException()->Dump();
+@@ -217,8 +213,7 @@ static inline ALWAYS_INLINE void PerformNonStandardReturn(
+   DoMonitorCheckOnExit<kMonitorCounting>(self, &frame);
+   result = JValue();
+   if (UNLIKELY(NeedsMethodExitEvent(instrumentation))) {
+-    SendMethodExitEvents(
+-        self, instrumentation, frame, h_thiz.Get(), frame.GetMethod(), dex_pc, result);
++    SendMethodExitEvents(self, instrumentation, frame, frame.GetMethod(), result);
+   }
+ }
+ 
+diff --git a/runtime/interpreter/interpreter_switch_impl-inl.h b/runtime/interpreter/interpreter_switch_impl-inl.h
+index 8e16e04bfa..42f7fc749b 100644
+--- a/runtime/interpreter/interpreter_switch_impl-inl.h
++++ b/runtime/interpreter/interpreter_switch_impl-inl.h
+@@ -64,12 +64,8 @@ class InstructionHandler {
+       DCHECK(abort_exception != nullptr);
+       DCHECK(abort_exception->GetClass()->DescriptorEquals(Transaction::kAbortExceptionDescriptor));
+       Self()->ClearException();
+-      PerformNonStandardReturn<kMonitorState>(Self(),
+-                                              shadow_frame_,
+-                                              ctx_->result,
+-                                              Instrumentation(),
+-                                              Accessor().InsSize(),
+-                                              inst_->GetDexPc(Insns()));
++      PerformNonStandardReturn<kMonitorState>(
++          Self(), shadow_frame_, ctx_->result, Instrumentation(), Accessor().InsSize());
+       Self()->SetException(abort_exception.Get());
+       ExitInterpreterLoop();
+       return false;
+@@ -80,12 +76,8 @@ class InstructionHandler {
+   HANDLER_ATTRIBUTES bool CheckForceReturn() {
+     if (shadow_frame_.GetForcePopFrame()) {
+       DCHECK(Runtime::Current()->AreNonStandardExitsEnabled());
+-      PerformNonStandardReturn<kMonitorState>(Self(),
+-                                              shadow_frame_,
+-                                              ctx_->result,
+-                                              Instrumentation(),
+-                                              Accessor().InsSize(),
+-                                              inst_->GetDexPc(Insns()));
++      PerformNonStandardReturn<kMonitorState>(
++          Self(), shadow_frame_, ctx_->result, Instrumentation(), Accessor().InsSize());
+       ExitInterpreterLoop();
+       return false;
+     }
+@@ -216,9 +208,7 @@ class InstructionHandler {
+                  !SendMethodExitEvents(Self(),
+                                        Instrumentation(),
+                                        shadow_frame_,
+-                                       shadow_frame_.GetThisObject(Accessor().InsSize()),
+                                        shadow_frame_.GetMethod(),
+-                                       inst_->GetDexPc(Insns()),
+                                        result))) {
+       DCHECK(Self()->IsExceptionPending());
+       // Do not raise exception event if it is caused by other instrumentation event.
+@@ -495,9 +485,7 @@ class InstructionHandler {
+                  !SendMethodExitEvents(Self(),
+                                        Instrumentation(),
+                                        shadow_frame_,
+-                                       shadow_frame_.GetThisObject(Accessor().InsSize()),
+                                        shadow_frame_.GetMethod(),
+-                                       inst_->GetDexPc(Insns()),
+                                        h_result))) {
+       DCHECK(Self()->IsExceptionPending());
+       // Do not raise exception event if it is caused by other instrumentation event.
+diff --git a/runtime/trace.cc b/runtime/trace.cc
+index 5996a5720b..ca0fe10d59 100644
+--- a/runtime/trace.cc
++++ b/runtime/trace.cc
+@@ -741,9 +741,7 @@ void Trace::MethodEntered(Thread* thread, ArtMethod* method) {
+ }
+ 
+ void Trace::MethodExited(Thread* thread,
+-                         Handle<mirror::Object> this_object ATTRIBUTE_UNUSED,
+                          ArtMethod* method,
+-                         uint32_t dex_pc ATTRIBUTE_UNUSED,
+                          instrumentation::OptionalFrame frame ATTRIBUTE_UNUSED,
+                          JValue& return_value ATTRIBUTE_UNUSED) {
+   uint32_t thread_clock_diff = 0;
+diff --git a/runtime/trace.h b/runtime/trace.h
+index 170f0b09fe..c6f36e4ab1 100644
+--- a/runtime/trace.h
++++ b/runtime/trace.h
+@@ -178,9 +178,7 @@ class Trace final : public instrumentation::InstrumentationListener {
+   void MethodEntered(Thread* thread, ArtMethod* method) REQUIRES_SHARED(Locks::mutator_lock_)
+       REQUIRES(!unique_methods_lock_, !streaming_lock_) override;
+   void MethodExited(Thread* thread,
+-                    Handle<mirror::Object> this_object,
+                     ArtMethod* method,
+-                    uint32_t dex_pc,
+                     instrumentation::OptionalFrame frame,
+                     JValue& return_value)
+       REQUIRES_SHARED(Locks::mutator_lock_) REQUIRES(!unique_methods_lock_, !streaming_lock_)
+diff --git a/tools/tracefast-plugin/tracefast.cc b/tools/tracefast-plugin/tracefast.cc
+index c2516c70e9..618742de9a 100644
+--- a/tools/tracefast-plugin/tracefast.cc
++++ b/tools/tracefast-plugin/tracefast.cc
+@@ -48,17 +48,13 @@ class Tracer final : public art::instrumentation::InstrumentationListener {
+       REQUIRES_SHARED(art::Locks::mutator_lock_) {}
+ 
+   void MethodExited(art::Thread* thread ATTRIBUTE_UNUSED,
+-                    art::Handle<art::mirror::Object> this_object ATTRIBUTE_UNUSED,
+                     art::ArtMethod* method ATTRIBUTE_UNUSED,
+-                    uint32_t dex_pc ATTRIBUTE_UNUSED,
+                     art::instrumentation::OptionalFrame frame ATTRIBUTE_UNUSED,
+                     art::MutableHandle<art::mirror::Object>& return_value ATTRIBUTE_UNUSED)
+       override REQUIRES_SHARED(art::Locks::mutator_lock_) { }
+ 
+   void MethodExited(art::Thread* thread ATTRIBUTE_UNUSED,
+-                    art::Handle<art::mirror::Object> this_object ATTRIBUTE_UNUSED,
+                     art::ArtMethod* method ATTRIBUTE_UNUSED,
+-                    uint32_t dex_pc ATTRIBUTE_UNUSED,
+                     art::instrumentation::OptionalFrame frame ATTRIBUTE_UNUSED,
+                     art::JValue& return_value ATTRIBUTE_UNUSED)
+       override REQUIRES_SHARED(art::Locks::mutator_lock_) { }
+-- 
+2.34.1
+

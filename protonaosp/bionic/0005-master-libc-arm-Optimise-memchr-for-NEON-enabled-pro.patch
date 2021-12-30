@@ -1,7 +1,7 @@
-From f4b5a68f06f89028e327c6bfc9b6e93d91530900 Mon Sep 17 00:00:00 2001
+From 438ae44929a8ae916afdc1e76675c2c34dc26b37 Mon Sep 17 00:00:00 2001
 From: Prakhar Bahuguna <prakhar.bahuguna@arm.com>
 Date: Mon, 10 Apr 2017 00:41:23 +0200
-Subject: [PATCH 5/6] [master] libc: arm: Optimise memchr for NEON-enabled
+Subject: [PATCH 5/8] [master] libc: arm: Optimise memchr for NEON-enabled
  processors
 
 This optimization is extracted from cortex-strings and bionic-ized,
@@ -281,5 +281,5 @@ index 000000000..5a78da280
 +
 +END(memchr)
 -- 
-2.34.0
+2.34.1
 

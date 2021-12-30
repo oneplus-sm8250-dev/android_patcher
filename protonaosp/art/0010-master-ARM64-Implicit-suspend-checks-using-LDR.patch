@@ -1,0 +1,593 @@
+From 01fe49b1e6d702c8a47a8febc0194061df7bb382 Mon Sep 17 00:00:00 2001
+From: Vladimir Marko <vmarko@google.com>
+Date: Thu, 5 Apr 2018 17:59:39 +0100
+Subject: [PATCH 10/13] [master] ARM64: Implicit suspend checks using LDR.
+
+Implement implicit suspend checks in compiled managed code.
+Use a single instruction `ldr x21, [x21, #0]` for the check
+where `x21` points to a field in `Thread` that points to
+itself until we request a checkpoint or suspension and set
+it to null. After the null becomes visible to a running
+thread, it requires two loads to get a segmentation fault
+that is intercepted and redirected to a suspend check.
+
+This involves a trade-off between the speed of a single
+suspend check (a single LDR is faster than LDR+TST+BEQ/BNE)
+and time to suspend where we now need to wait for two LDRs
+and incur fault handling overhead. The time to suspend was
+previously measured to be acceptable with the long tail
+being comparable to the explicit suspend check.
+
+Golem results for art-opt-cc (higher is better):
+linux-armv8         before   after
+Jacobi              597.49  637.92 (+6.766%) [1.3 noise]
+Towers              934.00  991.00 (+6.103%) [1.4 noise]
+QuicksortTest      5108.82 5622.46 (+10.05%) [1.6 noise]
+StringPoolBench    8353.00 9806.00 (+17.39%) [4.4 noise]
+LongInductionBench  1.0468  1.5100 (+44.26%) [0.4 noise]
+IntInductionBench   1.1710  1.7715 (+51.28%) [0.4 noise]
+(These are four benchmarks with highest "significance" and
+two with highest improvement as reported by Golem.)
+
+It is also interesting to compare this with a revert of
+    https://android-review.googlesource.com/1905055
+which was the last change dealing with suspend checks and
+which regressed these benchmarks.
+Golem results for art-opt-cc (higher is better):
+linux-armv8         revert   after
+Jacobi              616.36  637.92 (+3.497%) [0.7 noise]
+Towers              943.00  991.00 (+5.090%) [1.2 noise]
+QuicksortTest      5186.83 5622.46 (+8.399%) [1.4 noise]
+StringPoolBench    8992.00 9806.00 (+9.052%) [2.4 noise]
+LongInductionBench  1.1895  1.5100 (+26.94%) [0.3 noise]
+IntInductionBench   1.3210  1.7715 (+34.10%) [0.3 noise]
+
+Prebuilt sizes for aosp_blueline-userdebug:
+ - before:
+   arm64/boot*.oat: 16994120
+   oat/arm64/services.odex: 45848752
+ - revert https://android-review.googlesource.com/1905055 :
+   arm64/boot*.oat: 16870672 (-121KiB)
+   oat/arm64/services.odex: 45577248 (-265KiB)
+ - after:
+   arm64/boot*.oat: 16575552 (-409KiB; -288KiB v. revert)
+   oat/arm64/services.odex: 44877064 (-949KiB; -684KiB v. revert)
+
+Test: testrunner.py --target --optimizing --jit --interpreter --64
+Bug: 38383823
+Change-Id: I1827689a3fb7f3c38310b87c80c7724bd7364a66
+---
+ .../quick/arm64/calling_convention_arm64.cc   | 12 ++--
+ compiler/optimizing/code_generator_arm64.cc   | 18 ++++-
+ compiler/optimizing/code_generator_arm64.h    |  5 ++
+ dex2oat/dex2oat.cc                            |  4 +-
+ runtime/arch/arm64/asm_support_arm64.S        | 16 +++++
+ runtime/arch/arm64/fault_handler_arm64.cc     | 72 +++++++------------
+ runtime/arch/arm64/quick_entrypoints_arm64.S  | 35 ++++++---
+ runtime/interpreter/mterp/arm64ng/main.S      | 21 +++---
+ runtime/oat.h                                 |  4 +-
+ runtime/runtime.cc                            |  4 +-
+ test/137-cfi/cfi.cc                           | 23 +++---
+ test/706-checker-scheduler/src/Main.java      |  4 +-
+ tools/cpp-define-generator/thread.def         |  2 +
+ 13 files changed, 128 insertions(+), 92 deletions(-)
+
+diff --git a/compiler/jni/quick/arm64/calling_convention_arm64.cc b/compiler/jni/quick/arm64/calling_convention_arm64.cc
+index 83b936a0b4..66aedb39de 100644
+--- a/compiler/jni/quick/arm64/calling_convention_arm64.cc
++++ b/compiler/jni/quick/arm64/calling_convention_arm64.cc
+@@ -58,8 +58,8 @@ static constexpr ManagedRegister kCalleeSaveRegisters[] = {
+ 
+     // Thread register(X19) is saved on stack.
+     Arm64ManagedRegister::FromXRegister(X19),
+-    Arm64ManagedRegister::FromXRegister(X20),
+-    Arm64ManagedRegister::FromXRegister(X21),
++    Arm64ManagedRegister::FromXRegister(X20),  // Note: Marking register.
++    Arm64ManagedRegister::FromXRegister(X21),  // Note: Suspend check register.
+     Arm64ManagedRegister::FromXRegister(X22),
+     Arm64ManagedRegister::FromXRegister(X23),
+     Arm64ManagedRegister::FromXRegister(X24),
+@@ -234,11 +234,11 @@ uint32_t Arm64JniCallingConvention::FpSpillMask() const {
+ 
+ ArrayRef<const ManagedRegister> Arm64JniCallingConvention::CalleeSaveScratchRegisters() const {
+   DCHECK(!IsCriticalNative());
+-  // Use X21-X29 from native callee saves.
+-  constexpr size_t kStart = 2u;
+-  constexpr size_t kLength = 9u;
++  // Use X22-X29 from native callee saves.
++  constexpr size_t kStart = 3u;
++  constexpr size_t kLength = 8u;
+   static_assert(kAapcs64CalleeSaveRegisters[kStart].Equals(
+-                    Arm64ManagedRegister::FromXRegister(X21)));
++                    Arm64ManagedRegister::FromXRegister(X22)));
+   static_assert(kAapcs64CalleeSaveRegisters[kStart + kLength - 1u].Equals(
+                     Arm64ManagedRegister::FromXRegister(X29)));
+   static_assert((kAapcs64CoreCalleeSpillMask & ~kCoreCalleeSpillMask) == 0u);
+diff --git a/compiler/optimizing/code_generator_arm64.cc b/compiler/optimizing/code_generator_arm64.cc
+index e1a4718140..378d7d0f31 100644
+--- a/compiler/optimizing/code_generator_arm64.cc
++++ b/compiler/optimizing/code_generator_arm64.cc
+@@ -1902,8 +1902,22 @@ void CodeGeneratorARM64::GenerateMemoryBarrier(MemBarrierKind kind) {
+   __ Dmb(InnerShareable, type);
+ }
+ 
++bool CodeGeneratorARM64::CanUseImplicitSuspendCheck() const {
++  // Use implicit suspend checks if requested in compiler options unless there are SIMD
++  // instructions in the graph. The implicit suspend check saves all FP registers as
++  // 64-bit (in line with the calling convention) but SIMD instructions can use 128-bit
++  // registers, so they need to be saved in an explicit slow path.
++  return GetCompilerOptions().GetImplicitSuspendChecks() && !GetGraph()->HasSIMD();
++}
++
+ void InstructionCodeGeneratorARM64::GenerateSuspendCheck(HSuspendCheck* instruction,
+                                                          HBasicBlock* successor) {
++  if (codegen_->CanUseImplicitSuspendCheck()) {
++    __ Ldr(kImplicitSuspendCheckRegister, MemOperand(kImplicitSuspendCheckRegister));
++    codegen_->RecordPcInfo(instruction, instruction->GetDexPc());
++    return;
++  }
++
+   SuspendCheckSlowPathARM64* slow_path =
+       down_cast<SuspendCheckSlowPathARM64*>(instruction->GetSlowPath());
+   if (slow_path == nullptr) {
+@@ -3496,7 +3510,9 @@ void InstructionCodeGeneratorARM64::HandleGoto(HInstruction* got, HBasicBlock* s
+   if (info != nullptr && info->IsBackEdge(*block) && info->HasSuspendCheck()) {
+     codegen_->MaybeIncrementHotness(/* is_frame_entry= */ false);
+     GenerateSuspendCheck(info->GetSuspendCheck(), successor);
+-    return;
++    if (!codegen_->CanUseImplicitSuspendCheck()) {
++      return;  // `GenerateSuspendCheck()` emitted the jump.
++    }
+   }
+   if (block->IsEntryBlock() && (previous != nullptr) && previous->IsSuspendCheck()) {
+     GenerateSuspendCheck(previous->AsSuspendCheck(), nullptr);
+diff --git a/compiler/optimizing/code_generator_arm64.h b/compiler/optimizing/code_generator_arm64.h
+index d4546e5bd5..3432f07567 100644
+--- a/compiler/optimizing/code_generator_arm64.h
++++ b/compiler/optimizing/code_generator_arm64.h
+@@ -80,6 +80,8 @@ static constexpr size_t kParameterFPRegistersLength = arraysize(kParameterFPRegi
+ const vixl::aarch64::Register tr = vixl::aarch64::x19;
+ // Marking Register.
+ const vixl::aarch64::Register mr = vixl::aarch64::x20;
++// Implicit suspend check register.
++const vixl::aarch64::Register kImplicitSuspendCheckRegister = vixl::aarch64::x21;
+ // Method register on invoke.
+ static const vixl::aarch64::Register kArtMethodRegister = vixl::aarch64::x0;
+ const vixl::aarch64::CPURegList vixl_reserved_core_registers(vixl::aarch64::ip0,
+@@ -91,6 +93,7 @@ const vixl::aarch64::CPURegList runtime_reserved_core_registers =
+         tr,
+         // Reserve X20 as Marking Register when emitting Baker read barriers.
+         ((kEmitCompilerReadBarrier && kUseBakerReadBarrier) ? mr : vixl::aarch64::NoCPUReg),
++        kImplicitSuspendCheckRegister,
+         vixl::aarch64::lr);
+ 
+ // Some instructions have special requirements for a temporary, for example
+@@ -962,6 +965,8 @@ class CodeGeneratorARM64 : public CodeGenerator {
+   void MaybeGenerateInlineCacheCheck(HInstruction* instruction, vixl::aarch64::Register klass);
+   void MaybeIncrementHotness(bool is_frame_entry);
+ 
++  bool CanUseImplicitSuspendCheck() const;
++
+  private:
+   // Encoding of thunk type and data for link-time generated thunks for Baker read barriers.
+ 
+diff --git a/dex2oat/dex2oat.cc b/dex2oat/dex2oat.cc
+index 84e46226dd..5e8133c178 100644
+--- a/dex2oat/dex2oat.cc
++++ b/dex2oat/dex2oat.cc
+@@ -826,9 +826,11 @@ class Dex2Oat final {
+     // Checks are all explicit until we know the architecture.
+     // Set the compilation target's implicit checks options.
+     switch (compiler_options_->GetInstructionSet()) {
++      case InstructionSet::kArm64:
++        compiler_options_->implicit_suspend_checks_ = true;
++        FALLTHROUGH_INTENDED;
+       case InstructionSet::kArm:
+       case InstructionSet::kThumb2:
+-      case InstructionSet::kArm64:
+       case InstructionSet::kX86:
+       case InstructionSet::kX86_64:
+         compiler_options_->implicit_null_checks_ = true;
+diff --git a/runtime/arch/arm64/asm_support_arm64.S b/runtime/arch/arm64/asm_support_arm64.S
+index e02d7f27d0..3fb577ff3e 100644
+--- a/runtime/arch/arm64/asm_support_arm64.S
++++ b/runtime/arch/arm64/asm_support_arm64.S
+@@ -41,6 +41,9 @@
+ #define wMR w20
+ #endif
+ 
++// Implicit suspend check register.
++#define xSUSPEND x21
++
+ .macro CFI_EXPRESSION_BREG n, b, offset
+     .if (-0x40 <= (\offset)) && ((\offset) < 0x40)
+         CFI_EXPRESSION_BREG_1(\n, \b, \offset)
+@@ -174,6 +177,19 @@
+ #endif
+ .endm
+ 
++// Macro to refresh the suspend check register.
++//
++// We do not refresh `xSUSPEND` after every transition to Runnable, so there is
++// a chance that an implicit suspend check loads null to xSUSPEND but before
++// causing a SIGSEGV at the next implicit suspend check we make a runtime call
++// that performs the suspend check explicitly. This can cause a spurious fault
++// without a pending suspend check request but it should be rare and the fault
++// overhead was already expected when we triggered the suspend check, we just
++// pay the price later than expected.
++.macro REFRESH_SUSPEND_CHECK_REGISTER
++    ldr xSUSPEND, [xSELF, #THREAD_SUSPEND_TRIGGER_OFFSET]
++.endm
++
+     /*
+      * Macro that sets up the callee save frame to conform with
+      * Runtime::CreateCalleeSaveMethod(kSaveRefsOnly).
+diff --git a/runtime/arch/arm64/fault_handler_arm64.cc b/runtime/arch/arm64/fault_handler_arm64.cc
+index c139e21d05..8684325358 100644
+--- a/runtime/arch/arm64/fault_handler_arm64.cc
++++ b/runtime/arch/arm64/fault_handler_arm64.cc
+@@ -95,64 +95,40 @@ bool NullPointerHandler::Action(int sig ATTRIBUTE_UNUSED, siginfo_t* info, void*
+   return true;
+ }
+ 
+-// A suspend check is done using the following instruction sequence:
+-//      0xf7223228: f9405640  ldr x0, [x18, #168]
+-// .. some intervening instructions
+-//      0xf7223230: f9400000  ldr x0, [x0]
+-
+-// The offset from r18 is Thread::ThreadSuspendTriggerOffset().
+-// To check for a suspend check, we examine the instructions that caused
+-// the fault (at PC-4 and PC).
++// A suspend check is done using the following instruction:
++//      0x...: f94002b5  ldr x21, [x21, #0]
++// To check for a suspend check, we examine the instruction that caused the fault (at PC).
+ bool SuspensionHandler::Action(int sig ATTRIBUTE_UNUSED, siginfo_t* info ATTRIBUTE_UNUSED,
+                                void* context) {
+-  // These are the instructions to check for.  The first one is the ldr x0,[r18,#xxx]
+-  // where xxx is the offset of the suspend trigger.
+-  uint32_t checkinst1 = 0xf9400240 |
+-      (Thread::ThreadSuspendTriggerOffset<PointerSize::k64>().Int32Value() << 7);
+-  uint32_t checkinst2 = 0xf9400000;
++  constexpr uint32_t kSuspendCheckRegister = 21;
++  constexpr uint32_t checkinst =
++      0xf9400000 | (kSuspendCheckRegister << 5) | (kSuspendCheckRegister << 0);
+ 
+   struct ucontext *uc = reinterpret_cast<struct ucontext *>(context);
+   struct sigcontext *sc = reinterpret_cast<struct sigcontext*>(&uc->uc_mcontext);
+-  uint8_t* ptr2 = reinterpret_cast<uint8_t*>(sc->pc);
+-  uint8_t* ptr1 = ptr2 - 4;
+   VLOG(signals) << "checking suspend";
+ 
+-  uint32_t inst2 = *reinterpret_cast<uint32_t*>(ptr2);
+-  VLOG(signals) << "inst2: " << std::hex << inst2 << " checkinst2: " << checkinst2;
+-  if (inst2 != checkinst2) {
+-    // Second instruction is not good, not ours.
++  uint32_t inst = *reinterpret_cast<uint32_t*>(sc->pc);
++  VLOG(signals) << "inst: " << std::hex << inst << " checkinst: " << checkinst;
++  if (inst != checkinst) {
++    // The instruction is not good, not ours.
+     return false;
+   }
+ 
+-  // The first instruction can a little bit up the stream due to load hoisting
+-  // in the compiler.
+-  uint8_t* limit = ptr1 - 80;   // Compiler will hoist to a max of 20 instructions.
+-  bool found = false;
+-  while (ptr1 > limit) {
+-    uint32_t inst1 = *reinterpret_cast<uint32_t*>(ptr1);
+-    VLOG(signals) << "inst1: " << std::hex << inst1 << " checkinst1: " << checkinst1;
+-    if (inst1 == checkinst1) {
+-      found = true;
+-      break;
+-    }
+-    ptr1 -= 4;
+-  }
+-  if (found) {
+-    VLOG(signals) << "suspend check match";
+-    // This is a suspend check.  Arrange for the signal handler to return to
+-    // art_quick_implicit_suspend.  Also set LR so that after the suspend check it
+-    // will resume the instruction (current PC + 4).  PC points to the
+-    // ldr x0,[x0,#0] instruction (r0 will be 0, set by the trigger).
+-
+-    sc->regs[30] = sc->pc + 4;
+-    sc->pc = reinterpret_cast<uintptr_t>(art_quick_implicit_suspend);
+-
+-    // Now remove the suspend trigger that caused this fault.
+-    Thread::Current()->RemoveSuspendTrigger();
+-    VLOG(signals) << "removed suspend trigger invoking test suspend";
+-    return true;
+-  }
+-  return false;
++  // This is a suspend check.
++  VLOG(signals) << "suspend check match";
++
++  // Set LR so that after the suspend check it will resume after the
++  // `ldr x21, [x21,#0]` instruction that triggered the suspend check.
++  sc->regs[30] = sc->pc + 4;
++  // Arrange for the signal handler to return to `art_quick_implicit_suspend()`.
++  sc->pc = reinterpret_cast<uintptr_t>(art_quick_implicit_suspend);
++
++  // Now remove the suspend trigger that caused this fault.
++  Thread::Current()->RemoveSuspendTrigger();
++  VLOG(signals) << "removed suspend trigger invoking test suspend";
++
++  return true;
+ }
+ 
+ bool StackOverflowHandler::Action(int sig ATTRIBUTE_UNUSED, siginfo_t* info ATTRIBUTE_UNUSED,
+diff --git a/runtime/arch/arm64/quick_entrypoints_arm64.S b/runtime/arch/arm64/quick_entrypoints_arm64.S
+index 022a0e4053..263bbb7d82 100644
+--- a/runtime/arch/arm64/quick_entrypoints_arm64.S
++++ b/runtime/arch/arm64/quick_entrypoints_arm64.S
+@@ -361,10 +361,11 @@ INVOKE_TRAMPOLINE art_quick_invoke_virtual_trampoline_with_access_check, artInvo
+ 
+ 
+ .macro INVOKE_STUB_CREATE_FRAME
+-SAVE_SIZE=6*8   // x4, x5, x19, x20, FP, LR saved.
++SAVE_SIZE=8*8   // x4, x5, <padding>, x19, x20, x21, FP, LR saved.
+     SAVE_TWO_REGS_INCREASE_FRAME x4, x5, SAVE_SIZE
+-    SAVE_TWO_REGS x19, x20, 16
+-    SAVE_TWO_REGS xFP, xLR, 32
++    SAVE_REG      x19,      24
++    SAVE_TWO_REGS x20, x21, 32
++    SAVE_TWO_REGS xFP, xLR, 48
+ 
+     mov xFP, sp                            // Use xFP for frame pointer, as it's callee-saved.
+     .cfi_def_cfa_register xFP
+@@ -401,6 +402,7 @@ SAVE_SIZE=6*8   // x4, x5, x19, x20, FP, LR saved.
+ .macro INVOKE_STUB_CALL_AND_RETURN
+ 
+     REFRESH_MARKING_REGISTER
++    REFRESH_SUSPEND_CHECK_REGISTER
+ 
+     // load method-> METHOD_QUICK_CODE_OFFSET
+     ldr x9, [x0, #ART_METHOD_QUICK_CODE_OFFSET_64]
+@@ -412,8 +414,9 @@ SAVE_SIZE=6*8   // x4, x5, x19, x20, FP, LR saved.
+     .cfi_def_cfa_register sp
+ 
+     // Restore saved registers including value address and shorty address.
+-    RESTORE_TWO_REGS x19, x20, 16
+-    RESTORE_TWO_REGS xFP, xLR, 32
++    RESTORE_REG      x19,      24
++    RESTORE_TWO_REGS x20, x21, 32
++    RESTORE_TWO_REGS xFP, xLR, 48
+     RESTORE_TWO_REGS_DECREASE_FRAME x4, x5, SAVE_SIZE
+ 
+     // Store result (w0/x0/s0/d0) appropriately, depending on resultType.
+@@ -765,6 +768,7 @@ ENTRY art_quick_osr_stub
+ 
+     mov xSELF, x5                         // Move thread pointer into SELF register.
+     REFRESH_MARKING_REGISTER
++    REFRESH_SUSPEND_CHECK_REGISTER
+ 
+     INCREASE_FRAME 16
+     str xzr, [sp]                         // Store null for ArtMethod* slot
+@@ -877,6 +881,7 @@ ENTRY art_quick_do_long_jump
+     mov sp, xIP0
+ 
+     REFRESH_MARKING_REGISTER
++    REFRESH_SUSPEND_CHECK_REGISTER
+ 
+     br  xIP1
+ END art_quick_do_long_jump
+@@ -1659,21 +1664,29 @@ GENERATE_ALLOC_ARRAY_TLAB art_quick_alloc_array_resolved64_tlab, artAllocArrayFr
+      */
+     .extern artTestSuspendFromCode
+ ENTRY art_quick_test_suspend
+-    SETUP_SAVE_EVERYTHING_FRAME RUNTIME_SAVE_EVERYTHING_FOR_SUSPEND_CHECK_METHOD_OFFSET  // save callee saves for stack crawl
++                                        // Save callee saves for stack crawl.
++    SETUP_SAVE_EVERYTHING_FRAME RUNTIME_SAVE_EVERYTHING_FOR_SUSPEND_CHECK_METHOD_OFFSET
+     mov    x0, xSELF
+-    bl     artTestSuspendFromCode             // (Thread*)
++    bl     artTestSuspendFromCode       // (Thread*)
+     RESTORE_SAVE_EVERYTHING_FRAME
+     REFRESH_MARKING_REGISTER
++    REFRESH_SUSPEND_CHECK_REGISTER
+     ret
+ END art_quick_test_suspend
+ 
++    /*
++     * Redirection point from implicit suspend check fault handler.
++     */
++    .extern artTestSuspendFromCode
+ ENTRY art_quick_implicit_suspend
++                                        // Save callee saves for stack crawl.
++    SETUP_SAVE_EVERYTHING_FRAME RUNTIME_SAVE_EVERYTHING_FOR_SUSPEND_CHECK_METHOD_OFFSET
+     mov    x0, xSELF
+-    SETUP_SAVE_REFS_ONLY_FRAME                // save callee saves for stack crawl
+-    bl     artTestSuspendFromCode             // (Thread*)
+-    RESTORE_SAVE_REFS_ONLY_FRAME
++    bl     artTestSuspendFromCode       // (Thread*)
++    RESTORE_SAVE_EVERYTHING_FRAME
+     REFRESH_MARKING_REGISTER
+-    ret
++    REFRESH_SUSPEND_CHECK_REGISTER
++    br     lr  // Do not use RET as we do not enter the entrypoint with "BL".
+ END art_quick_implicit_suspend
+ 
+      /*
+diff --git a/runtime/interpreter/mterp/arm64ng/main.S b/runtime/interpreter/mterp/arm64ng/main.S
+index 627bb04f23..aa2497a3df 100644
+--- a/runtime/interpreter/mterp/arm64ng/main.S
++++ b/runtime/interpreter/mterp/arm64ng/main.S
+@@ -61,6 +61,7 @@
+  *   reg nick      purpose
+  *   x19  xSELF     self (Thread) pointer
+  *   x20  wMR       marking register
++ *   x21  xSUSPEND  suspend check register
+  *   x29  xFP       interpreted frame pointer, used for accessing locals and args
+  *   x22  xPC       interpreted program counter, used for fetching instructions
+  *   x23  xINST     first 16-bit code unit of current instruction
+@@ -74,7 +75,6 @@
+ */
+ 
+ /* single-purpose registers, given names for clarity */
+-#define xSELF    x19
+ #define CFI_DEX  22 // DWARF register number of the register holding dex-pc (xPC).
+ #define CFI_TMP  0  // DWARF register number of the first argument register (r0).
+ #define xPC      x22
+@@ -461,8 +461,9 @@ END \name
+ 
+     // GP callee-saves.
+     // No need to restore x19 (it's always the thread), and
+-    // don't restore x20 (the marking register) as it may have been updated.
+-    RESTORE_TWO_REGS x21, x22, 80
++    // don't restore x20 (the marking register) as it may have been updated,
++    // don't restore x21 (the suspend check register) as it may have been updated.
++    RESTORE_REG      x22, 88
+     RESTORE_TWO_REGS x23, x24, 96
+     RESTORE_TWO_REGS x25, x26, 112
+     RESTORE_TWO_REGS x27, x28, 128
+@@ -1597,12 +1598,12 @@ OAT_ENTRY ExecuteNterpImpl, EndExecuteNterpImpl
+ 
+     sub ip2, ip, x15
+     ldr w26, [x0, #ART_METHOD_ACCESS_FLAGS_OFFSET]
+-    lsl x21, ip2, #2 // x21 is now the offset for inputs into the registers array.
++    lsl x27, ip2, #2 // x27 is now the offset for inputs into the registers array.
+ 
+     tbz w26, #ART_METHOD_NTERP_ENTRY_POINT_FAST_PATH_FLAG_BIT, .Lsetup_slow_path
+     // Setup pointer to inputs in FP and pointer to inputs in REFS
+-    add x10, xFP, x21
+-    add x11, xREFS, x21
++    add x10, xFP, x27
++    add x11, xREFS, x27
+     mov x12, #0
+     SETUP_REFERENCE_PARAMETER_IN_GPR w1, x10, x11, w15, x12, .Lxmm_setup_finished
+     SETUP_REFERENCE_PARAMETER_IN_GPR w2, x10, x11, w15, x12, .Lxmm_setup_finished
+@@ -1619,8 +1620,8 @@ OAT_ENTRY ExecuteNterpImpl, EndExecuteNterpImpl
+     // If the method is not static and there is one argument ('this'), we don't need to fetch the
+     // shorty.
+     tbnz w26, #ART_METHOD_IS_STATIC_FLAG_BIT, .Lsetup_with_shorty
+-    str w1, [xFP, x21]
+-    str w1, [xREFS, x21]
++    str w1, [xFP, x27]
++    str w1, [xREFS, x27]
+     cmp w15, #1
+     b.eq .Lxmm_setup_finished
+ 
+@@ -1633,8 +1634,8 @@ OAT_ENTRY ExecuteNterpImpl, EndExecuteNterpImpl
+     RESTORE_ALL_ARGUMENTS
+ 
+     // Setup pointer to inputs in FP and pointer to inputs in REFS
+-    add x10, xFP, x21
+-    add x11, xREFS, x21
++    add x10, xFP, x27
++    add x11, xREFS, x27
+     mov x12, #0
+ 
+     add x9, xIBASE, #1  // shorty + 1  ; ie skip return arg character
+diff --git a/runtime/oat.h b/runtime/oat.h
+index 95eb0e14ed..df77d812c1 100644
+--- a/runtime/oat.h
++++ b/runtime/oat.h
+@@ -32,8 +32,8 @@ class InstructionSetFeatures;
+ class PACKED(4) OatHeader {
+  public:
+   static constexpr std::array<uint8_t, 4> kOatMagic { { 'o', 'a', 't', '\n' } };
+-  // Last oat version changed reason: Inline IRT frame push/pop into JNI stubs.
+-  static constexpr std::array<uint8_t, 4> kOatVersion { { '2', '0', '3', '\0' } };
++  // Last oat version changed reason: ARM64: Implicit null checks using LDR.
++  static constexpr std::array<uint8_t, 4> kOatVersion { { '2', '1', '5', '\0' } };
+ 
+   static constexpr const char* kDex2OatCmdLineKey = "dex2oat-cmdline";
+   static constexpr const char* kDebuggableKey = "debuggable";
+diff --git a/runtime/runtime.cc b/runtime/runtime.cc
+index 39db41d49d..bd9c00565b 100644
+--- a/runtime/runtime.cc
++++ b/runtime/runtime.cc
+@@ -1672,10 +1672,12 @@ bool Runtime::Init(RuntimeArgumentMap&& runtime_options_in) {
+ 
+   // Change the implicit checks flags based on runtime architecture.
+   switch (kRuntimeISA) {
++    case InstructionSet::kArm64:
++      implicit_suspend_checks_ = true;
++      FALLTHROUGH_INTENDED;
+     case InstructionSet::kArm:
+     case InstructionSet::kThumb2:
+     case InstructionSet::kX86:
+-    case InstructionSet::kArm64:
+     case InstructionSet::kX86_64:
+       implicit_null_checks_ = true;
+       // Historical note: Installing stack protection was not playing well with Valgrind.
+diff --git a/test/137-cfi/cfi.cc b/test/137-cfi/cfi.cc
+index fe227ac8e8..4e756d2e64 100644
+--- a/test/137-cfi/cfi.cc
++++ b/test/137-cfi/cfi.cc
+@@ -209,7 +209,7 @@ static constexpr int kMaxTotalSleepTimeMicroseconds = 10000000;  // 10 seconds
+ int wait_for_sigstop(pid_t tid, int* total_sleep_time_usec, bool* detach_failed ATTRIBUTE_UNUSED) {
+   for (;;) {
+     int status;
+-    pid_t n = TEMP_FAILURE_RETRY(waitpid(tid, &status, __WALL | WNOHANG));
++    pid_t n = TEMP_FAILURE_RETRY(waitpid(tid, &status, __WALL | WNOHANG | WUNTRACED));
+     if (n == -1) {
+       PLOG(WARNING) << "waitpid failed: tid " << tid;
+       break;
+@@ -240,15 +240,9 @@ extern "C" JNIEXPORT jboolean JNICALL Java_Main_unwindOtherProcess(JNIEnv*, jcla
+ #if __linux__
+   pid_t pid = static_cast<pid_t>(pid_int);
+ 
+-  // SEIZE is like ATTACH, but it does not stop the process (we let it stop itself).
+-  if (ptrace(PTRACE_SEIZE, pid, 0, 0)) {
+-    // Were not able to attach, bad.
+-    printf("Failed to attach to other process.\n");
+-    PLOG(ERROR) << "Failed to attach.";
+-    kill(pid, SIGKILL);
+-    return JNI_FALSE;
+-  }
+-
++  // We wait for the SIGSTOP while the child process is untraced (using
++  // `WUNTRACED` in `wait_for_sigstop()`) to avoid a SIGSEGV for implicit
++  // suspend check stopping the process because it's being traced.
+   bool detach_failed = false;
+   int total_sleep_time_usec = 0;
+   int signal = wait_for_sigstop(pid, &total_sleep_time_usec, &detach_failed);
+@@ -257,6 +251,15 @@ extern "C" JNIEXPORT jboolean JNICALL Java_Main_unwindOtherProcess(JNIEnv*, jcla
+     return JNI_FALSE;
+   }
+ 
++  // SEIZE is like ATTACH, but it does not stop the process (it has already stopped itself).
++  if (ptrace(PTRACE_SEIZE, pid, 0, 0)) {
++    // Were not able to attach, bad.
++    printf("Failed to attach to other process.\n");
++    PLOG(ERROR) << "Failed to attach.";
++    kill(pid, SIGKILL);
++    return JNI_FALSE;
++  }
++
+   std::unique_ptr<Backtrace> bt(Backtrace::Create(pid, BACKTRACE_CURRENT_THREAD));
+   bool result = true;
+   if (!bt->Unwind(0, nullptr)) {
+diff --git a/test/706-checker-scheduler/src/Main.java b/test/706-checker-scheduler/src/Main.java
+index 5a66fbbebc..96ad58e306 100644
+--- a/test/706-checker-scheduler/src/Main.java
++++ b/test/706-checker-scheduler/src/Main.java
+@@ -610,11 +610,11 @@ public class Main {
+   /// CHECK:     beq
+ 
+   /// CHECK-START-ARM64: void Main.testCrossItersDependencies() disassembly (after)
++  /// CHECK:     ldr
+   /// CHECK:     sub
+   /// CHECK:     add
+   /// CHECK:     add
+-  /// CHECK:     ldrh
+-  /// CHECK:     cbz
++  /// CHECK:     b
+   private static void testCrossItersDependencies() {
+     int[] data = {1, 2, 3, 0};
+     int sub = 0;
+diff --git a/tools/cpp-define-generator/thread.def b/tools/cpp-define-generator/thread.def
+index 4fee6df57d..2ab715dbfa 100644
+--- a/tools/cpp-define-generator/thread.def
++++ b/tools/cpp-define-generator/thread.def
+@@ -65,6 +65,8 @@ ASM_DEFINE(THREAD_USE_MTERP_OFFSET,
+            art::Thread::UseMterpOffset<art::kRuntimePointerSize>().Int32Value())
+ ASM_DEFINE(THREAD_TOP_QUICK_FRAME_OFFSET,
+            art::Thread::TopOfManagedStackOffset<art::kRuntimePointerSize>().Int32Value())
++ASM_DEFINE(THREAD_SUSPEND_TRIGGER_OFFSET,
++           art::Thread::ThreadSuspendTriggerOffset<art::kRuntimePointerSize>().Int32Value())
+ ASM_DEFINE(THREAD_ALLOC_OBJECT_ENTRYPOINT_OFFSET,
+            art::GetThreadOffset<art::kRuntimePointerSize>(art::kQuickAllocObjectInitialized)
+                .Int32Value())
+-- 
+2.34.1
+

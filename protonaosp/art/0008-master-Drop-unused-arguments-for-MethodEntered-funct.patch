@@ -1,0 +1,265 @@
+From c761141a66f8015e4c289497a74635d8663b0240 Mon Sep 17 00:00:00 2001
+From: Mythri Alle <mythria@google.com>
+Date: Tue, 21 Sep 2021 15:09:58 +0000
+Subject: [PATCH 08/13] [master] Drop unused arguments for MethodEntered
+ function
+
+this_object and dex_pc aren't used in MethodEntered listener.
+
+Test: art/test/run-test
+Change-Id: I158f962befe1015d21d08c757d4c415fe7865d16
+---
+ compiler/optimizing/stack_map_test.cc          |  2 --
+ openjdkjvmti/events.cc                         |  5 +----
+ .../quick/quick_trampoline_entrypoints.cc      |  5 +----
+ runtime/instrumentation.cc                     | 18 +++++-------------
+ runtime/instrumentation.h                      | 18 +++++-------------
+ runtime/instrumentation_test.cc                |  9 +++------
+ runtime/interpreter/interpreter.cc             |  5 +----
+ runtime/trace.cc                               |  5 +----
+ runtime/trace.h                                |  8 ++------
+ tools/tracefast-plugin/tracefast.cc            |  6 ++----
+ 10 files changed, 21 insertions(+), 60 deletions(-)
+
+diff --git a/compiler/optimizing/stack_map_test.cc b/compiler/optimizing/stack_map_test.cc
+index 0158ab5b66..e83d37eb6b 100644
+--- a/compiler/optimizing/stack_map_test.cc
++++ b/compiler/optimizing/stack_map_test.cc
+@@ -470,11 +470,9 @@ TEST(StackMapTest, TestNoDexRegisterMap) {
+   stream.BeginMethod(32, 0, 0, 1);
+ 
+   ArenaBitVector sp_mask(&allocator, 0, false);
+-  uint32_t number_of_dex_registers = 0;
+   stream.BeginStackMapEntry(0, 64 * kPcAlign, 0x3, &sp_mask);
+   stream.EndStackMapEntry();
+ 
+-  number_of_dex_registers = 1;
+   stream.BeginStackMapEntry(1, 68 * kPcAlign, 0x4, &sp_mask);
+   stream.AddDexRegisterEntry(Kind::kNone, 0);
+   stream.EndStackMapEntry();
+diff --git a/openjdkjvmti/events.cc b/openjdkjvmti/events.cc
+index cd7155fa2f..12aba6a24d 100644
+--- a/openjdkjvmti/events.cc
++++ b/openjdkjvmti/events.cc
+@@ -624,10 +624,7 @@ class JvmtiMethodTraceListener final : public art::instrumentation::Instrumentat
+   }
+ 
+   // Call-back for when a method is entered.
+-  void MethodEntered(art::Thread* self,
+-                     art::Handle<art::mirror::Object> this_object ATTRIBUTE_UNUSED,
+-                     art::ArtMethod* method,
+-                     uint32_t dex_pc ATTRIBUTE_UNUSED)
++  void MethodEntered(art::Thread* self, art::ArtMethod* method)
+       REQUIRES_SHARED(art::Locks::mutator_lock_) override {
+     if (!method->IsRuntimeMethod() &&
+         event_handler_->IsEventEnabledAnywhere(ArtJvmtiEvent::kMethodEntry)) {
+diff --git a/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc b/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc
+index a4159ae1ff..3279f7d738 100644
+--- a/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc
++++ b/runtime/entrypoints/quick/quick_trampoline_entrypoints.cc
+@@ -855,10 +855,7 @@ extern "C" uint64_t artQuickProxyInvokeHandler(
+   // that performs allocations or instrumentation events.
+   instrumentation::Instrumentation* instr = Runtime::Current()->GetInstrumentation();
+   if (instr->HasMethodEntryListeners()) {
+-    instr->MethodEnterEvent(soa.Self(),
+-                            soa.Decode<mirror::Object>(rcvr_jobj),
+-                            proxy_method,
+-                            0);
++    instr->MethodEnterEvent(soa.Self(), proxy_method);
+     if (soa.Self()->IsExceptionPending()) {
+       instr->MethodUnwindEvent(self,
+                                soa.Decode<mirror::Object>(rcvr_jobj),
+diff --git a/runtime/instrumentation.cc b/runtime/instrumentation.cc
+index 5170a37174..cabd44562e 100644
+--- a/runtime/instrumentation.cc
++++ b/runtime/instrumentation.cc
+@@ -437,14 +437,12 @@ void InstrumentationInstallStack(Thread* thread, void* arg)
+     for (auto isi = thread->GetInstrumentationStack()->rbegin(),
+         end = thread->GetInstrumentationStack()->rend(); isi != end; ++isi) {
+       while (ssi != visitor.shadow_stack_.rend() && (*ssi).frame_id_ < isi->second.frame_id_) {
+-        instrumentation->MethodEnterEvent(thread, (*ssi).this_object_, (*ssi).method_, 0);
++        instrumentation->MethodEnterEvent(thread, (*ssi).method_);
+         ++ssi;
+       }
+-      uint32_t dex_pc = visitor.dex_pcs_.back();
+       visitor.dex_pcs_.pop_back();
+       if (!isi->second.interpreter_entry_ && !isi->second.method_->IsRuntimeMethod()) {
+-        instrumentation->MethodEnterEvent(
+-            thread, isi->second.this_object_, isi->second.method_, dex_pc);
++        instrumentation->MethodEnterEvent(thread, isi->second.method_);
+       }
+     }
+   }
+@@ -1178,18 +1176,12 @@ const void* Instrumentation::GetQuickCodeFor(ArtMethod* method, PointerSize poin
+   return class_linker->GetQuickOatCodeFor(method);
+ }
+ 
+-void Instrumentation::MethodEnterEventImpl(Thread* thread,
+-                                           ObjPtr<mirror::Object> this_object,
+-                                           ArtMethod* method,
+-                                           uint32_t dex_pc) const {
++void Instrumentation::MethodEnterEventImpl(Thread* thread, ArtMethod* method) const {
+   DCHECK(!method->IsRuntimeMethod());
+   if (HasMethodEntryListeners()) {
+-    Thread* self = Thread::Current();
+-    StackHandleScope<1> hs(self);
+-    Handle<mirror::Object> thiz(hs.NewHandle(this_object));
+     for (InstrumentationListener* listener : method_entry_listeners_) {
+       if (listener != nullptr) {
+-        listener->MethodEntered(thread, thiz, method, dex_pc);
++        listener->MethodEntered(thread, method);
+       }
+     }
+   }
+@@ -1382,7 +1374,7 @@ void Instrumentation::PushInstrumentationStackFrame(Thread* self,
+   StackHandleScope<1> hs(self);
+   Handle<mirror::Object> h_this(hs.NewHandle(this_object));
+   if (!interpreter_entry) {
+-    MethodEnterEvent(self, h_this.Get(), method, 0);
++    MethodEnterEvent(self, method);
+     if (self->IsExceptionPending()) {
+       MethodUnwindEvent(self, h_this.Get(), method, 0);
+       return;
+diff --git a/runtime/instrumentation.h b/runtime/instrumentation.h
+index 6c083333ef..09bf221872 100644
+--- a/runtime/instrumentation.h
++++ b/runtime/instrumentation.h
+@@ -75,10 +75,8 @@ struct InstrumentationListener {
+   virtual ~InstrumentationListener() {}
+ 
+   // Call-back for when a method is entered.
+-  virtual void MethodEntered(Thread* thread,
+-                             Handle<mirror::Object> this_object,
+-                             ArtMethod* method,
+-                             uint32_t dex_pc) REQUIRES_SHARED(Locks::mutator_lock_) = 0;
++  virtual void MethodEntered(Thread* thread, ArtMethod* method)
++      REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+ 
+   virtual void MethodExited(Thread* thread,
+                             Handle<mirror::Object> this_object,
+@@ -398,13 +396,10 @@ class Instrumentation {
+ 
+   // Inform listeners that a method has been entered. A dex PC is provided as we may install
+   // listeners into executing code and get method enter events for methods already on the stack.
+-  void MethodEnterEvent(Thread* thread,
+-                        ObjPtr<mirror::Object> this_object,
+-                        ArtMethod* method,
+-                        uint32_t dex_pc) const
++  void MethodEnterEvent(Thread* thread, ArtMethod* method) const
+       REQUIRES_SHARED(Locks::mutator_lock_) {
+     if (UNLIKELY(HasMethodEntryListeners())) {
+-      MethodEnterEventImpl(thread, this_object, method, dex_pc);
++      MethodEnterEventImpl(thread, method);
+     }
+   }
+ 
+@@ -597,10 +592,7 @@ class Instrumentation {
+   // exclusive access to mutator lock which you can't get if the runtime isn't started.
+   void SetEntrypointsInstrumented(bool instrumented) NO_THREAD_SAFETY_ANALYSIS;
+ 
+-  void MethodEnterEventImpl(Thread* thread,
+-                            ObjPtr<mirror::Object> this_object,
+-                            ArtMethod* method,
+-                            uint32_t dex_pc) const
++  void MethodEnterEventImpl(Thread* thread, ArtMethod* method) const
+       REQUIRES_SHARED(Locks::mutator_lock_);
+   template <typename T>
+   void MethodExitEventImpl(Thread* thread,
+diff --git a/runtime/instrumentation_test.cc b/runtime/instrumentation_test.cc
+index 6284299855..4584d25c44 100644
+--- a/runtime/instrumentation_test.cc
++++ b/runtime/instrumentation_test.cc
+@@ -55,11 +55,8 @@ class TestInstrumentationListener final : public instrumentation::Instrumentatio
+ 
+   virtual ~TestInstrumentationListener() {}
+ 
+-  void MethodEntered(Thread* thread ATTRIBUTE_UNUSED,
+-                     Handle<mirror::Object> this_object ATTRIBUTE_UNUSED,
+-                     ArtMethod* method ATTRIBUTE_UNUSED,
+-                     uint32_t dex_pc ATTRIBUTE_UNUSED)
+-      override REQUIRES_SHARED(Locks::mutator_lock_) {
++  void MethodEntered(Thread* thread ATTRIBUTE_UNUSED, ArtMethod* method ATTRIBUTE_UNUSED) override
++      REQUIRES_SHARED(Locks::mutator_lock_) {
+     received_method_enter_event = true;
+   }
+ 
+@@ -392,7 +389,7 @@ class InstrumentationTest : public CommonRuntimeTest {
+       REQUIRES_SHARED(Locks::mutator_lock_) {
+     switch (event_type) {
+       case instrumentation::Instrumentation::kMethodEntered:
+-        instr->MethodEnterEvent(self, obj, method, dex_pc);
++        instr->MethodEnterEvent(self, method);
+         break;
+       case instrumentation::Instrumentation::kMethodExited: {
+         JValue value;
+diff --git a/runtime/interpreter/interpreter.cc b/runtime/interpreter/interpreter.cc
+index 302551f8dd..74cb9ec221 100644
+--- a/runtime/interpreter/interpreter.cc
++++ b/runtime/interpreter/interpreter.cc
+@@ -294,10 +294,7 @@ static inline JValue Execute(
+     ArtMethod *method = shadow_frame.GetMethod();
+ 
+     if (UNLIKELY(instrumentation->HasMethodEntryListeners())) {
+-      instrumentation->MethodEnterEvent(self,
+-                                        shadow_frame.GetThisObject(accessor.InsSize()),
+-                                        method,
+-                                        0);
++      instrumentation->MethodEnterEvent(self, method);
+       if (UNLIKELY(shadow_frame.GetForcePopFrame())) {
+         // The caller will retry this invoke or ignore the result. Just return immediately without
+         // any value.
+diff --git a/runtime/trace.cc b/runtime/trace.cc
+index 63d72d836d..5996a5720b 100644
+--- a/runtime/trace.cc
++++ b/runtime/trace.cc
+@@ -732,10 +732,7 @@ void Trace::FieldWritten(Thread* thread ATTRIBUTE_UNUSED,
+              << " " << dex_pc;
+ }
+ 
+-void Trace::MethodEntered(Thread* thread,
+-                          Handle<mirror::Object> this_object ATTRIBUTE_UNUSED,
+-                          ArtMethod* method,
+-                          uint32_t dex_pc ATTRIBUTE_UNUSED) {
++void Trace::MethodEntered(Thread* thread, ArtMethod* method) {
+   uint32_t thread_clock_diff = 0;
+   uint32_t wall_clock_diff = 0;
+   ReadClocks(thread, &thread_clock_diff, &wall_clock_diff);
+diff --git a/runtime/trace.h b/runtime/trace.h
+index 25bff51a83..170f0b09fe 100644
+--- a/runtime/trace.h
++++ b/runtime/trace.h
+@@ -175,12 +175,8 @@ class Trace final : public instrumentation::InstrumentationListener {
+       REQUIRES_SHARED(Locks::mutator_lock_) REQUIRES(!unique_methods_lock_, !streaming_lock_);
+ 
+   // InstrumentationListener implementation.
+-  void MethodEntered(Thread* thread,
+-                     Handle<mirror::Object> this_object,
+-                     ArtMethod* method,
+-                     uint32_t dex_pc)
+-      REQUIRES_SHARED(Locks::mutator_lock_) REQUIRES(!unique_methods_lock_, !streaming_lock_)
+-      override;
++  void MethodEntered(Thread* thread, ArtMethod* method) REQUIRES_SHARED(Locks::mutator_lock_)
++      REQUIRES(!unique_methods_lock_, !streaming_lock_) override;
+   void MethodExited(Thread* thread,
+                     Handle<mirror::Object> this_object,
+                     ArtMethod* method,
+diff --git a/tools/tracefast-plugin/tracefast.cc b/tools/tracefast-plugin/tracefast.cc
+index 782b5fe347..c2516c70e9 100644
+--- a/tools/tracefast-plugin/tracefast.cc
++++ b/tools/tracefast-plugin/tracefast.cc
+@@ -44,10 +44,8 @@ class Tracer final : public art::instrumentation::InstrumentationListener {
+   Tracer() {}
+ 
+   void MethodEntered(art::Thread* thread ATTRIBUTE_UNUSED,
+-                     art::Handle<art::mirror::Object> this_object ATTRIBUTE_UNUSED,
+-                     art::ArtMethod* method ATTRIBUTE_UNUSED,
+-                     uint32_t dex_pc ATTRIBUTE_UNUSED)
+-      override REQUIRES_SHARED(art::Locks::mutator_lock_) { }
++                     art::ArtMethod* method ATTRIBUTE_UNUSED) override
++      REQUIRES_SHARED(art::Locks::mutator_lock_) {}
+ 
+   void MethodExited(art::Thread* thread ATTRIBUTE_UNUSED,
+                     art::Handle<art::mirror::Object> this_object ATTRIBUTE_UNUSED,
+-- 
+2.34.1
+

@@ -1,4 +1,4 @@
-From 137ba7beb5364bd3d3bd18dda037f13651e868cf Mon Sep 17 00:00:00 2001
+From b7e66d787c5f0dc3155880ebd0414df9f9bc931b Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Wed, 23 Aug 2017 22:45:19 +0000
 Subject: [PATCH 02/63] recovery: ui: Default to touch enabled
@@ -36,5 +36,5 @@ index 6e67b1d4..f04786ab 100644
        touch_low_threshold_(android::base::GetIntProperty("ro.recovery.ui.touch_low_threshold",
                                                           kDefaultTouchLowThreshold)),
 -- 
-2.34.0
+2.34.1
 

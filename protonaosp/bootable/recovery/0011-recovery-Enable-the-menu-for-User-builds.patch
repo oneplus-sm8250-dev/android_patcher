@@ -1,4 +1,4 @@
-From b6f4b42be43bc0adacefd7eb5c9d02ce98c7513c Mon Sep 17 00:00:00 2001
+From 0fa91eed99475e13536c3365e3155729cce45b53 Mon Sep 17 00:00:00 2001
 From: Pat Erley <perley@cyngn.com>
 Date: Tue, 5 Jan 2016 16:50:02 -0800
 Subject: [PATCH 11/63] recovery: Enable the menu for User builds
@@ -34,5 +34,5 @@ index 61480ac8..74016bef 100644
      ui->SetBackground(RecoveryUI::NO_COMMAND);
    }
 -- 
-2.34.0
+2.34.1
 

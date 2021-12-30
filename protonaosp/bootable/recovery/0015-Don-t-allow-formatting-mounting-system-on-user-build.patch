@@ -1,4 +1,4 @@
-From f6b718fca883dc3129c9695e685f73ff95a4fa1f Mon Sep 17 00:00:00 2001
+From 7fe98447c939ba3134d9cc85106a5cc20fc4a6e9 Mon Sep 17 00:00:00 2001
 From: Luca Stefani <luca.stefani.ge1@gmail.com>
 Date: Sat, 14 Mar 2020 00:12:18 +0100
 Subject: [PATCH 15/63] Don't allow formatting & mounting system on user builds
@@ -25,5 +25,5 @@ index 9787f6d7..bce3309a 100644
    if (show_text) ui->ShowText(true);
  
 -- 
-2.34.0
+2.34.1
 

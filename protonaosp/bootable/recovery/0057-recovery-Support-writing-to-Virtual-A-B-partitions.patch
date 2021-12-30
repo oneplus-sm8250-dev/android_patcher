@@ -1,4 +1,4 @@
-From b48af61a60178f74487a59a5d9d4a98c83dc1146 Mon Sep 17 00:00:00 2001
+From 543cff42dd8418da24355909015fc7825e583630 Mon Sep 17 00:00:00 2001
 From: aleasto <ales.astone@gmail.com>
 Date: Sun, 17 Jan 2021 20:31:22 +0100
 Subject: [PATCH 57/63] recovery: Support writing to Virtual A/B partitions
@@ -132,5 +132,5 @@ index 36deef51..29ae791a 100644
 +      dm_find_system();
  }
 -- 
-2.34.0
+2.34.1
 

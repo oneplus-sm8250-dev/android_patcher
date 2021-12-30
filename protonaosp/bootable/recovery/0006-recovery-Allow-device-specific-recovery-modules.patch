@@ -1,4 +1,4 @@
-From c0b7cf67aae9bc1751545a34419909f853956218 Mon Sep 17 00:00:00 2001
+From a75e4bbbbbe8af817c87185c540cdf544c727fc4 Mon Sep 17 00:00:00 2001
 From: Matt Mower <mowerm@gmail.com>
 Date: Tue, 4 Nov 2014 21:08:10 -0600
 Subject: [PATCH 06/63] recovery: Allow device-specific recovery modules
@@ -30,5 +30,5 @@ index 96af417b..6b614bc0 100644
  
  include \
 -- 
-2.34.0
+2.34.1
 
