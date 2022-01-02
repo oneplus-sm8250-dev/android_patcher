@@ -1,7 +1,7 @@
 From 9a0f5f96a32d7ed7813614b01d3a411e460f1926 Mon Sep 17 00:00:00 2001
 From: Alexander Koskovich <zvnexus@outlook.com>
 Date: Sat, 23 Jan 2021 14:02:52 -0700
-Subject: [PATCH] Revert "Disallow shrinking threadpool size once started."
+Subject: [PATCH 1/2] Revert "Disallow shrinking threadpool size once started."
 
  * Reason: Breaks camera stack on kona.
 

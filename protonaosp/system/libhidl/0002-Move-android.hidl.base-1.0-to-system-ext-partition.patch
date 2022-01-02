@@ -1,0 +1,26 @@
+From 3ddb495c619e020f9a4dfd42bb309cce58f5a69a Mon Sep 17 00:00:00 2001
+From: Benergy Meenan Ravuri <bravuri@codeaurora.org>
+Date: Tue, 28 Jan 2020 14:37:35 +0530
+Subject: [PATCH 2/3] Move android.hidl.base@1.0 to system ext partition
+
+CRs-Fixed: 2613656
+Change-Id: I30f4fb26a7b32e9b98bd1052ff1f632fb8ad96a0
+---
+ transport/base/1.0/Android.bp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/transport/base/1.0/Android.bp b/transport/base/1.0/Android.bp
+index bb4fe82..08440fc 100644
+--- a/transport/base/1.0/Android.bp
++++ b/transport/base/1.0/Android.bp
+@@ -30,6 +30,7 @@ cc_library_shared {
+     generated_sources: ["android.hidl.base@1.0_genc++"],
+     generated_headers: ["android.hidl.base@1.0_genc++_headers"],
+     export_generated_headers: ["android.hidl.base@1.0_genc++_headers"],
++    system_ext_specific: true,
+     vendor_available: true,
+     shared_libs: [
+         "libhidlbase",
+-- 
+2.34.1
+

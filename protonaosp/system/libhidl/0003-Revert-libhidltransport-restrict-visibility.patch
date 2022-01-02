@@ -1,0 +1,40 @@
+From a908bca5a6fa30fea6cd6f356112d1ddce4382fb Mon Sep 17 00:00:00 2001
+From: Daniel Norman <danielnorman@google.com>
+Date: Mon, 28 Oct 2019 14:52:07 -0700
+Subject: [PATCH 3/3] Revert "libhidltransport: restrict visibility"
+
+This reverts commit 13420fe88f476bbffa745ee60b808b6a736823bd.
+
+Bug: 144056694
+Change-Id: I49efbf3935628427341ec8832270e62f6d9f642b
+---
+ Android.bp | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/Android.bp b/Android.bp
+index 33ba0e9..8bf5242 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -134,12 +134,13 @@ cc_library {
+     name: "libhidltransport",
+     vendor_available: true,
+ 
+-    visibility: [
+-        ":__subpackages__",
+-        "//hardware:__subpackages__",
+-        "//test/sts:__subpackages__",
+-        "//vendor:__subpackages__",
+-    ],
++    // TODO(b/144056694) Add back the subpackages visibility restriction.
++    // visibility: [
++        // ":__subpackages__",
++        // "//hardware:__subpackages__",
++        // "//test/sts:__subpackages__",
++        // "//vendor:__subpackages__",
++    // ],
+ }
+ 
+ cc_defaults {
+-- 
+2.34.1
+

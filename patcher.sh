@@ -19,6 +19,7 @@ REPOSITORIES=(
     'packages/apps/Launcher3'
     'packages/apps/PhoneCommon'
     'packages/modules/common'
+    'system/libhidl'
     'system/libhwbinder'
     'system/libsysprop'
     'system/sepolicy'
