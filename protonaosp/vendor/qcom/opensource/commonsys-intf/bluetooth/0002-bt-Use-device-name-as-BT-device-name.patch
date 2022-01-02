@@ -25,5 +25,5 @@ index 6c7d51e..fb2ac69 100644
  #define MAX_ACL_CONNECTIONS   16
  #define MAX_L2CAP_CHANNELS    32
 -- 
-2.34.0
+2.34.1
 

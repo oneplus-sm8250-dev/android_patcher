@@ -1,4 +1,4 @@
-From 6c200ff17cd4457fb56e8c94097bd932b01bf166 Mon Sep 17 00:00:00 2001
+From 81abd55daf0eaffc078db8041b4a759c2218bfaf Mon Sep 17 00:00:00 2001
 From: Edward Savage-Jones <edward.savage-jones@sony.com>
 Date: Fri, 18 Oct 2019 10:11:39 +0200
 Subject: [PATCH 4/8] translate="false" -> translatable="false"
@@ -13,7 +13,7 @@ Change-Id: I495af9cd2ad6a1e99130af4af1040654478998b4
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/res/values/strings.xml b/res/values/strings.xml
-index dbef9a0d1..1212b3e69 100644
+index f263cce37..60b3dbd7d 100644
 --- a/res/values/strings.xml
 +++ b/res/values/strings.xml
 @@ -226,13 +226,13 @@
@@ -34,5 +34,5 @@ index dbef9a0d1..1212b3e69 100644
  
      <string name="bluetooth_a2dp_sink_queue_name">Now Playing</string>
 -- 
-2.34.0
+2.34.1
 

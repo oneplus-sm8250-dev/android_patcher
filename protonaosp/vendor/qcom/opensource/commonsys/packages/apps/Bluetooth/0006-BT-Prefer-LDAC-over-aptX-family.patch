@@ -1,4 +1,4 @@
-From 6294c7ae2496f1d05f2a071a006b09db819160fb Mon Sep 17 00:00:00 2001
+From 2d8bfce235c7ed3ea5334883db3e54a1d39d2758 Mon Sep 17 00:00:00 2001
 From: dianlujitao <dianlujitao@lineageos.org>
 Date: Tue, 2 Jun 2020 11:11:39 +0800
 Subject: [PATCH 6/8] BT: Prefer LDAC over aptX family
@@ -12,10 +12,10 @@ Change-Id: I490df42ff1d2dd58ca1d9b4f0867814de2a13caa
  2 files changed, 4 insertions(+), 8 deletions(-)
 
 diff --git a/res/values/config.xml b/res/values/config.xml
-index c6310dbd5..649a78cad 100644
+index 0013b7aca..a248a3c56 100644
 --- a/res/values/config.xml
 +++ b/res/values/config.xml
-@@ -101,17 +101,12 @@
+@@ -102,17 +102,12 @@
           value should be unique. -->
      <integer name="a2dp_source_codec_priority_sbc">1001</integer>
      <integer name="a2dp_source_codec_priority_aac">2001</integer>
@@ -36,10 +36,10 @@ index c6310dbd5..649a78cad 100644
      <!-- Package that is responsible for user interaction on pairing request,
           success or cancel.
 diff --git a/src/com/android/bluetooth/a2dp/A2dpCodecConfig.java b/src/com/android/bluetooth/a2dp/A2dpCodecConfig.java
-index b2593cdd8..0d334aeb7 100644
+index 3acdddfa9..ea990acf6 100644
 --- a/src/com/android/bluetooth/a2dp/A2dpCodecConfig.java
 +++ b/src/com/android/bluetooth/a2dp/A2dpCodecConfig.java
-@@ -218,7 +218,8 @@ class A2dpCodecConfig {
+@@ -251,7 +251,8 @@ class A2dpCodecConfig {
                      if(a2dp_offload_cap.contains("aptxadaptiver2")) {
                          int aptxaa_r2_priority;
                          try {
@@ -50,5 +50,5 @@ index b2593cdd8..0d334aeb7 100644
                              aptxaa_r2_priority = value;
                          }
 -- 
-2.34.0
+2.34.1
 

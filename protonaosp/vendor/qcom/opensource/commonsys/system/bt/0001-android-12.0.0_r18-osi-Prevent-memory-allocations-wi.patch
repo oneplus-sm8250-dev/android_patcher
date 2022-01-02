@@ -1,4 +1,4 @@
-From fbd2e3fd3d31dbe3e50f774282c7d8e85183b82f Mon Sep 17 00:00:00 2001
+From 366e01c4bf08a81919bffa5e3f204f9e4499b3be Mon Sep 17 00:00:00 2001
 From: Chris Manton <cmanton@google.com>
 Date: Wed, 29 Sep 2021 17:49:25 -0700
 Subject: [PATCH] [android-12.0.0_r18] osi: Prevent memory allocations with MSB
@@ -37,5 +37,5 @@ index 4e4f9a759..bdef4d843 100644
    void* ptr = calloc(1, real_size);
    CHECK(ptr);
 -- 
-2.34.0
+2.34.1
 

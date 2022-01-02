@@ -1,4 +1,4 @@
-From 9908ad4be16e062a487e3da2aad4cb3b58738263 Mon Sep 17 00:00:00 2001
+From 1f48b4d69a867f2d3885e976039d9621e926e1dc Mon Sep 17 00:00:00 2001
 From: Steve Kondik <steve@cyngn.com>
 Date: Wed, 31 Aug 2016 22:29:11 -0700
 Subject: [PATCH 3/7] data-ipa-cfg-mgr: Don't build ipacm tests on debug builds
@@ -22,5 +22,5 @@ index 4c5f5a7..a6bb4b0 100644
  
  include $(BUILD_EXECUTABLE)
 -- 
-2.34.0
+2.34.1
 

@@ -1,4 +1,4 @@
-From 307e38d47e1f5c3657aba547139c63f98eabdf55 Mon Sep 17 00:00:00 2001
+From 47992226eebf58b26e1e248e435ab4ac6cbb0ab9 Mon Sep 17 00:00:00 2001
 From: Yinchu Chen <chenyc5@motorola.com>
 Date: Fri, 3 Apr 2020 17:19:11 +0800
 Subject: [PATCH 5/8] Bluetooth string: removed id="sender" in bt_sm_2_1_
@@ -16,7 +16,7 @@ Change-Id: Iec7da3fa32b2133263d18bbe3a2f187aa7be99f0
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/res/values/strings.xml b/res/values/strings.xml
-index 1212b3e69..9e148320d 100644
+index 60b3dbd7d..2faedb62f 100644
 --- a/res/values/strings.xml
 +++ b/res/values/strings.xml
 @@ -176,9 +176,9 @@
@@ -32,5 +32,5 @@ index 1212b3e69..9e148320d 100644
  
      <string name="ErrorTooManyRequests">Too many requests are being processed. Try again later.</string>
 -- 
-2.34.0
+2.34.1
 

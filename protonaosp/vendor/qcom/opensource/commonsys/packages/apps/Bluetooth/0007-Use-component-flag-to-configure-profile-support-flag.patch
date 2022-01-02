@@ -1,4 +1,4 @@
-From fd1b6c6c7b2dcc360fb42f6b42d98e45378115e4 Mon Sep 17 00:00:00 2001
+From 2a2e1a5d8008c7a0d13c39fed0b78907e9a48db5 Mon Sep 17 00:00:00 2001
 From: weichinweng <weichinweng@google.com>
 Date: Fri, 1 Nov 2019 17:56:40 +0800
 Subject: [PATCH 7/8] Use component flag to configure profile support flag.
@@ -17,7 +17,7 @@ Change-Id: If85812a44f6c791c3256d675d5b9be5c93d8e160
  1 file changed, 14 insertions(+)
 
 diff --git a/src/com/android/bluetooth/btservice/Config.java b/src/com/android/bluetooth/btservice/Config.java
-index 321af27ec..f01dc1a5c 100644
+index 733eefafb..fd97e2a38 100644
 --- a/src/com/android/bluetooth/btservice/Config.java
 +++ b/src/com/android/bluetooth/btservice/Config.java
 @@ -23,6 +23,7 @@ import android.content.Context;
@@ -36,7 +36,7 @@ index 321af27ec..f01dc1a5c 100644
  
  import java.util.ArrayList;
  import java.util.Arrays;
-@@ -186,6 +188,11 @@ public class Config {
+@@ -187,6 +189,11 @@ public class Config {
          if (resources == null) {
              return;
          }
@@ -48,7 +48,7 @@ index 321af27ec..f01dc1a5c 100644
  
          if (isAdvAudioAvailable()) {
              AdapterService.setAdvanceAudioSupport();
-@@ -203,6 +210,13 @@ public class Config {
+@@ -204,6 +211,13 @@ public class Config {
                  supported = true;
              }
  
@@ -63,5 +63,5 @@ index 321af27ec..f01dc1a5c 100644
                  if (!addAudioProfiles(config.mClass.getSimpleName())) {
                      Log.i(TAG, " Profile " + config.mClass.getSimpleName() + " Not added ");
 -- 
-2.34.0
+2.34.1
 

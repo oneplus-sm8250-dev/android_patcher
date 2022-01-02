@@ -1,4 +1,4 @@
-From fc3dd980ac78a2938f9de5cf839c002904de23ec Mon Sep 17 00:00:00 2001
+From 23e6b51a0203e72e8223f2a223f5dd39648742aa Mon Sep 17 00:00:00 2001
 From: Vishalcj17 <vishalcj@aospa.co>
 Date: Mon, 18 Oct 2021 13:43:28 +0900
 Subject: [PATCH 2/2] vibrator: Define AIDL library version
@@ -9,7 +9,7 @@ Change-Id: I7f9534809da68d93946d64c1a7b780c95b750e29
  1 file changed, 5 insertions(+), 6 deletions(-)
 
 diff --git a/aidl/Android.bp b/aidl/Android.bp
-index ab58e3b..0cbc6cf 100644
+index 356c406..4309717 100644
 --- a/aidl/Android.bp
 +++ b/aidl/Android.bp
 @@ -15,9 +15,9 @@ cc_library_shared {
@@ -42,9 +42,9 @@ index ab58e3b..0cbc6cf 100644
 -        "android.hardware.vibrator-ndk_platform",
 +        "android.hardware.vibrator-V1-ndk_platform",
      ],
-     export_include_dirs: ["include"]
- }
-@@ -81,7 +80,7 @@ cc_binary {
+     export_include_dirs: ["include"],
+     header_libs: ["qti_kernel_headers"],
+@@ -82,7 +81,7 @@ cc_binary {
          "libutils",
          "libbase",
          "libbinder_ndk",
@@ -54,5 +54,5 @@ index ab58e3b..0cbc6cf 100644
      ],
  }
 -- 
-2.34.0
+2.34.1
 

@@ -1,4 +1,4 @@
-From 8367e7d8e3489ed9f2eff678cf81ee41199484eb Mon Sep 17 00:00:00 2001
+From ba01c368d31b57a1180fcb91f6b608b08de067f4 Mon Sep 17 00:00:00 2001
 From: Bruno Martins <bgcngm@gmail.com>
 Date: Fri, 10 Jan 2020 22:17:08 +0000
 Subject: [PATCH 3/8] Remove intent filter without any action
@@ -13,7 +13,7 @@ Change-Id: I0074a6a18433e7c2f18ad8011084011372abcdfd
  1 file changed, 3 deletions(-)
 
 diff --git a/AndroidManifest.xml b/AndroidManifest.xml
-index eff943426..14223f18b 100644
+index c1ffea813..04f4396ad 100644
 --- a/AndroidManifest.xml
 +++ b/AndroidManifest.xml
 @@ -249,9 +249,6 @@
@@ -27,5 +27,5 @@ index eff943426..14223f18b 100644
          <service
              android:process="@string/process"
 -- 
-2.34.0
+2.34.1
 

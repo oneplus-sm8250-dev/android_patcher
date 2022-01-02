@@ -22,5 +22,5 @@ index 64fbddf..8330b1c 100644
  
  ifeq ($(TARGET_USE_QTI_BT_STACK),true)
 -- 
-2.34.0
+2.34.1
 
