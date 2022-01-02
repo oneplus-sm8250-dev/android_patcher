@@ -1,4 +1,4 @@
-From 1395e058896b68954a97dee895f32649148e014b Mon Sep 17 00:00:00 2001
+From 9a0f5f96a32d7ed7813614b01d3a411e460f1926 Mon Sep 17 00:00:00 2001
 From: Alexander Koskovich <zvnexus@outlook.com>
 Date: Sat, 23 Jan 2021 14:02:52 -0700
 Subject: [PATCH] Revert "Disallow shrinking threadpool size once started."
@@ -27,5 +27,5 @@ index dbd6c87..6a69f5f 100644
      LOG_ALWAYS_FATAL_IF(maxThreads == 0 && callerJoinsPool,
             "Binder threadpool must have a minimum of one thread if caller joins pool.");
 -- 
-2.34.0
+2.34.1
 

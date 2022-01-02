@@ -1,4 +1,4 @@
-From 4c7cd0a101f61c14364b9c9d711b2b601a34aefa Mon Sep 17 00:00:00 2001
+From 138b7c9c489c43b9239d2c7af8e16f2114a12a16 Mon Sep 17 00:00:00 2001
 From: Alexander Koskovich <zvnexus@outlook.com>
 Date: Mon, 14 Dec 2020 08:51:52 -0700
 Subject: [PATCH] android-4.19: Allow CONFIG_PSI to be disabled.
@@ -13,10 +13,10 @@ Change-Id: I4c971954d83136a33eaf6229fb79bc6bf36d5846
  3 files changed, 3 deletions(-)
 
 diff --git a/android-4.19/android-base.config b/android-4.19/android-base.config
-index 71dd429..cf0ca31 100644
+index 0867013..997a08a 100644
 --- a/android-4.19/android-base.config
 +++ b/android-4.19/android-base.config
-@@ -208,7 +208,6 @@ CONFIG_PPTP=y
+@@ -207,7 +207,6 @@ CONFIG_PPTP=y
  CONFIG_PREEMPT=y
  CONFIG_PROC_FS=y
  CONFIG_PROFILING=y
@@ -25,10 +25,10 @@ index 71dd429..cf0ca31 100644
  CONFIG_QUOTA=y
  CONFIG_QUOTACTL=y
 diff --git a/r/android-4.19/android-base.config b/r/android-4.19/android-base.config
-index f942b8e..f6d223a 100644
+index fef4c6f..cf48c0a 100644
 --- a/r/android-4.19/android-base.config
 +++ b/r/android-4.19/android-base.config
-@@ -203,7 +203,6 @@ CONFIG_PPTP=y
+@@ -202,7 +202,6 @@ CONFIG_PPTP=y
  CONFIG_PREEMPT=y
  CONFIG_PROC_FS=y
  CONFIG_PROFILING=y
@@ -37,10 +37,10 @@ index f942b8e..f6d223a 100644
  CONFIG_QUOTA=y
  CONFIG_QUOTACTL=y
 diff --git a/s/android-4.19/android-base.config b/s/android-4.19/android-base.config
-index 2ab90dc..b99d3c4 100644
+index d2bb2ad..6d413d1 100644
 --- a/s/android-4.19/android-base.config
 +++ b/s/android-4.19/android-base.config
-@@ -209,7 +209,6 @@ CONFIG_PPTP=y
+@@ -208,7 +208,6 @@ CONFIG_PPTP=y
  CONFIG_PREEMPT=y
  CONFIG_PROC_FS=y
  CONFIG_PROFILING=y
@@ -49,5 +49,5 @@ index 2ab90dc..b99d3c4 100644
  CONFIG_QUOTA=y
  CONFIG_QUOTACTL=y
 -- 
-2.34.0
+2.34.1
 

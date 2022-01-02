@@ -1,4 +1,4 @@
-From 3d57581681fbd668cb35ed0c3e452c5ad8a66cf7 Mon Sep 17 00:00:00 2001
+From 47acaaa27bb6334b3bf9c3601cb58d518f24943f Mon Sep 17 00:00:00 2001
 From: Ethan Chen <intervigil@gmail.com>
 Date: Sun, 7 Jun 2015 11:34:30 -0700
 Subject: [PATCH] audio: Add audio amplifier HAL
@@ -430,5 +430,5 @@ index 00000000..b2cbd895
 +    },
 +};
 -- 
-2.34.0
+2.34.1
 

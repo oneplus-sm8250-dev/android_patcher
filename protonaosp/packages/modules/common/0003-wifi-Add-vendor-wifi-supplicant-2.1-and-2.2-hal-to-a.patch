@@ -1,4 +1,4 @@
-From e90b71b65953d24317247941a72e96c60d3cbdea Mon Sep 17 00:00:00 2001
+From 1c1640d8b8c746a536c5bf8ce2142e0f2754d408 Mon Sep 17 00:00:00 2001
 From: Swarn Singh <swarnkum@codeaurora.org>
 Date: Wed, 4 Aug 2021 22:44:51 +0530
 Subject: [PATCH 3/3] wifi: Add vendor wifi supplicant 2.1 and 2.2 hal to
@@ -16,10 +16,10 @@ CRs-Fixed: 3007678
  1 file changed, 2 insertions(+)
 
 diff --git a/build/allowed_deps.txt b/build/allowed_deps.txt
-index 462f184..1e7e12d 100644
+index fde2388..d0ac026 100644
 --- a/build/allowed_deps.txt
 +++ b/build/allowed_deps.txt
-@@ -726,6 +726,8 @@ vendor.qti.hardware.wifi.hostapd-V1.0-java(minSdkVersion:current)
+@@ -727,6 +727,8 @@ vendor.qti.hardware.wifi.hostapd-V1.0-java(minSdkVersion:current)
  vendor.qti.hardware.wifi.hostapd-V1.1-java(minSdkVersion:current)
  vendor.qti.hardware.wifi.hostapd-V1.2-java(minSdkVersion:current)
  vendor.qti.hardware.wifi.supplicant-V2.0-java(minSdkVersion:current)
@@ -29,5 +29,5 @@ index 462f184..1e7e12d 100644
  wifi-nano-protos(minSdkVersion:30)
  xz-java(minSdkVersion:current)
 -- 
-2.34.0
+2.34.1
 

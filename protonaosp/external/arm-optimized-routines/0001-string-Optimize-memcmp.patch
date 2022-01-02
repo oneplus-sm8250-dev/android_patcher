@@ -1,4 +1,4 @@
-From 17c3b307da60ca24d2d2418b08d5bae674e6b23e Mon Sep 17 00:00:00 2001
+From 4c57bdc9f4bdd1009bf9dd8829027a832dc8857a Mon Sep 17 00:00:00 2001
 From: Wilco Dijkstra <wilco.dijkstra@arm.com>
 Date: Fri, 29 Oct 2021 15:39:00 +0100
 Subject: [PATCH] string: Optimize memcmp
@@ -301,5 +301,5 @@ index 3b10266..7ca1135 100644
 +
 +END (__memcmp_aarch64)
 -- 
-2.34.0
+2.34.1
 

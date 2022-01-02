@@ -1,4 +1,4 @@
-From bd84a4e3caa77e5310e591dde65a0a12014acf59 Mon Sep 17 00:00:00 2001
+From 47184cbfe260bcf7c81abb13291df285f43734f8 Mon Sep 17 00:00:00 2001
 From: Thecrazyskull <anaskarbila@gmail.com>
 Date: Fri, 10 Feb 2017 09:38:50 -0500
 Subject: [PATCH] Launcher3: Double tap on home screen to turn off screen
@@ -25,7 +25,7 @@ index c222f24afa..6ebd47ecec 100644
  LOCAL_SYSTEM_EXT_MODULE := true
  LOCAL_OVERRIDES_PACKAGES := Home Launcher2 Launcher3
 diff --git a/AndroidManifest-common.xml b/AndroidManifest-common.xml
-index 73afe4a7d1..6f54a0b837 100644
+index e7ca83882c..d98be3d554 100644
 --- a/AndroidManifest-common.xml
 +++ b/AndroidManifest-common.xml
 @@ -42,6 +42,8 @@
@@ -81,5 +81,5 @@ index 4fa658e7d5..96955dcdf8 100644
 +    }
  }
 -- 
-2.34.0
+2.34.1
 

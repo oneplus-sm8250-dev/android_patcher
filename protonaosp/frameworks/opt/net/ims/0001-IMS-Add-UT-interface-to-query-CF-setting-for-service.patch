@@ -1,4 +1,4 @@
-From bb1bf062533bee80b04d5d251671a10be24841a0 Mon Sep 17 00:00:00 2001
+From dbd4e6a4b7c93f59f572bdf567811b7ffe8c3bf6 Mon Sep 17 00:00:00 2001
 From: pengfeix <pengfeix@codeaurora.org>
 Date: Sat, 15 Apr 2017 23:01:13 +0800
 Subject: [PATCH] IMS: Add UT interface to query CF setting for service class.
@@ -16,7 +16,7 @@ CRs-Fixed: 2214326
  1 file changed, 11 insertions(+), 2 deletions(-)
 
 diff --git a/src/java/com/android/ims/ImsUt.java b/src/java/com/android/ims/ImsUt.java
-index 61a1111..9fafb33 100644
+index 61a11111..9fafb33e 100644
 --- a/src/java/com/android/ims/ImsUt.java
 +++ b/src/java/com/android/ims/ImsUt.java
 @@ -193,14 +193,23 @@ public class ImsUt implements ImsUtInterface {
@@ -46,5 +46,5 @@ index 61a1111..9fafb33 100644
                  if (id < 0) {
                      sendFailureReport(result,
 -- 
-2.34.0
+2.34.1
 

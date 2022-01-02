@@ -1,4 +1,4 @@
-From eee5c3b1a2e08609d416bb2d375362e4de47f0de Mon Sep 17 00:00:00 2001
+From 80269e0c536ec8a603fd8a969971d797e2738d2e Mon Sep 17 00:00:00 2001
 From: Qiang Chen <cqiang@codeaurora.org>
 Date: Thu, 9 Mar 2017 17:15:42 +0800
 Subject: [PATCH] PhoneCommon: Add description text item for each clear code
@@ -146,5 +146,5 @@ index 0000000..fb890d1
 +    <string name="callFailed_non_selected_user_clearing">Non selected user clearing</string>
 +</resources>
 -- 
-2.34.0
+2.34.1
 
