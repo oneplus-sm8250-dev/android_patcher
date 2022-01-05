@@ -1,7 +1,7 @@
-From 2da880db7b6918e4a3f3dcc984272f14571fa87c Mon Sep 17 00:00:00 2001
+From 94b1cdb7787cbee9d6053018dd4bd2324c2d43f6 Mon Sep 17 00:00:00 2001
 From: Pig <pig.priv@gmail.com>
 Date: Sat, 19 Sep 2020 09:24:07 +0800
-Subject: [PATCH 3/3] media: Drop LOCAL_COPY_HEADERS usage
+Subject: [PATCH 3/4] media: Drop LOCAL_COPY_HEADERS usage
 
 LOCAL_COPY_HEADERS is deprecated, so remove all its usages
 to avoid build warnings.
@@ -13,7 +13,7 @@ Change-Id: I8c9de08610e8d94da568b46b3e8c221007c850a0
  2 files changed, 43 deletions(-)
 
 diff --git a/libstagefrighthw/Android.mk b/libstagefrighthw/Android.mk
-index 5c1953923..d7a77f58d 100644
+index 5c195392..d7a77f58 100644
 --- a/libstagefrighthw/Android.mk
 +++ b/libstagefrighthw/Android.mk
 @@ -17,14 +17,6 @@
@@ -41,7 +41,7 @@ index 5c1953923..d7a77f58d 100644
          libutils                \
          libcutils               \
 diff --git a/mm-core/Android.mk b/mm-core/Android.mk
-index 47f3e23d9..e21978963 100644
+index 47f3e23d..e2197896 100644
 --- a/mm-core/Android.mk
 +++ b/mm-core/Android.mk
 @@ -33,39 +33,6 @@ ifeq ($(call is-platform-sdk-version-at-least,27),true) # O-MR1
@@ -85,5 +85,5 @@ index 47f3e23d9..e21978963 100644
  #             LIBRARY for Android apps
  #===============================================================================
 -- 
-2.34.0
+2.34.1
 

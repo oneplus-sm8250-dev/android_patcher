@@ -1,0 +1,69 @@
+From 98af875c421d1717eab70ae2d5cf19d9192f68cd Mon Sep 17 00:00:00 2001
+From: Marco Marinho <marcomarinho12@gmail.com>
+Date: Sun, 21 Nov 2021 18:39:48 +0000
+Subject: [PATCH 4/4] media: Update media QTI component path
+
+Change-Id: I1bacfedeee3a78f48deec09e510bb9c0aba2b939
+---
+ conf_files/bengal/bengal.mk | 2 +-
+ conf_files/kona/kona.mk     | 4 ++--
+ conf_files/lito/lito.mk     | 6 +++---
+ 3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/conf_files/bengal/bengal.mk b/conf_files/bengal/bengal.mk
+index 7df7706d..bb93c47b 100644
+--- a/conf_files/bengal/bengal.mk
++++ b/conf_files/bengal/bengal.mk
+@@ -13,7 +13,7 @@ PRODUCT_COPY_FILES += \
+     $(CONFIG_PATH)/media_profiles_khaje.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_khaje.xml \
+     $(CONFIG_PATH)/mediacodec-seccomp.policy:$(TARGET_COPY_OUT_VENDOR)/etc/seccomp_policy/mediacodec.policy \
+     $(CONFIG_PATH)/system_properties.xml:$(TARGET_COPY_OUT_VENDOR)/etc/system_properties.xml \
+-    device/qcom/common/media/media_profiles.xml:$(TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml
++    device/qcom/common/vendor/media/media_profiles.xml:$(TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml
+ 
+ ifneq ($(strip $(TARGET_BOARD_SUFFIX)),)
+ 	PRODUCT_COPY_FILES += \
+diff --git a/conf_files/kona/kona.mk b/conf_files/kona/kona.mk
+index d51c5c73..a375e090 100644
+--- a/conf_files/kona/kona.mk
++++ b/conf_files/kona/kona.mk
+@@ -29,12 +29,12 @@ ifeq ($(GENERIC_ODM_IMAGE),true)
+   PRODUCT_ODM_PROPERTIES += debug.stagefright.ccodec=4
+   PRODUCT_ODM_PROPERTIES += debug.stagefright.omx_default_rank=1000
+   PRODUCT_COPY_FILES += \
+-    device/qcom/common/media/media_profiles.xml:TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml
++    device/qcom/common/vendor/media/media_profiles.xml:TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml
+ else
+   $(warning "Enabling codec2.0 non-audio SW only for non-generic odm build variant")
+ PRODUCT_PROPERTY_OVERRIDES += debug.stagefright.omx_default_rank=0
+   PRODUCT_COPY_FILES += \
+-    device/qcom/common/media/media_profiles.xml:$(TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml
++    device/qcom/common/vendor/media/media_profiles.xml:$(TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml
+ endif
+ 
+ # Produce packages addition
+diff --git a/conf_files/lito/lito.mk b/conf_files/lito/lito.mk
+index a86f2987..721d9e27 100644
+--- a/conf_files/lito/lito.mk
++++ b/conf_files/lito/lito.mk
+@@ -30,14 +30,14 @@ ifeq ($(GENERIC_ODM_IMAGE),true)
+   PRODUCT_ODM_PROPERTIES += debug.stagefright.ccodec=4
+   PRODUCT_ODM_PROPERTIES += debug.stagefright.omx_default_rank=1000
+   PRODUCT_COPY_FILES += \
+-    device/qcom/common/media/media_profiles.xml:$(TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml \
+-    device/qcom/common/media/media_profiles.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_vendor.xml
++    device/qcom/common/vendor/media/media_profiles.xml:$(TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml \
++    device/qcom/common/vendor/media/media_profiles.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_vendor.xml
+ else
+   $(warning "Enabling codec2.0 non-audio SW only for non-generic odm build variant")
+   PRODUCT_PROPERTY_OVERRIDES += debug.stagefright.omx_default_rank=0
+   PRODUCT_PROPERTY_OVERRIDES += media.settings.xml=/vendor/etc/media_profiles_vendor.xml
+   PRODUCT_COPY_FILES += \
+-    device/qcom/common/media/media_profiles.xml:$(TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml \
++    device/qcom/common/vendor/media/media_profiles.xml:$(TARGET_COPY_OUT_ODM)/etc/media_profiles_V1_0.xml \
+     $(CONFIG_PATH)/media_profiles.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_vendor.xml
+ endif
+ 
+-- 
+2.34.1
+
