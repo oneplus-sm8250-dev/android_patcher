@@ -22,6 +22,7 @@ REPOSITORIES=(
     'system/libhidl'
     'system/libhwbinder'
     'system/libsysprop'
+    'system/logging'
     'system/sepolicy'
     'vendor/qcom/opensource/audio-hal/primary-hal'
     'vendor/qcom/opensource/commonsys-intf/bluetooth'

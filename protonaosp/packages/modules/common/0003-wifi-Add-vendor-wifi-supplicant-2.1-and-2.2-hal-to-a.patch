@@ -1,7 +1,7 @@
 From 1c1640d8b8c746a536c5bf8ce2142e0f2754d408 Mon Sep 17 00:00:00 2001
 From: Swarn Singh <swarnkum@codeaurora.org>
 Date: Wed, 4 Aug 2021 22:44:51 +0530
-Subject: [PATCH 3/3] wifi: Add vendor wifi supplicant 2.1 and 2.2 hal to
+Subject: [PATCH 3/4] wifi: Add vendor wifi supplicant 2.1 and 2.2 hal to
  allowed_deps
 
 This CL adds vendor wifi supplicant 2.1 and 2.2 hal to allowed_deps to
