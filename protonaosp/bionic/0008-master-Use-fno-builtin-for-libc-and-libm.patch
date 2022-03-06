@@ -1,7 +1,7 @@
-From 844f595973f5c518fd73f37fcf55b0ac7df5a614 Mon Sep 17 00:00:00 2001
+From 23e8cf4f81ed68a5ad4b065a3e73bf8689be88be Mon Sep 17 00:00:00 2001
 From: Elliott Hughes <enh@google.com>
 Date: Thu, 2 Dec 2021 14:42:16 -0800
-Subject: [PATCH 8/8] [master] Use -fno-builtin for libc and libm.
+Subject: [PATCH 08/16] [master] Use -fno-builtin for libc and libm.
 
 clang was getting in the way of a strftime(3) optimization, and smaller
 hammers weren't working, and this seems like the right choice for libc

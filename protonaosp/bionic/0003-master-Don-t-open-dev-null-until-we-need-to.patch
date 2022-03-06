@@ -1,7 +1,7 @@
-From 031387f7458e06ee121921f346160520faffe9e9 Mon Sep 17 00:00:00 2001
+From 7a974050a6aefc678d6156ed45daa463112a3621 Mon Sep 17 00:00:00 2001
 From: Elliott Hughes <enh@google.com>
 Date: Tue, 26 Oct 2021 17:31:03 -0700
-Subject: [PATCH 3/8] [master] Don't open /dev/null until we need to.
+Subject: [PATCH 03/16] [master] Don't open /dev/null until we need to.
 
 This saves a couple of syscalls in the common case, and also lets static
 binaries run in a chroot without /dev/null as long as

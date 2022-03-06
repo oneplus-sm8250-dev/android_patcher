@@ -1,0 +1,66 @@
+From 9ba346e4ac58e134a42c3dbb54a3ea31af8e875b Mon Sep 17 00:00:00 2001
+From: Vladimir Marko <vmarko@google.com>
+Date: Tue, 4 Jan 2022 09:28:42 +0000
+Subject: [PATCH 16/31] ARM64: Disable implicit suspend checks.
+
+Implicit suspend checks caused some unexpected regressions
+that we need to investigate. In the meantime, disable this
+feature.
+
+Test: Rely on Presubmit tests.
+Bug: 209235730
+Bug: 213121241
+Bug: 38383823
+Change-Id: Ic313875cf6c9c65b5882ec8f75caf8c8e3e54b4c
+---
+ dex2oat/dex2oat.cc | 3 ++-
+ runtime/oat.h      | 4 ++--
+ runtime/runtime.cc | 3 ++-
+ 3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/dex2oat/dex2oat.cc b/dex2oat/dex2oat.cc
+index 5e8133c178..c7cd9e7e6f 100644
+--- a/dex2oat/dex2oat.cc
++++ b/dex2oat/dex2oat.cc
+@@ -827,7 +827,8 @@ class Dex2Oat final {
+     // Set the compilation target's implicit checks options.
+     switch (compiler_options_->GetInstructionSet()) {
+       case InstructionSet::kArm64:
+-        compiler_options_->implicit_suspend_checks_ = true;
++        // TODO: Investigate implicit suspend check regressions. Bug: 209235730, 213121241.
++        compiler_options_->implicit_suspend_checks_ = false;
+         FALLTHROUGH_INTENDED;
+       case InstructionSet::kArm:
+       case InstructionSet::kThumb2:
+diff --git a/runtime/oat.h b/runtime/oat.h
+index df77d812c1..e44187eb81 100644
+--- a/runtime/oat.h
++++ b/runtime/oat.h
+@@ -32,8 +32,8 @@ class InstructionSetFeatures;
+ class PACKED(4) OatHeader {
+  public:
+   static constexpr std::array<uint8_t, 4> kOatMagic { { 'o', 'a', 't', '\n' } };
+-  // Last oat version changed reason: ARM64: Implicit null checks using LDR.
+-  static constexpr std::array<uint8_t, 4> kOatVersion { { '2', '1', '5', '\0' } };
++  // Last oat version changed reason: ARM64: Disable implicit suspend checks.
++  static constexpr std::array<uint8_t, 4> kOatVersion { { '2', '1', '8', '\0' } };
+ 
+   static constexpr const char* kDex2OatCmdLineKey = "dex2oat-cmdline";
+   static constexpr const char* kDebuggableKey = "debuggable";
+diff --git a/runtime/runtime.cc b/runtime/runtime.cc
+index bd9c00565b..68dc2bdbce 100644
+--- a/runtime/runtime.cc
++++ b/runtime/runtime.cc
+@@ -1673,7 +1673,8 @@ bool Runtime::Init(RuntimeArgumentMap&& runtime_options_in) {
+   // Change the implicit checks flags based on runtime architecture.
+   switch (kRuntimeISA) {
+     case InstructionSet::kArm64:
+-      implicit_suspend_checks_ = true;
++      // TODO: Investigate implicit suspend check regressions. Bug: 209235730, 213121241.
++      implicit_suspend_checks_ = false;
+       FALLTHROUGH_INTENDED;
+     case InstructionSet::kArm:
+     case InstructionSet::kThumb2:
+-- 
+2.34.1
+

@@ -1,0 +1,58 @@
+From 59adae9d97a7bdfc560f2e99d2d5da261078940e Mon Sep 17 00:00:00 2001
+From: David Srbecky <dsrbecky@google.com>
+Date: Fri, 4 Feb 2022 15:37:11 +0000
+Subject: [PATCH 28/31] Simplify return in __memcmp16
+
+Test: build
+Change-Id: I9b67c39c66ae7b4ebb07e5d23b0cfa00207a04ac
+---
+ runtime/arch/arm/memcmp16_arm.S | 19 +++----------------
+ 1 file changed, 3 insertions(+), 16 deletions(-)
+
+diff --git a/runtime/arch/arm/memcmp16_arm.S b/runtime/arch/arm/memcmp16_arm.S
+index b623a2a2cb..0195b05b27 100644
+--- a/runtime/arch/arm/memcmp16_arm.S
++++ b/runtime/arch/arm/memcmp16_arm.S
+@@ -150,11 +150,7 @@ ARM_ENTRY __memcmp16
+         bne         8f
+         /* restore registers and return */
+         mov         r0, #0
+-        pop         {r4, lr}
+-        .cfi_restore r4
+-        .cfi_restore lr
+-        .cfi_adjust_cfa_offset -8
+-        bx          lr
++        pop         {r4, pc}
+ 
+ 2:      /* the last 2 words are different, restart them */
+         ldrh        r0, [r3, #-4]
+@@ -164,11 +160,7 @@ ARM_ENTRY __memcmp16
+         ldrheq      ip, [r1, #-2]
+         subseq      r0, r0, ip
+         /* restore registers and return */
+-        pop         {r4, lr}
+-        .cfi_restore r4
+-        .cfi_restore lr
+-        .cfi_adjust_cfa_offset -8
+-        bx          lr
++        pop         {r4, pc}
+ 
+         /* process the last few words */
+ 8:      ldrh        r0, [r3], #2
+@@ -179,12 +171,7 @@ ARM_ENTRY __memcmp16
+         bne         8b
+ 
+ 9:      /* restore registers and return */
+-        pop         {r4, lr}
+-        .cfi_restore r4
+-        .cfi_restore lr
+-        .cfi_adjust_cfa_offset -8
+-        bx          lr
+-
++        pop         {r4, pc}
+ 
+ 5:      /*************** non-congruent case ***************/
+ 
+-- 
+2.34.1
+

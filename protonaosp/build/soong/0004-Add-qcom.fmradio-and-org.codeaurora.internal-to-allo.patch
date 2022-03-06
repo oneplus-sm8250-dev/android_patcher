@@ -1,7 +1,7 @@
 From 51bc1d091a7c120164f07cadf900b1574c8bcedf Mon Sep 17 00:00:00 2001
 From: Scott Lobdell <slobdell@google.com>
 Date: Fri, 2 Jul 2021 21:53:30 +0000
-Subject: [PATCH 4/6] Add qcom.fmradio and org.codeaurora.internal to allowlist
+Subject: [PATCH 4/8] Add qcom.fmradio and org.codeaurora.internal to allowlist
 
 Bug: 192690464
 Change-Id: I0837873f5bf4e3a8402d70e720d2b55ee4e0a991

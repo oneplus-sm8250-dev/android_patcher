@@ -1,7 +1,7 @@
-From eadfc3e5782d3d66579dd96cc2a730bdaa372a60 Mon Sep 17 00:00:00 2001
+From 2895d08fee57b7fb0805680b4bd9797ad015a8f4 Mon Sep 17 00:00:00 2001
 From: Hans Boehm <hboehm@google.com>
 Date: Fri, 29 Oct 2021 14:57:37 -0700
-Subject: [PATCH 07/13] [master] Assign lower level to Small IRT table lock
+Subject: [PATCH 07/31] [master] Assign lower level to Small IRT table lock
 
 It can be acquired after Class loader classes lock. Jvmti
 GetLoadedClasses traverses classes with a visitor that may need

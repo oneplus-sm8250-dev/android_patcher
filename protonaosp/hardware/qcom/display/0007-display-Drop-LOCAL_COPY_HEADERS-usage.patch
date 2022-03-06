@@ -1,7 +1,7 @@
 From d57c314d2990058b50e3f078ba8b986e5af2d6a7 Mon Sep 17 00:00:00 2001
 From: Pig <pig.priv@gmail.com>
 Date: Sat, 19 Sep 2020 09:19:29 +0800
-Subject: [PATCH 7/7] display: Drop LOCAL_COPY_HEADERS usage
+Subject: [PATCH 7/8] display: Drop LOCAL_COPY_HEADERS usage
 
 LOCAL_COPY_HEADERS is deprecated, so remove all its usages
 to avoid build warnings.
@@ -193,5 +193,5 @@ index c47419344..6a3b6a6ad 100644
 -
 -include $(BUILD_COPY_HEADERS)
 -- 
-2.34.0
+2.34.1
 

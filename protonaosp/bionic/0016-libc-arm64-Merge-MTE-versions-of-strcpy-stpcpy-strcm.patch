@@ -1,0 +1,98 @@
+From 1b965aca2878a16674b1d1f677bfeeb5f050b91a Mon Sep 17 00:00:00 2001
+From: Jake Weinstein <jake@aospa.co>
+Date: Mon, 14 Feb 2022 13:26:41 +0900
+Subject: [PATCH 16/16] libc: arm64: Merge MTE versions of
+ strcpy/stpcpy/strcmp/strncmp
+
+Needed for upgrading to the latest ARM optimized routines.
+
+https: //github.com/ARM-software/optimized-routines/commit/89ca9c3629eb6a62c28918db929a6fe80b141825
+https: //github.com/ARM-software/optimized-routines/commit/7b91c3cdb12b023004cb4dda30a1aa3424329ce6
+Change-Id: Icc87695cb8040536569a55580aa132fddfca12d1
+---
+ libc/arch-arm64/dynamic_function_dispatch.cpp | 36 -------------------
+ libc/arch-arm64/static_function_dispatch.S    |  4 ---
+ 2 files changed, 40 deletions(-)
+
+diff --git a/libc/arch-arm64/dynamic_function_dispatch.cpp b/libc/arch-arm64/dynamic_function_dispatch.cpp
+index 83e5ca4da..0a65c4995 100644
+--- a/libc/arch-arm64/dynamic_function_dispatch.cpp
++++ b/libc/arch-arm64/dynamic_function_dispatch.cpp
+@@ -41,15 +41,6 @@ DEFINE_IFUNC_FOR(memchr) {
+     }
+ }
+ 
+-typedef int stpcpy_func(char*, const char*);
+-DEFINE_IFUNC_FOR(stpcpy) {
+-    if (arg->_hwcap2 & HWCAP2_MTE) {
+-        RETURN_FUNC(stpcpy_func, __stpcpy_aarch64_mte);
+-    } else {
+-        RETURN_FUNC(stpcpy_func, __stpcpy_aarch64);
+-    }
+-}
+-
+ typedef char* strchr_func(const char*, int);
+ DEFINE_IFUNC_FOR(strchr) {
+     if (arg->_hwcap2 & HWCAP2_MTE) {
+@@ -68,24 +59,6 @@ DEFINE_IFUNC_FOR(strchrnul) {
+     }
+ }
+ 
+-typedef int strcmp_func(const char*, const char*);
+-DEFINE_IFUNC_FOR(strcmp) {
+-    if (arg->_hwcap2 & HWCAP2_MTE) {
+-        RETURN_FUNC(strcmp_func, __strcmp_aarch64_mte);
+-    } else {
+-        RETURN_FUNC(strcmp_func, __strcmp_aarch64);
+-    }
+-}
+-
+-typedef int strcpy_func(char*, const char*);
+-DEFINE_IFUNC_FOR(strcpy) {
+-    if (arg->_hwcap2 & HWCAP2_MTE) {
+-        RETURN_FUNC(strcpy_func, __strcpy_aarch64_mte);
+-    } else {
+-        RETURN_FUNC(strcpy_func, __strcpy_aarch64);
+-    }
+-}
+-
+ typedef size_t strlen_func(const char*);
+ DEFINE_IFUNC_FOR(strlen) {
+     if (arg->_hwcap2 & HWCAP2_MTE) {
+@@ -95,15 +68,6 @@ DEFINE_IFUNC_FOR(strlen) {
+     }
+ }
+ 
+-typedef int strncmp_func(const char*, const char*, int);
+-DEFINE_IFUNC_FOR(strncmp) {
+-    if (arg->_hwcap2 & HWCAP2_MTE) {
+-        RETURN_FUNC(strncmp_func, __strncmp_aarch64_mte);
+-    } else {
+-        RETURN_FUNC(strncmp_func, __strncmp_aarch64);
+-    }
+-}
+-
+ typedef char* strrchr_func(const char*, int);
+ DEFINE_IFUNC_FOR(strrchr) {
+     if (arg->_hwcap2 & HWCAP2_MTE) {
+diff --git a/libc/arch-arm64/static_function_dispatch.S b/libc/arch-arm64/static_function_dispatch.S
+index 161ece8ea..7b39a8f41 100644
+--- a/libc/arch-arm64/static_function_dispatch.S
++++ b/libc/arch-arm64/static_function_dispatch.S
+@@ -34,13 +34,9 @@ ENTRY(name); \
+ END(name)
+ 
+ FUNCTION_DELEGATE(memchr, __memchr_aarch64_mte)
+-FUNCTION_DELEGATE(stpcpy, __stpcpy_aarch64_mte)
+ FUNCTION_DELEGATE(strchr, __strchr_aarch64_mte)
+ FUNCTION_DELEGATE(strchrnul, __strchrnul_aarch64_mte)
+-FUNCTION_DELEGATE(strcmp, __strcmp_aarch64_mte)
+-FUNCTION_DELEGATE(strcpy, __strcpy_aarch64_mte)
+ FUNCTION_DELEGATE(strlen, __strlen_aarch64_mte)
+ FUNCTION_DELEGATE(strrchr, __strrchr_aarch64_mte)
+-FUNCTION_DELEGATE(strncmp, __strncmp_aarch64_mte)
+ 
+ NOTE_GNU_PROPERTY()
+-- 
+2.34.1
+

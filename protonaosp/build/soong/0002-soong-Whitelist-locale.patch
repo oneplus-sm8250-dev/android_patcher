@@ -1,7 +1,7 @@
 From c59f911f83e06fa274f1e6050ce250b6097b0264 Mon Sep 17 00:00:00 2001
 From: "Kevin F. Haggerty" <haggertk@lineageos.org>
 Date: Mon, 27 Apr 2020 12:51:08 -0600
-Subject: [PATCH 2/6] soong: Whitelist locale
+Subject: [PATCH 2/8] soong: Whitelist locale
 
 Change-Id: Ibbc46fe4af567fc1df72c0a234a64be1aa704453
 ---

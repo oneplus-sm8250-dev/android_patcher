@@ -1,0 +1,39 @@
+From b469d48eb9f2c36add1d36851e383222a3eabeb9 Mon Sep 17 00:00:00 2001
+From: Florian Mayer <fmayer@google.com>
+Date: Mon, 10 Jan 2022 13:03:57 -0800
+Subject: [PATCH 21/31] Fix out of range in art compiler.
+
+We didn't check for zero offset before, and also we decremented by 4
+INSTRUCTIONS rather than 4 bytes (= one instruction), because we
+decremented the pointer of type Instruction*.
+
+Test: run 550-checker-multiply-accumulate
+      fails without this change under flame_hwasan
+      passes with this change
+
+Bug: 213931282
+Change-Id: I51021e75de844b7126d503d562258887550430f8
+---
+ compiler/optimizing/code_generator_arm64.cc | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/compiler/optimizing/code_generator_arm64.cc b/compiler/optimizing/code_generator_arm64.cc
+index 378d7d0f31..47866922b9 100644
+--- a/compiler/optimizing/code_generator_arm64.cc
++++ b/compiler/optimizing/code_generator_arm64.cc
+@@ -2457,9 +2457,9 @@ void InstructionCodeGeneratorARM64::VisitMultiplyAccumulate(HMultiplyAccumulate*
+   if (instr->GetType() == DataType::Type::kInt64 &&
+       codegen_->GetInstructionSetFeatures().NeedFixCortexA53_835769()) {
+     MacroAssembler* masm = down_cast<CodeGeneratorARM64*>(codegen_)->GetVIXLAssembler();
+-    vixl::aarch64::Instruction* prev =
+-        masm->GetCursorAddress<vixl::aarch64::Instruction*>() - kInstructionSize;
+-    if (prev->IsLoadOrStore()) {
++    ptrdiff_t off = masm->GetCursorOffset();
++    if (off >= static_cast<ptrdiff_t>(kInstructionSize) &&
++        masm->GetInstructionAt(off - static_cast<ptrdiff_t>(kInstructionSize))->IsLoadOrStore()) {
+       // Make sure we emit only exactly one nop.
+       ExactAssemblyScope scope(masm, kInstructionSize, CodeBufferCheckScope::kExactSize);
+       __ nop();
+-- 
+2.34.1
+

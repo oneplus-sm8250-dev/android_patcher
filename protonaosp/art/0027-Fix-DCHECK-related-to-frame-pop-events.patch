@@ -1,0 +1,34 @@
+From ce37535333fe5c52d80a2aed546543eb6eae9baa Mon Sep 17 00:00:00 2001
+From: Mythri Alle <mythria@google.com>
+Date: Thu, 3 Feb 2022 13:41:39 +0000
+Subject: [PATCH 27/31] Fix DCHECK related to frame pop events.
+
+We have a DCHECK that we can only see a retry instruction only on the
+second frame after deoptimization. Though we can only pop one frame at a
+time, the frame pop event listener can request more such events. So the
+expectation that we can see a forced pop only on the second frame isn't
+correct.
+
+Test: art/test.py
+Bug: 206029744
+Change-Id: I258e62861224facb6884d9df1a4cf5406209d731
+---
+ runtime/interpreter/interpreter.cc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/runtime/interpreter/interpreter.cc b/runtime/interpreter/interpreter.cc
+index baa55ce988..635f9d86b4 100644
+--- a/runtime/interpreter/interpreter.cc
++++ b/runtime/interpreter/interpreter.cc
+@@ -540,7 +540,7 @@ void EnterInterpreterFromDeoptimize(Thread* self,
+       const Instruction* instr = &accessor.InstructionAt(dex_pc);
+       if (deopt_method_type == DeoptimizationMethodType::kKeepDexPc ||
+           shadow_frame->GetForceRetryInstruction()) {
+-        DCHECK(frame_cnt == 0 || (frame_cnt == 1 && shadow_frame->GetForceRetryInstruction()))
++        DCHECK(frame_cnt == 0 || shadow_frame->GetForceRetryInstruction())
+             << "frame_cnt: " << frame_cnt
+             << " force-retry: " << shadow_frame->GetForceRetryInstruction();
+         // Need to re-execute the dex instruction.
+-- 
+2.34.1
+

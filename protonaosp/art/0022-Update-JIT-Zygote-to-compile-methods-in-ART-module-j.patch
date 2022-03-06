@@ -1,0 +1,54 @@
+From b5441dc7f1ce1ce43fce4b379f773c154e329e94 Mon Sep 17 00:00:00 2001
+From: Jiakai Zhang <jiakaiz@google.com>
+Date: Thu, 6 Jan 2022 15:24:57 +0000
+Subject: [PATCH 22/31] Update JIT Zygote to compile methods in ART module
+ jars.
+
+Also, add logging to show methods in profiles being processed by JIT
+Zygote, in order to differentiate them from those added by JIT
+automatically.
+
+Bug: 203492478
+Test: manual -
+  1. Force JIT Zygote with both ART profile and framework profile.
+     adb shell setprop dalvik.vm.boot-image '/nonx/boot.art!/apex/com.android.art/etc/boot-image.prof!/system/etc/boot-image.prof'
+  2. Turn on JIT verbose logging.
+     adb shell setprop dalvik.vm.extra-opts '-verbose:jit'
+  3. Restart Zygote.
+     adb shell setprop ctl.restart zygote
+  4. See methods in the ART profile and in the framework profile all
+     processed by JIT Zygote.
+  5. See system_server starting normally.
+Change-Id: I0f90106026c774cfb422aac610d8fc8a6485f922
+---
+ runtime/jit/jit.cc | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/runtime/jit/jit.cc b/runtime/jit/jit.cc
+index 7cc614a1ad..4f188f889d 100644
+--- a/runtime/jit/jit.cc
++++ b/runtime/jit/jit.cc
+@@ -1347,6 +1347,8 @@ bool Jit::CompileMethodFromProfile(Thread* self,
+       // We explicitly check for the stub. The trampoline is for methods backed by
+       // a .oat file that has a compiled version of the method.
+       (entry_point == GetQuickResolutionStub())) {
++    VLOG(jit) << "JIT Zygote processing method " << ArtMethod::PrettyMethod(method)
++              << " from profile";
+     method->SetPreCompiled();
+     if (!add_to_queue) {
+       CompileMethod(method, self, CompilationKind::kOptimized, /* prejit= */ true);
+@@ -1442,11 +1444,6 @@ uint32_t Jit::CompileMethodsFromProfile(
+   ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
+   uint32_t added_to_queue = 0u;
+   for (const DexFile* dex_file : dex_files) {
+-    if (LocationIsOnArtModule(dex_file->GetLocation().c_str())) {
+-      // The ART module jars are already preopted.
+-      continue;
+-    }
+-
+     std::set<dex::TypeIndex> class_types;
+     std::set<uint16_t> all_methods;
+     if (!profile_info.GetClassesAndMethods(*dex_file,
+-- 
+2.34.1
+

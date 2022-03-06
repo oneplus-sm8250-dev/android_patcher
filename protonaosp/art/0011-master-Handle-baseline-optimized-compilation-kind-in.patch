@@ -1,7 +1,7 @@
-From 118d2c01fbdce266b340078cf4c233371f32401a Mon Sep 17 00:00:00 2001
+From cf3d6578306f7adc0dbc8cbab4499dbf6bb63c1c Mon Sep 17 00:00:00 2001
 From: Nicolas Geoffray <ngeoffray@google.com>
 Date: Mon, 29 Nov 2021 14:47:21 +0000
-Subject: [PATCH 11/13] [master] Handle baseline/optimized compilation kind in
+Subject: [PATCH 11/31] [master] Handle baseline/optimized compilation kind in
  the runtime.
 
 It used to be adjusted in the compiler, but that does not work anymore

@@ -1,0 +1,64 @@
+From 027b2262be65f511497a7c39a3fff23dc5d1c90f Mon Sep 17 00:00:00 2001
+From: wangguibo <wangguibo@xiaomi.com>
+Date: Sat, 22 Jan 2022 16:01:18 +0800
+Subject: [PATCH 31/31] Avoid Use-After-Free risk when dump backtrace for long
+ contending lock.
+
+The Thread::SetCustomTLS() will delete old data, should use
+old DumpStackLastTimeTLSData if it exists, to avoid Use-After-Free risk
+in case of concurrent access.
+
+Bug:  215794097
+Test: HWASAN test
+
+Signed-off-by: wangguibo <wangguibo@xiaomi.com>
+Change-Id: If6e3660b179ddcaed8dd0e03179e49b21abc88fb
+---
+ runtime/base/mutex.cc | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/runtime/base/mutex.cc b/runtime/base/mutex.cc
+index 6574ec0db6..5709333756 100644
+--- a/runtime/base/mutex.cc
++++ b/runtime/base/mutex.cc
+@@ -53,10 +53,9 @@ struct AllMutexData {
+ static struct AllMutexData gAllMutexData[kAllMutexDataSize];
+ 
+ struct DumpStackLastTimeTLSData : public art::TLSData {
+-  explicit DumpStackLastTimeTLSData(uint64_t last_dump_time_ms) {
+-    last_dump_time_ms_ = last_dump_time_ms;
+-  }
+-  uint64_t last_dump_time_ms_;
++  explicit DumpStackLastTimeTLSData(uint64_t last_dump_time_ms)
++      : last_dump_time_ms_(last_dump_time_ms) {}
++  std::atomic<uint64_t> last_dump_time_ms_;
+ };
+ 
+ #if ART_USE_FUTEXES
+@@ -526,7 +525,13 @@ void Mutex::DumpStack(Thread* self, uint64_t wait_start_ms, uint64_t try_times)
+         if (IsDumpFrequent(thread)) {
+           return;
+         }
+-        thread->SetCustomTLS(kLastDumpStackTime, new DumpStackLastTimeTLSData(MilliTime()));
++        DumpStackLastTimeTLSData* tls_data =
++            reinterpret_cast<DumpStackLastTimeTLSData*>(thread->GetCustomTLS(kLastDumpStackTime));
++        if (tls_data == nullptr) {
++          thread->SetCustomTLS(kLastDumpStackTime, new DumpStackLastTimeTLSData(MilliTime()));
++        } else {
++          tls_data->last_dump_time_ms_.store(MilliTime());
++        }
+         thread->DumpJavaStack(oss);
+       }
+       std::ostringstream oss;
+@@ -549,7 +554,7 @@ bool Mutex::IsDumpFrequent(Thread* thread, uint64_t try_times) {
+   DumpStackLastTimeTLSData* tls_data =
+       reinterpret_cast<DumpStackLastTimeTLSData*>(thread->GetCustomTLS(kLastDumpStackTime));
+   if (tls_data != nullptr) {
+-     last_dump_time_ms = tls_data->last_dump_time_ms_;
++     last_dump_time_ms = tls_data->last_dump_time_ms_.load();
+   }
+   uint64_t interval = MilliTime() - last_dump_time_ms;
+   if (interval < kIntervalMillis * try_times) {
+-- 
+2.34.1
+

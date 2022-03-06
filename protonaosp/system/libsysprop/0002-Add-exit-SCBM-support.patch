@@ -1,0 +1,35 @@
+From 5f654f701d9028be9f78611917be56a356306ae3 Mon Sep 17 00:00:00 2001
+From: Chaitanya Saggurthi <csaggurt@codeaurora.org>
+Date: Fri, 5 Nov 2021 18:39:21 +0530
+Subject: [PATCH 2/2] Add exit SCBM support
+
+If device is in SCBM, while placing  MO call or SMS,
+first exit the SCBM then place MO call or SMS.
+Add proeprty for SCBM state handling.
+
+CRs-Fixed: 3068030
+Change-Id: I369310534ab7066b300b582026cdd2e2bcc16475
+---
+ srcs/android/sysprop/TelephonyProperties.sysprop | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/srcs/android/sysprop/TelephonyProperties.sysprop b/srcs/android/sysprop/TelephonyProperties.sysprop
+index cad22ff..3141707 100644
+--- a/srcs/android/sysprop/TelephonyProperties.sysprop
++++ b/srcs/android/sysprop/TelephonyProperties.sysprop
+@@ -480,3 +480,12 @@ prop {
+     access: ReadWrite
+     prop_name: "ril.multisim.voice_capability"
+ }
++
++# Indicate if phone is in emergency SMS callback mode
++prop {
++    api_name: "in_scbm"
++    type: Boolean
++    scope: Internal
++    access: ReadWrite
++    prop_name: "ril.inscbm"
++}
+-- 
+2.34.1
+

@@ -1,7 +1,7 @@
-From e6c50824f024c40ecbaf5eca986a9bd8708e96a3 Mon Sep 17 00:00:00 2001
+From f7e3590d74e1b9c78b64be999576c4904b918b33 Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Fri, 29 Oct 2021 14:27:16 +0100
-Subject: [PATCH 01/13] [master] arm: Fix VarHandle.compareAndSet/long
+Subject: [PATCH 01/31] [master] arm: Fix VarHandle.compareAndSet/long
  intrinsic...
 
 ... for big-endian array views. Undo the byte swap for all

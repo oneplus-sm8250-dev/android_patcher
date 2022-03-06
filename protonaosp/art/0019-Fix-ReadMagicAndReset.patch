@@ -1,0 +1,41 @@
+From 10fa22dbd4e74b79b3e61ac36aa3b063df4383eb Mon Sep 17 00:00:00 2001
+From: Jiakai Zhang <jiakaiz@google.com>
+Date: Thu, 6 Jan 2022 17:52:17 +0000
+Subject: [PATCH 19/31] Fix ReadMagicAndReset.
+
+ReadMagicAndReset is a function that is supposed to read a uint32_t
+from the beginning of a file. However, it cannot handle the case where
+the file offset of the fd is non-zero. Specifically, when an fd is
+passed from dex2oat, dex2oat has probably read that file, causing the
+file offset to be non-zero. This CL fixes the problem by resetting the
+file offest before reading from the fd. Ideally, we should use `pread`,
+but `ReadMagicAndReset` is part of `libartbase`, which has to support
+Windows build where `pread` is not supported.
+
+This change fixes odrefresh, which invokes dex2oat with fds.
+
+Bug: 213446666
+Test: atest odsign_e2e_tests
+Change-Id: Ib5dd8e2855a4f0a391afa5313cf3a2d12f1a3121
+---
+ libartbase/base/file_magic.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/libartbase/base/file_magic.cc b/libartbase/base/file_magic.cc
+index 1471c59b73..21b762f6e0 100644
+--- a/libartbase/base/file_magic.cc
++++ b/libartbase/base/file_magic.cc
+@@ -44,6 +44,10 @@ File OpenAndReadMagic(const char* filename, uint32_t* magic, std::string* error_
+ }
+ 
+ bool ReadMagicAndReset(int fd, uint32_t* magic, std::string* error_msg) {
++  if (lseek(fd, 0, SEEK_SET) != 0) {
++    *error_msg = StringPrintf("Failed to seek to beginning of file : %s", strerror(errno));
++    return false;
++  }
+   int n = TEMP_FAILURE_RETRY(read(fd, magic, sizeof(*magic)));
+   if (n != sizeof(*magic)) {
+     *error_msg = StringPrintf("Failed to find magic");
+-- 
+2.34.1
+

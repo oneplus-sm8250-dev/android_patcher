@@ -1,7 +1,7 @@
 From 0b5b312c668022d920d10c9c6733e18095bcf723 Mon Sep 17 00:00:00 2001
 From: George Burgess IV <gbiv@google.com>
 Date: Mon, 18 May 2020 16:05:31 -0700
-Subject: [PATCH 3/7] fix -Wunreachable-code-loop-increment
+Subject: [PATCH 3/8] fix -Wunreachable-code-loop-increment
 
 `glGetError()` may return more than one error, yet these loops never
 iterated more than once. This CL fixes that, and cleans up some useless
@@ -141,5 +141,5 @@ index 35e1932c5..bf3b58a58 100644
 -  return;
  }
 -- 
-2.34.0
+2.34.1
 

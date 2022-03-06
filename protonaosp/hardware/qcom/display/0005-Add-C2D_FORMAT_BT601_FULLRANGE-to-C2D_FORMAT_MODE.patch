@@ -1,7 +1,7 @@
 From 67e8f7da8a4ca23202e3a10e6c37c7ac886fd1aa Mon Sep 17 00:00:00 2001
 From: Bruno Martins <bgcngm@gmail.com>
 Date: Thu, 28 Feb 2019 23:59:53 +0000
-Subject: [PATCH 5/7] Add C2D_FORMAT_BT601_FULLRANGE to C2D_FORMAT_MODE
+Subject: [PATCH 5/8] Add C2D_FORMAT_BT601_FULLRANGE to C2D_FORMAT_MODE
 
 * Another definition that CAF forgot to include in public HALs,
   leading to libc2dcolorconvert target breakage.
@@ -24,5 +24,5 @@ index 821a6d577..2ee71b1ac 100644
  } C2D_FORMAT_MODE;
  
 -- 
-2.34.0
+2.34.1
 

@@ -1,7 +1,7 @@
-From e7c8bc78118b7fab9c93c364128b76d6a6b20ac2 Mon Sep 17 00:00:00 2001
+From 7a4f986dce1fbf9350085c065bf5f0b2971f5800 Mon Sep 17 00:00:00 2001
 From: Elliott Hughes <enh@google.com>
 Date: Thu, 18 Nov 2021 17:57:38 -0800
-Subject: [PATCH 7/8] [master] strftime: format small positive integers
+Subject: [PATCH 07/16] [master] strftime: format small positive integers
  ourselves.
 
 A decent chunk of the logcat profile is spent formatting the timestamps

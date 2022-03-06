@@ -1,7 +1,7 @@
-From 6314137768f54a66d8efcad7cf6562794ac4c950 Mon Sep 17 00:00:00 2001
+From 521149dc99b583a672c10f9a5e29f3bd772b377c Mon Sep 17 00:00:00 2001
 From: Hans Boehm <hboehm@google.com>
 Date: Wed, 22 Sep 2021 13:28:35 -0700
-Subject: [PATCH 04/13] [master] Simplify IRTEntry
+Subject: [PATCH 04/31] [master] Simplify IRTEntry
 
 We previously stored the last several object references associated
 with indirect reference table entry. The old entries might once have

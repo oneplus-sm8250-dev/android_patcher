@@ -1,0 +1,41 @@
+From 0fc7c33974883153b8879ced3d57fa68a191b3ea Mon Sep 17 00:00:00 2001
+From: Vladimir Marko <vmarko@google.com>
+Date: Wed, 5 Jan 2022 10:31:06 +0000
+Subject: [PATCH 18/31] Add HashSet<> ctor with initial buffer...
+
+... and explicit hash and predicate functions, allowing
+these to hold state.
+
+Test: m test-art-host-gtest
+Test: testrunner.py --host --optimizing
+Bug: 181943478
+Change-Id: If3b3c86effed77a6aa5216c526d645e64598f48f
+---
+ libartbase/base/hash_set.h | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/libartbase/base/hash_set.h b/libartbase/base/hash_set.h
+index bd2ac38553..10085638f9 100644
+--- a/libartbase/base/hash_set.h
++++ b/libartbase/base/hash_set.h
+@@ -286,7 +286,17 @@ class HashSet {
+           value_type* buffer,
+           size_t buffer_size,
+           const allocator_type& alloc)
++      : HashSet(min_load_factor, max_load_factor, HashFn(), Pred(), buffer, buffer_size, alloc) {}
++  HashSet(double min_load_factor,
++          double max_load_factor,
++          const HashFn& hashfn,
++          const Pred& pred,
++          value_type* buffer,
++          size_t buffer_size,
++          const allocator_type& alloc)
+       : allocfn_(alloc),
++        hashfn_(hashfn),
++        pred_(pred),
+         num_elements_(0u),
+         num_buckets_(buffer_size),
+         elements_until_expand_(buffer_size * max_load_factor),
+-- 
+2.34.1
+

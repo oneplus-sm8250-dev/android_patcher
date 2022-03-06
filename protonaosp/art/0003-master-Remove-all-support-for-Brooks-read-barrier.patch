@@ -1,7 +1,7 @@
-From a821e8c0b707b86aae7515589e786d3540fe62ca Mon Sep 17 00:00:00 2001
+From e9b1fe9ba99bcd81fd045b0820fc954d45ad77c5 Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Tue, 19 Oct 2021 07:54:13 +0100
-Subject: [PATCH 03/13] [master] Remove all support for Brooks read barrier.
+Subject: [PATCH 03/31] [master] Remove all support for Brooks read barrier.
 
 Test: m
 Bug: 177048505

@@ -1,0 +1,30 @@
+From 1991c02cb78e2db6f560f68d20584de74cf391aa Mon Sep 17 00:00:00 2001
+From: LuK1337 <priv.luk@gmail.com>
+Date: Sun, 16 Jan 2022 20:44:58 +0100
+Subject: [PATCH 8/8] Add exported-to-kati namespaces to root namespace
+
+This lets us use boot jar modules that are hidden behind
+soong_namespace.
+
+Change-Id: If0068387efdeca5458b5b97ce6b993b10a268bd2
+---
+ android/namespace.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/android/namespace.go b/android/namespace.go
+index d137636e2..ccda7c45a 100644
+--- a/android/namespace.go
++++ b/android/namespace.go
+@@ -132,6 +132,9 @@ func (r *NameResolver) addNamespace(namespace *Namespace) (err error) {
+ 			return fmt.Errorf("a namespace must be the first module in the file")
+ 		}
+ 	}
++	if (namespace.exportToKati) {
++		r.rootNamespace.visibleNamespaces = append(r.rootNamespace.visibleNamespaces, namespace)
++	}
+ 	r.sortedNamespaces.add(namespace)
+ 
+ 	r.namespacesByDir.Store(namespace.Path, namespace)
+-- 
+2.34.1
+

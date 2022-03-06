@@ -1,0 +1,93 @@
+From 4232d91b2eee9a01fc0909789ee3356011e5db79 Mon Sep 17 00:00:00 2001
+From: Peter Collingbourne <pcc@google.com>
+Date: Tue, 8 Feb 2022 17:48:42 -0800
+Subject: [PATCH 29/31] Simplify some functions in OatMethod.
+
+The old code had different behavior in the case of methods with metadata
+and a code size of 0, but this is apparently not possible, at least not
+any more.
+
+Change-Id: I045dfe191fbb88419f05578ab6b316044bc18e9e
+---
+ runtime/oat_file-inl.h | 15 +++++++--------
+ runtime/oat_file.h     | 10 +---------
+ 2 files changed, 8 insertions(+), 17 deletions(-)
+
+diff --git a/runtime/oat_file-inl.h b/runtime/oat_file-inl.h
+index 29b361b137..772566fbe3 100644
+--- a/runtime/oat_file-inl.h
++++ b/runtime/oat_file-inl.h
+@@ -25,7 +25,7 @@
+ namespace art {
+ 
+ inline const OatQuickMethodHeader* OatFile::OatMethod::GetOatQuickMethodHeader() const {
+-  const void* code = EntryPointToCodePointer(GetOatPointer<const void*>(code_offset_));
++  const void* code = EntryPointToCodePointer(GetQuickCode());
+   if (code == nullptr) {
+     return nullptr;
+   }
+@@ -71,7 +71,7 @@ inline uint32_t OatFile::OatMethod::GetVmapTableOffset() const {
+ }
+ 
+ inline const uint8_t* OatFile::OatMethod::GetVmapTable() const {
+-  const void* code = EntryPointToCodePointer(GetOatPointer<const void*>(code_offset_));
++  const void* code = EntryPointToCodePointer(GetQuickCode());
+   if (code == nullptr) {
+     return nullptr;
+   }
+@@ -83,19 +83,18 @@ inline const uint8_t* OatFile::OatMethod::GetVmapTable() const {
+ }
+ 
+ inline uint32_t OatFile::OatMethod::GetQuickCodeSize() const {
+-  const void* code = EntryPointToCodePointer(GetOatPointer<const void*>(code_offset_));
++  const void* code = EntryPointToCodePointer(GetQuickCode());
+   if (code == nullptr) {
+     return 0u;
+   }
+   return reinterpret_cast<const OatQuickMethodHeader*>(code)[-1].GetCodeSize();
+ }
+ 
+-inline uint32_t OatFile::OatMethod::GetCodeOffset() const {
+-  return (GetQuickCodeSize() == 0) ? 0 : code_offset_;
+-}
+-
+ inline const void* OatFile::OatMethod::GetQuickCode() const {
+-  return GetOatPointer<const void*>(GetCodeOffset());
++  if (code_offset_ == 0) {
++    return nullptr;
++  }
++  return reinterpret_cast<const void *>(begin_ + code_offset_);
+ }
+ 
+ }  // namespace art
+diff --git a/runtime/oat_file.h b/runtime/oat_file.h
+index 0fd7032fb1..c6b497a987 100644
+--- a/runtime/oat_file.h
++++ b/runtime/oat_file.h
+@@ -193,7 +193,7 @@ class OatFile {
+ 
+   class OatMethod final {
+    public:
+-    uint32_t GetCodeOffset() const;
++    uint32_t GetCodeOffset() const { return code_offset_; }
+ 
+     const void* GetQuickCode() const;
+ 
+@@ -228,14 +228,6 @@ class OatFile {
+     }
+ 
+    private:
+-    template<class T>
+-    T GetOatPointer(uint32_t offset) const {
+-      if (offset == 0) {
+-        return nullptr;
+-      }
+-      return reinterpret_cast<T>(begin_ + offset);
+-    }
+-
+     const uint8_t* begin_;
+     uint32_t code_offset_;
+ 
+-- 
+2.34.1
+

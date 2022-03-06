@@ -1,7 +1,7 @@
-From c761141a66f8015e4c289497a74635d8663b0240 Mon Sep 17 00:00:00 2001
+From 9bbd043ca929191ed68b6eee8000c394209687b9 Mon Sep 17 00:00:00 2001
 From: Mythri Alle <mythria@google.com>
 Date: Tue, 21 Sep 2021 15:09:58 +0000
-Subject: [PATCH 08/13] [master] Drop unused arguments for MethodEntered
+Subject: [PATCH 08/31] [master] Drop unused arguments for MethodEntered
  function
 
 this_object and dex_pc aren't used in MethodEntered listener.

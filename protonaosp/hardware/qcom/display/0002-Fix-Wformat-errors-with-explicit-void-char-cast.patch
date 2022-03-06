@@ -1,7 +1,7 @@
 From e9c66c6ba8161cb165c0e8172d7fba789501058f Mon Sep 17 00:00:00 2001
 From: Stephen Hines <srhines@google.com>
 Date: Thu, 20 Aug 2020 18:57:07 -0700
-Subject: [PATCH 2/7] Fix -Wformat errors with explicit void* -> char* cast.
+Subject: [PATCH 2/8] Fix -Wformat errors with explicit void* -> char* cast.
 
 hardware/qcom/sm7250/display/sde-drm/drm_plane.cpp:439:12: error: format specifies type 'char *' but the argument has type 'void *' [-Werror,-Wformat]
            blob->data, blob->length);
@@ -77,5 +77,5 @@ index eb5834354..9da1033f7 100644
    string line = {};
    string pixel_formats = "pixel_formats=";
 -- 
-2.34.0
+2.34.1
 

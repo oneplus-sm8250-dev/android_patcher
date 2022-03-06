@@ -1,7 +1,7 @@
 From 9d121337408ae5c82a72e0a2cd46e42bab2673cc Mon Sep 17 00:00:00 2001
 From: YumeMichi <do4suki@gmail.com>
 Date: Mon, 20 Dec 2021 01:03:56 +0800
-Subject: [PATCH 6/6] check_boot_jars: Add OP bits to whitelist
+Subject: [PATCH 6/8] check_boot_jars: Add OP bits to whitelist
 
 Signed-off-by: YumeMichi <do4suki@gmail.com>
 Change-Id: I4d2f2e80bc225ca4bb801894030b231cf26c46c1

@@ -1,0 +1,80 @@
+From e9ce0f223146fb9df5f3d88668594a731c90473f Mon Sep 17 00:00:00 2001
+From: ShuJieWang <wangshujie.matt@bytedance.com>
+Date: Wed, 22 Dec 2021 18:15:58 +0800
+Subject: [PATCH 17/31] Add a new Lock 'env_hooks_lock_' to avoid race
+ conditions
+
+For now, only TI agents would trigger AddEnvironmentHook() at runtime.
+
+Test: art/test.py -b --host
+Change-Id: I1d44b93e66a5cd98188bbac31ad21ce7a46923cb
+---
+ runtime/jni/java_vm_ext.cc | 9 ++++++++-
+ runtime/jni/java_vm_ext.h  | 9 ++++++---
+ 2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/runtime/jni/java_vm_ext.cc b/runtime/jni/java_vm_ext.cc
+index e085cd98cb..a52d2975d6 100644
+--- a/runtime/jni/java_vm_ext.cc
++++ b/runtime/jni/java_vm_ext.cc
+@@ -509,6 +509,7 @@ JavaVMExt::JavaVMExt(Runtime* runtime,
+       weak_globals_add_condition_("weak globals add condition",
+                                   (CHECK(Locks::jni_weak_globals_lock_ != nullptr),
+                                    *Locks::jni_weak_globals_lock_)),
++      env_hooks_lock_("environment hooks lock", art::kGenericBottomLock),
+       env_hooks_(),
+       enable_allocation_tracking_delta_(
+           runtime_options.GetOrDefault(RuntimeArgumentMap::GlobalRefAllocStackTraceLimit)),
+@@ -536,7 +537,12 @@ std::unique_ptr<JavaVMExt> JavaVMExt::Create(Runtime* runtime,
+ }
+ 
+ jint JavaVMExt::HandleGetEnv(/*out*/void** env, jint version) {
+-  for (GetEnvHook hook : env_hooks_) {
++  std::vector<GetEnvHook> env_hooks;
++  {
++    ReaderMutexLock rmu(Thread::Current(), env_hooks_lock_);
++    env_hooks.assign(env_hooks_.begin(), env_hooks_.end());
++  }
++  for (GetEnvHook hook : env_hooks) {
+     jint res = hook(this, env, version);
+     if (res == JNI_OK) {
+       return JNI_OK;
+@@ -552,6 +558,7 @@ jint JavaVMExt::HandleGetEnv(/*out*/void** env, jint version) {
+ // Add a hook to handle getting environments from the GetEnv call.
+ void JavaVMExt::AddEnvironmentHook(GetEnvHook hook) {
+   CHECK(hook != nullptr) << "environment hooks shouldn't be null!";
++  WriterMutexLock wmu(Thread::Current(), env_hooks_lock_);
+   env_hooks_.push_back(hook);
+ }
+ 
+diff --git a/runtime/jni/java_vm_ext.h b/runtime/jni/java_vm_ext.h
+index 015f85cba9..394bfb4426 100644
+--- a/runtime/jni/java_vm_ext.h
++++ b/runtime/jni/java_vm_ext.h
+@@ -200,9 +200,11 @@ class JavaVMExt : public JavaVM {
+   void TrimGlobals() REQUIRES_SHARED(Locks::mutator_lock_)
+       REQUIRES(!Locks::jni_globals_lock_);
+ 
+-  jint HandleGetEnv(/*out*/void** env, jint version);
++  jint HandleGetEnv(/*out*/void** env, jint version)
++      REQUIRES(!env_hooks_lock_);
+ 
+-  void AddEnvironmentHook(GetEnvHook hook);
++  void AddEnvironmentHook(GetEnvHook hook)
++      REQUIRES(!env_hooks_lock_);
+ 
+   static bool IsBadJniVersion(int version);
+ 
+@@ -258,7 +260,8 @@ class JavaVMExt : public JavaVM {
+   ConditionVariable weak_globals_add_condition_ GUARDED_BY(Locks::jni_weak_globals_lock_);
+ 
+   // TODO Maybe move this to Runtime.
+-  std::vector<GetEnvHook> env_hooks_;
++  ReaderWriterMutex env_hooks_lock_ BOTTOM_MUTEX_ACQUIRED_AFTER;
++  std::vector<GetEnvHook> env_hooks_ GUARDED_BY(env_hooks_lock_);
+ 
+   size_t enable_allocation_tracking_delta_;
+   std::atomic<bool> allocation_tracking_enabled_;
+-- 
+2.34.1
+

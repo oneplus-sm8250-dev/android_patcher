@@ -1,7 +1,7 @@
 From aed18be409f781a64eb8a64a7ebd198ee464580b Mon Sep 17 00:00:00 2001
 From: Davide Garberi <dade.garberi@gmail.com>
 Date: Thu, 9 Jul 2020 22:14:31 +0200
-Subject: [PATCH 6/7] Add C2D_COLOR_FORMAT_420_P010 to C2D_YUV_FORMAT
+Subject: [PATCH 6/8] Add C2D_COLOR_FORMAT_420_P010 to C2D_YUV_FORMAT
 
 * This has been forgotten by CAF
 
@@ -23,5 +23,5 @@ index 2ee71b1ac..79a4c9be3 100644
  } C2D_YUV_FORMAT;
  
 -- 
-2.34.0
+2.34.1
 

@@ -1,0 +1,35 @@
+From 9364f51cb427eeaf40cc011be6e0565d7ba0b2ab Mon Sep 17 00:00:00 2001
+From: Peter Collingbourne <pcc@google.com>
+Date: Thu, 10 Feb 2022 18:32:01 -0800
+Subject: [PATCH 30/31] Simplify GetNterpMethodHeader().
+
+Reuse the existing function EntryPointToCodePointer() instead of
+reimplementing it here.
+
+Change-Id: If8de17428f0ff72249653c9cfb15f754a6ecd37d
+---
+ runtime/oat_quick_method_header.cc | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/runtime/oat_quick_method_header.cc b/runtime/oat_quick_method_header.cc
+index 543ff720ef..30a3662b49 100644
+--- a/runtime/oat_quick_method_header.cc
++++ b/runtime/oat_quick_method_header.cc
+@@ -93,11 +93,9 @@ static inline OatQuickMethodHeader* GetNterpMethodHeader() {
+   if (!interpreter::IsNterpSupported()) {
+     return nullptr;
+   }
+-  uintptr_t nterp_entrypoint = reinterpret_cast<uintptr_t>(interpreter::GetNterpEntryPoint());
+-  uintptr_t nterp_code_pointer = (kRuntimeISA == InstructionSet::kArm)
+-      // Remove the Thumb mode bit if present on ARM.
+-      ? nterp_entrypoint & ~static_cast<uintptr_t>(1)
+-      : nterp_entrypoint;
++  const void* nterp_entrypoint = interpreter::GetNterpEntryPoint();
++  uintptr_t nterp_code_pointer =
++      reinterpret_cast<uintptr_t>(EntryPointToCodePointer(nterp_entrypoint));
+   return reinterpret_cast<OatQuickMethodHeader*>(nterp_code_pointer - sizeof(OatQuickMethodHeader));
+ }
+ 
+-- 
+2.34.1
+

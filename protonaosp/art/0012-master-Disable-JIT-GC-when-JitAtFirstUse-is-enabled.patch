@@ -1,7 +1,7 @@
-From 71d9a17538040de6ba0146b1056cdf8c491dae48 Mon Sep 17 00:00:00 2001
+From 65dd983db3e713222383f1234778b73a1ddc8fb0 Mon Sep 17 00:00:00 2001
 From: Mythri Alle <mythria@google.com>
 Date: Thu, 18 Nov 2021 14:55:55 +0000
-Subject: [PATCH 12/13] [master] Disable JIT GC when JitAtFirstUse is enabled
+Subject: [PATCH 12/31] [master] Disable JIT GC when JitAtFirstUse is enabled
 
 JitAtFirstUse + JIT GC are causing few deadlocks, so disabling
 JITGC for now.

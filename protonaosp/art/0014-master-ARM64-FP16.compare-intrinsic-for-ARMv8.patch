@@ -1,0 +1,312 @@
+From 76c564c07526c54378817ed0205301a0700794ce Mon Sep 17 00:00:00 2001
+From: Usama Arif <usama.arif@linaro.org>
+Date: Wed, 13 Nov 2019 13:32:54 +0000
+Subject: [PATCH 14/31] [master] ARM64: FP16.compare() intrinsic for ARMv8
+
+This CL implements an intrinsic for compare() method with
+ARMv8.2 FP16 instructions.
+
+The performance improvements using timeCompareFP16 FP16Intrinsic
+micro intrinsic benchmark on pixel4:
+- Java implementation libcore.util.FP16.compare:
+    - big cluster only: 742
+    - little cluster only: 2286
+- arm64 compare Intrinisic implementation:
+    - big cluster only: 492 (~34% faster)
+    - little cluster only: 1535 (~33% faster)
+The benchmark can be found in the following patch:
+https://android-review.linaro.org/c/linaro/art-testing/+/21039
+
+Authors: Usama Arif, Edward Pickup, Joel Goddard
+
+Test: 580-checker-fp16
+Test: art/test/testrunner/run_build_test_target.py -j80 art-test-javac
+
+Change-Id: Idbe9f56f964f044e6d725bd696459fb04d2ac76c
+---
+ compiler/optimizing/intrinsics_arm64.cc       | 63 +++++++++++++++
+ compiler/optimizing/intrinsics_arm_vixl.cc    |  1 +
+ compiler/optimizing/intrinsics_x86.cc         |  1 +
+ compiler/optimizing/intrinsics_x86_64.cc      |  1 +
+ runtime/hidden_api.h                          |  1 +
+ runtime/image.cc                              |  4 +-
+ runtime/interpreter/interpreter_intrinsics.cc |  1 +
+ runtime/intrinsics_list.h                     |  1 +
+ test/580-fp16/src-art/Main.java               | 80 +++++++++++++++++++
+ 9 files changed, 151 insertions(+), 2 deletions(-)
+
+diff --git a/compiler/optimizing/intrinsics_arm64.cc b/compiler/optimizing/intrinsics_arm64.cc
+index d0c64c2230..bb4593fe0c 100644
+--- a/compiler/optimizing/intrinsics_arm64.cc
++++ b/compiler/optimizing/intrinsics_arm64.cc
+@@ -3819,6 +3819,69 @@ void IntrinsicCodeGeneratorARM64::VisitFP16LessEquals(HInvoke* invoke) {
+   GenerateFP16Compare(invoke, codegen_, masm, ls);
+ }
+ 
++void IntrinsicLocationsBuilderARM64::VisitFP16Compare(HInvoke* invoke) {
++  if (!codegen_->GetInstructionSetFeatures().HasFP16()) {
++    return;
++  }
++
++  CreateIntIntToIntLocations(allocator_, invoke);
++  invoke->GetLocations()->AddTemp(Location::RequiresFpuRegister());
++  invoke->GetLocations()->AddTemp(Location::RequiresFpuRegister());
++}
++
++void IntrinsicCodeGeneratorARM64::VisitFP16Compare(HInvoke* invoke) {
++  MacroAssembler* masm = GetVIXLAssembler();
++  auto compareOp = [masm](const Register out,
++                          const VRegister& in0,
++                          const VRegister& in1) {
++    vixl::aarch64::Label end;
++    vixl::aarch64::Label equal;
++    vixl::aarch64::Label normal;
++
++    // The normal cases for this method are:
++    // - in0 > in1 => out = 1
++    // - in0 < in1 => out = -1
++    // - in0 == in1 => out = 0
++    // +/-Infinity are ordered by default so are handled by the normal case.
++    // There are two special cases that Fcmp is insufficient for distinguishing:
++    // - in0 and in1 are +0 and -0 => +0 > -0 so compare encoding instead of value
++    // - in0 or in1 is NaN => manually compare with in0 and in1 separately
++    __ Fcmp(in0, in1);
++    __ B(eq, &equal);  // in0==in1 or +0 -0 case.
++    __ B(vc, &normal);  // in0 and in1 are ordered (not NaN).
++
++    // Either of the inputs is NaN.
++    // NaN is equal to itself and greater than any other number so:
++    // - if only in0 is NaN => return 1
++    // - if only in1 is NaN => return -1
++    // - if both in0 and in1 are NaN => return 0
++    __ Fcmp(in0, 0.0);
++    __ Mov(out, -1);
++    __ B(vc, &end);  // in0 != NaN => out = -1.
++    __ Fcmp(in1, 0.0);
++    __ Cset(out, vc);  // if in1 != NaN => out = 1, otherwise both are NaNs => out = 0.
++    __ B(&end);
++
++    // in0 == in1 or if one of the inputs is +0 and the other is -0.
++    __ Bind(&equal);
++    // Compare encoding of in0 and in1 as the denormal fraction of single precision float.
++    // Reverse operand order because -0 > +0 when compared as S registers.
++    // The instruction Fmov(Hregister, Wregister) zero extends the Hregister.
++    // Therefore the value of bits[127:16] will not matter when doing the
++    // below Fcmp as they are set to 0.
++    __ Fcmp(in1.S(), in0.S());
++
++    __ Bind(&normal);
++    __ Cset(out, gt);  // if in0 > in1 => out = 1, otherwise out = 0.
++                       // Note: could be from equals path or original comparison
++    __ Csinv(out, out, wzr, pl);  // if in0 >= in1 out=out, otherwise out=-1.
++
++    __ Bind(&end);
++  };
++
++  GenerateFP16Compare(invoke, codegen_, masm, compareOp);
++}
++
+ static void GenerateDivideUnsigned(HInvoke* invoke, CodeGeneratorARM64* codegen) {
+   LocationSummary* locations = invoke->GetLocations();
+   MacroAssembler* masm = codegen->GetVIXLAssembler();
+diff --git a/compiler/optimizing/intrinsics_arm_vixl.cc b/compiler/optimizing/intrinsics_arm_vixl.cc
+index 337df08e94..fd0cf28559 100644
+--- a/compiler/optimizing/intrinsics_arm_vixl.cc
++++ b/compiler/optimizing/intrinsics_arm_vixl.cc
+@@ -5373,6 +5373,7 @@ UNIMPLEMENTED_INTRINSIC(ARMVIXL, FP16Greater)
+ UNIMPLEMENTED_INTRINSIC(ARMVIXL, FP16GreaterEquals)
+ UNIMPLEMENTED_INTRINSIC(ARMVIXL, FP16Less)
+ UNIMPLEMENTED_INTRINSIC(ARMVIXL, FP16LessEquals)
++UNIMPLEMENTED_INTRINSIC(ARMVIXL, FP16Compare)
+ UNIMPLEMENTED_INTRINSIC(ARMVIXL, MathMultiplyHigh)
+ 
+ UNIMPLEMENTED_INTRINSIC(ARMVIXL, StringStringIndexOf);
+diff --git a/compiler/optimizing/intrinsics_x86.cc b/compiler/optimizing/intrinsics_x86.cc
+index b0c4b5736f..9e7c2d1024 100644
+--- a/compiler/optimizing/intrinsics_x86.cc
++++ b/compiler/optimizing/intrinsics_x86.cc
+@@ -4613,6 +4613,7 @@ UNIMPLEMENTED_INTRINSIC(X86, FP16Greater)
+ UNIMPLEMENTED_INTRINSIC(X86, FP16GreaterEquals)
+ UNIMPLEMENTED_INTRINSIC(X86, FP16Less)
+ UNIMPLEMENTED_INTRINSIC(X86, FP16LessEquals)
++UNIMPLEMENTED_INTRINSIC(X86, FP16Compare)
+ UNIMPLEMENTED_INTRINSIC(X86, MathMultiplyHigh)
+ 
+ UNIMPLEMENTED_INTRINSIC(X86, StringStringIndexOf);
+diff --git a/compiler/optimizing/intrinsics_x86_64.cc b/compiler/optimizing/intrinsics_x86_64.cc
+index 63511817c0..dd4922fa95 100644
+--- a/compiler/optimizing/intrinsics_x86_64.cc
++++ b/compiler/optimizing/intrinsics_x86_64.cc
+@@ -2867,6 +2867,7 @@ UNIMPLEMENTED_INTRINSIC(X86_64, FP16GreaterEquals)
+ UNIMPLEMENTED_INTRINSIC(X86_64, FP16Less)
+ UNIMPLEMENTED_INTRINSIC(X86_64, FP16LessEquals)
+ UNIMPLEMENTED_INTRINSIC(X86_64, LongDivideUnsigned)
++UNIMPLEMENTED_INTRINSIC(X86_64, FP16Compare)
+ 
+ UNIMPLEMENTED_INTRINSIC(X86_64, StringStringIndexOf);
+ UNIMPLEMENTED_INTRINSIC(X86_64, StringStringIndexOfAfter);
+diff --git a/runtime/hidden_api.h b/runtime/hidden_api.h
+index 16c2fe8cf6..e85eccbb54 100644
+--- a/runtime/hidden_api.h
++++ b/runtime/hidden_api.h
+@@ -357,6 +357,7 @@ ALWAYS_INLINE inline uint32_t GetRuntimeFlags(ArtMethod* method)
+       case Intrinsics::kVarHandleWeakCompareAndSetRelease:
+         return 0u;
+       case Intrinsics::kFP16Ceil:
++      case Intrinsics::kFP16Compare:
+       case Intrinsics::kFP16Floor:
+       case Intrinsics::kFP16Greater:
+       case Intrinsics::kFP16GreaterEquals:
+diff --git a/runtime/image.cc b/runtime/image.cc
+index 1e5ce6dad4..427b10e4c1 100644
+--- a/runtime/image.cc
++++ b/runtime/image.cc
+@@ -29,8 +29,8 @@
+ namespace art {
+ 
+ const uint8_t ImageHeader::kImageMagic[] = { 'a', 'r', 't', '\n' };
+-// Last change: kAccNterpInvokeFastPathFlag in method modifiers.
+-const uint8_t ImageHeader::kImageVersion[] = { '0', '9', '9', '\0' };
++// Last change: FP16 Compare intrinsic.
++const uint8_t ImageHeader::kImageVersion[] = { '1', '0', '0', '\0' };
+ 
+ ImageHeader::ImageHeader(uint32_t image_reservation_size,
+                          uint32_t component_count,
+diff --git a/runtime/interpreter/interpreter_intrinsics.cc b/runtime/interpreter/interpreter_intrinsics.cc
+index 7236bad5de..6e89ea63e8 100644
+--- a/runtime/interpreter/interpreter_intrinsics.cc
++++ b/runtime/interpreter/interpreter_intrinsics.cc
+@@ -577,6 +577,7 @@ bool MterpHandleIntrinsic(ShadowFrame* shadow_frame,
+     UNIMPLEMENTED_CASE(CRC32Update /* (II)I */)
+     UNIMPLEMENTED_CASE(CRC32UpdateBytes /* (I[BII)I */)
+     UNIMPLEMENTED_CASE(CRC32UpdateByteBuffer /* (IJII)I */)
++    UNIMPLEMENTED_CASE(FP16Compare /* (SS)I */)
+     UNIMPLEMENTED_CASE(FP16ToFloat /* (S)F */)
+     UNIMPLEMENTED_CASE(FP16ToHalf /* (F)S */)
+     UNIMPLEMENTED_CASE(FP16Floor /* (S)S */)
+diff --git a/runtime/intrinsics_list.h b/runtime/intrinsics_list.h
+index c0ef1c9a68..1a8b765387 100644
+--- a/runtime/intrinsics_list.h
++++ b/runtime/intrinsics_list.h
+@@ -169,6 +169,7 @@
+   V(MemoryPokeLongNative, kStatic, kNeedsEnvironment, kWriteSideEffects, kCanThrow, "Llibcore/io/Memory;", "pokeLongNative", "(JJ)V") \
+   V(MemoryPokeShortNative, kStatic, kNeedsEnvironment, kWriteSideEffects, kCanThrow, "Llibcore/io/Memory;", "pokeShortNative", "(JS)V") \
+   V(FP16Ceil, kStatic, kNeedsEnvironment, kNoSideEffects, kNoThrow, "Llibcore/util/FP16;", "ceil", "(S)S") \
++  V(FP16Compare, kStatic, kNeedsEnvironment, kNoSideEffects, kNoThrow, "Llibcore/util/FP16;", "compare", "(SS)I") \
+   V(FP16Floor, kStatic, kNeedsEnvironment, kNoSideEffects, kNoThrow, "Llibcore/util/FP16;", "floor", "(S)S") \
+   V(FP16Rint, kStatic, kNeedsEnvironment, kNoSideEffects, kNoThrow, "Llibcore/util/FP16;", "rint", "(S)S") \
+   V(FP16ToFloat, kStatic, kNeedsEnvironment, kNoSideEffects, kNoThrow, "Llibcore/util/FP16;", "toFloat", "(S)F") \
+diff --git a/test/580-fp16/src-art/Main.java b/test/580-fp16/src-art/Main.java
+index 14b15f8358..6efaf7fde9 100644
+--- a/test/580-fp16/src-art/Main.java
++++ b/test/580-fp16/src-art/Main.java
+@@ -17,6 +17,9 @@
+ import libcore.util.FP16;
+ 
+ public class Main {
++
++    public static short FP16_ALT_NAN = (short)(FP16.NaN | 0x0098);
++
+     public Main() {
+     }
+ 
+@@ -38,6 +41,11 @@ public class Main {
+             throw new Error("Expected: " + expected + ", Calculated: " + calculated);
+         }
+     }
++    public static void assertEquals(int expected, int calculated) {
++        if (expected != calculated) {
++            throw new Error("Expected: " + expected + ", Calculated: " + calculated);
++        }
++    }
+     static public void assertTrue(boolean condition) {
+         if (!condition) {
+             throw new Error("condition not true");
+@@ -345,6 +353,76 @@ public class Main {
+         assertTrue(FP16.lessEquals(FP16.toHalf(0.1f), FP16.toHalf(0.1f)));
+     }
+ 
++    public static void testCompare() {
++        assertEquals(0, FP16.compare(FP16.NaN, FP16.NaN));
++        assertEquals(0, FP16.compare(FP16.NaN, FP16_ALT_NAN));
++        assertEquals(0, FP16.compare(FP16_ALT_NAN, FP16.NaN));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.POSITIVE_INFINITY));
++        assertEquals(-1, FP16.compare(FP16.POSITIVE_INFINITY, FP16.NaN));
++
++        assertEquals(0, FP16.compare(FP16.POSITIVE_INFINITY, FP16.POSITIVE_INFINITY));
++        assertEquals(0, FP16.compare(FP16.NEGATIVE_INFINITY, FP16.NEGATIVE_INFINITY));
++        assertEquals(1, FP16.compare(FP16.POSITIVE_INFINITY, FP16.NEGATIVE_INFINITY));
++        assertEquals(-1, FP16.compare(FP16.NEGATIVE_INFINITY, FP16.POSITIVE_INFINITY));
++
++        assertEquals(0, FP16.compare(FP16.POSITIVE_ZERO, FP16.POSITIVE_ZERO));
++        assertEquals(0, FP16.compare(FP16.NEGATIVE_ZERO, FP16.NEGATIVE_ZERO));
++        assertEquals(1, FP16.compare(FP16.POSITIVE_ZERO, FP16.NEGATIVE_ZERO));
++        assertEquals(-1, FP16.compare(FP16.NEGATIVE_ZERO, FP16.POSITIVE_ZERO));
++
++        assertEquals(0, FP16.compare(FP16.toHalf(12.462f), FP16.toHalf(12.462f)));
++        assertEquals(0, FP16.compare(FP16.toHalf(-12.462f), FP16.toHalf(-12.462f)));
++        assertEquals(1, FP16.compare(FP16.toHalf(12.462f), FP16.toHalf(-12.462f)));
++        assertEquals(-1, FP16.compare(FP16.toHalf(-12.462f), FP16.toHalf(12.462f)));
++
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.toHalf(12.462f)));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.toHalf(-12.462f)));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.EPSILON));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.LOWEST_VALUE));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.MAX_VALUE));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.MIN_NORMAL));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.MIN_VALUE));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.NEGATIVE_INFINITY));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.NEGATIVE_ZERO));
++        assertEquals(1, FP16.compare(FP16.NaN, FP16.POSITIVE_ZERO));
++
++        assertEquals(-1, FP16.compare(FP16.toHalf(12.462f), FP16.NaN));
++        assertEquals(-1, FP16.compare(FP16.toHalf(-12.462f), FP16.NaN));
++        assertEquals(-1, FP16.compare(FP16.EPSILON, FP16.NaN));
++        assertEquals(-1, FP16.compare(FP16.LOWEST_VALUE, FP16.NaN));
++        assertEquals(-1, FP16.compare(FP16.MAX_VALUE, FP16.NaN));
++        assertEquals(-1, FP16.compare(FP16.MIN_NORMAL, FP16.NaN));
++        assertEquals(-1, FP16.compare(FP16.MIN_VALUE, FP16.NaN));
++        assertEquals(-1, FP16.compare(FP16.NEGATIVE_INFINITY, FP16.NaN));
++        assertEquals(-1, FP16.compare(FP16.NEGATIVE_ZERO, FP16.NaN));
++        assertEquals(-1, FP16.compare(FP16.POSITIVE_ZERO, FP16.NaN));
++
++        assertEquals(1, FP16.compare(FP16.POSITIVE_INFINITY, FP16.NEGATIVE_ZERO));
++        assertEquals(1, FP16.compare(FP16.POSITIVE_INFINITY, FP16.POSITIVE_ZERO));
++        assertEquals(1, FP16.compare(FP16.POSITIVE_INFINITY, FP16.toHalf(12.462f)));
++        assertEquals(1, FP16.compare(FP16.POSITIVE_INFINITY, FP16.toHalf(-12.462f)));
++        assertEquals(-1, FP16.compare(FP16.NEGATIVE_INFINITY, FP16.toHalf(12.462f)));
++        assertEquals(-1, FP16.compare(FP16.NEGATIVE_INFINITY, FP16.toHalf(-12.462f)));
++        assertEquals(-1, FP16.compare(FP16.NEGATIVE_INFINITY, FP16.NEGATIVE_ZERO));
++        assertEquals(-1, FP16.compare(FP16.NEGATIVE_INFINITY, FP16.POSITIVE_ZERO));
++
++        assertEquals(-1, FP16.compare(FP16.NEGATIVE_ZERO, FP16.toHalf(12.462f)));
++        assertEquals(1, FP16.compare(FP16.NEGATIVE_ZERO, FP16.toHalf(-12.462f)));
++    }
++
++    /// CHECK-START-ARM64: void Main.testCheckCompare() disassembly (after)
++    /// CHECK-IF: hasIsaFeature("fp16")
++    ///      CHECK:                 InvokeStaticOrDirect intrinsic:FP16Compare
++    ///      CHECK:                 fcmp {{h\d+}}, {{h\d+}}
++    /// CHECK-ELSE:
++    ///      CHECK:                 InvokeStaticOrDirect intrinsic:FP16Compare
++    ///      CHECK-NOT:             fcmp {{h\d+}}, {{h\d+}}
++    /// CHECK-FI:
++
++    public static void testCheckCompare() {
++        assertEquals(0, FP16.compare(FP16.toHalf(12.462f), FP16.toHalf(12.462f)));
++    }
++
+     public static void main(String args[]) {
+         testHalfToFloatToHalfConversions();
+         testToHalf();
+@@ -356,5 +434,7 @@ public class Main {
+         testGreaterEquals();
+         testLessEquals();
+         testLess();
++        testCompare();
++        testCheckCompare();
+     }
+ }
+-- 
+2.34.1
+

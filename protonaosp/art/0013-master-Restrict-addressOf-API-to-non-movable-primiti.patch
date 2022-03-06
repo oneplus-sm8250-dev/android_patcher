@@ -1,7 +1,7 @@
-From c142fe40cd7f0d00f3d050fc74b689e941fddbb9 Mon Sep 17 00:00:00 2001
+From 22f1881ed44a86202044eccb08c7bf61b93e0f4b Mon Sep 17 00:00:00 2001
 From: Lokesh Gidra <lokeshgidra@google.com>
 Date: Thu, 2 Dec 2021 19:27:15 -0800
-Subject: [PATCH 13/13] [master] Restrict addressOf() API to non-movable
+Subject: [PATCH 13/31] [master] Restrict addressOf() API to non-movable
  primitive arrays
 
 Returning a native pointer to object arrays can lead to a lot of issues.

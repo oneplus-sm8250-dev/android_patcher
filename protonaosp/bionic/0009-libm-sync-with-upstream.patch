@@ -1,0 +1,2455 @@
+From 35efb94a0ffbc817fc37614da7b6ff064a38e3d6 Mon Sep 17 00:00:00 2001
+From: Elliott Hughes <enh@google.com>
+Date: Wed, 12 Jan 2022 17:51:20 -0800
+Subject: [PATCH 09/16] libm: sync with upstream.
+
+There's potential here to maybe lose some/all of builtins.cpp, but I'll
+look at that separately later.
+
+Test: treehugger
+Change-Id: I2c2bc1d0753affdd214daeb09fa1ac7cd73db347
+---
+ libm/Android.bp                               |   4 +-
+ libm/NOTICE                                   |  34 ++
+ libm/freebsd-compat.h                         |   4 +
+ libm/upstream-freebsd/lib/msun/bsdsrc/b_exp.c | 143 ++----
+ libm/upstream-freebsd/lib/msun/bsdsrc/b_log.c | 166 ++-----
+ .../lib/msun/bsdsrc/b_tgamma.c                | 455 +++++++++++-------
+ libm/upstream-freebsd/lib/msun/ld128/k_cosl.c |  32 +-
+ libm/upstream-freebsd/lib/msun/ld128/s_logl.c |  18 +-
+ libm/upstream-freebsd/lib/msun/src/e_hypotl.c |   2 +-
+ libm/upstream-freebsd/lib/msun/src/e_powf.c   |   2 +-
+ libm/upstream-freebsd/lib/msun/src/e_sqrt.c   |  18 +-
+ libm/upstream-freebsd/lib/msun/src/e_sqrtf.c  |   8 +
+ libm/upstream-freebsd/lib/msun/src/k_cospi.h  |  44 ++
+ .../upstream-freebsd/lib/msun/src/k_sincosl.h |  29 +-
+ libm/upstream-freebsd/lib/msun/src/k_sinpi.h  |  43 ++
+ libm/upstream-freebsd/lib/msun/src/s_cexp.c   |  16 +-
+ libm/upstream-freebsd/lib/msun/src/s_cexpf.c  |  11 +-
+ libm/upstream-freebsd/lib/msun/src/s_cosl.c   |   7 +-
+ libm/upstream-freebsd/lib/msun/src/s_cospi.c  | 152 ++++++
+ libm/upstream-freebsd/lib/msun/src/s_ctanh.c  |   8 +-
+ libm/upstream-freebsd/lib/msun/src/s_ctanhf.c |   2 +-
+ libm/upstream-freebsd/lib/msun/src/s_fma.c    |   8 +
+ libm/upstream-freebsd/lib/msun/src/s_fmaf.c   |   8 +
+ libm/upstream-freebsd/lib/msun/src/s_fmax.c   |   8 +
+ libm/upstream-freebsd/lib/msun/src/s_fmaxf.c  |   8 +
+ libm/upstream-freebsd/lib/msun/src/s_fmin.c   |   8 +
+ libm/upstream-freebsd/lib/msun/src/s_fminf.c  |   8 +
+ libm/upstream-freebsd/lib/msun/src/s_lround.c |   4 +-
+ libm/upstream-freebsd/lib/msun/src/s_scalbn.c |  89 ++--
+ .../upstream-freebsd/lib/msun/src/s_scalbnf.c |  80 ++-
+ .../upstream-freebsd/lib/msun/src/s_scalbnl.c |  92 ++--
+ .../upstream-freebsd/lib/msun/src/s_sincosl.c |   3 +-
+ libm/upstream-freebsd/lib/msun/src/s_sinpi.c  | 169 +++++++
+ 33 files changed, 1065 insertions(+), 618 deletions(-)
+ create mode 100644 libm/upstream-freebsd/lib/msun/src/k_cospi.h
+ create mode 100644 libm/upstream-freebsd/lib/msun/src/k_sinpi.h
+ create mode 100644 libm/upstream-freebsd/lib/msun/src/s_cospi.c
+ create mode 100644 libm/upstream-freebsd/lib/msun/src/s_sinpi.c
+
+diff --git a/libm/Android.bp b/libm/Android.bp
+index cbd105bdf..64f00677e 100644
+--- a/libm/Android.bp
++++ b/libm/Android.bp
+@@ -30,8 +30,6 @@ cc_library {
+     whole_static_libs: ["libarm-optimized-routines-math"],
+ 
+     srcs: [
+-        "upstream-freebsd/lib/msun/bsdsrc/b_exp.c",
+-        "upstream-freebsd/lib/msun/bsdsrc/b_log.c",
+         "upstream-freebsd/lib/msun/bsdsrc/b_tgamma.c",
+         "upstream-freebsd/lib/msun/src/catrig.c",
+         "upstream-freebsd/lib/msun/src/catrigf.c",
+@@ -112,6 +110,7 @@ cc_library {
+         "upstream-freebsd/lib/msun/src/s_copysign.c",
+         "upstream-freebsd/lib/msun/src/s_copysignf.c",
+         "upstream-freebsd/lib/msun/src/s_cos.c",
++        "upstream-freebsd/lib/msun/src/s_cospi.c",
+         "upstream-freebsd/lib/msun/src/s_cpow.c",
+         "upstream-freebsd/lib/msun/src/s_cpowf.c",
+         "upstream-freebsd/lib/msun/src/s_cpowl.c",
+@@ -177,6 +176,7 @@ cc_library {
+         "upstream-freebsd/lib/msun/src/s_significand.c",
+         "upstream-freebsd/lib/msun/src/s_significandf.c",
+         "upstream-freebsd/lib/msun/src/s_sin.c",
++        "upstream-freebsd/lib/msun/src/s_sinpi.c",
+         "upstream-freebsd/lib/msun/src/s_sincos.c",
+         "upstream-freebsd/lib/msun/src/s_tan.c",
+         "upstream-freebsd/lib/msun/src/s_tanf.c",
+diff --git a/libm/NOTICE b/libm/NOTICE
+index 62d253b3a..e24d58d25 100644
+--- a/libm/NOTICE
++++ b/libm/NOTICE
+@@ -661,6 +661,14 @@ SUCH DAMAGE.
+ 
+ -------------------------------------------------------------------
+ 
++Copyright (c) 2005-2020 Rich Felker, et al.
++
++
++Please see https://git.musl-libc.org/cgit/musl/tree/COPYRIGHT
++for all contributors to musl.
++
++-------------------------------------------------------------------
++
+ Copyright (c) 2007 David Schultz
+ All rights reserved.
+ 
+@@ -1145,6 +1153,32 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ -------------------------------------------------------------------
+ 
++Copyright (c) 2017 Steven G. Kargl
++All rights reserved.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions
++are met:
++1. Redistributions of source code must retain the above copyright
++   notice unmodified, this list of conditions, and the following
++   disclaimer.
++2. Redistributions in binary form must reproduce the above copyright
++   notice, this list of conditions and the following disclaimer in the
++   documentation and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++-------------------------------------------------------------------
++
+ From: @(#)s_ilogb.c 5.1 93/09/24
+ ====================================================
+ Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+diff --git a/libm/freebsd-compat.h b/libm/freebsd-compat.h
+index f400f2a2c..7accc553d 100644
+--- a/libm/freebsd-compat.h
++++ b/libm/freebsd-compat.h
+@@ -39,3 +39,7 @@ int digittoint(char ch);
+ 
+ // Similarly rename _scan_nan.
+ #define _scan_nan __libm_scan_nan
++
++// FreeBSD exports these in <math.h> but we don't.
++double cospi(double);
++double sinpi(double);
+diff --git a/libm/upstream-freebsd/lib/msun/bsdsrc/b_exp.c b/libm/upstream-freebsd/lib/msun/bsdsrc/b_exp.c
+index 89a290529..c667293ed 100644
+--- a/libm/upstream-freebsd/lib/msun/bsdsrc/b_exp.c
++++ b/libm/upstream-freebsd/lib/msun/bsdsrc/b_exp.c
+@@ -33,7 +33,6 @@
+ #include <sys/cdefs.h>
+ __FBSDID("$FreeBSD$");
+ 
+-
+ /* EXP(X)
+  * RETURN THE EXPONENTIAL OF X
+  * DOUBLE PRECISION (IEEE 53 bits, VAX D FORMAT 56 BITS)
+@@ -41,14 +40,14 @@ __FBSDID("$FreeBSD$");
+  * REVISED BY K.C. NG on 2/6/85, 2/15/85, 3/7/85, 3/24/85, 4/16/85, 6/14/86.
+  *
+  * Required system supported functions:
+- *	scalb(x,n)
++ *	ldexp(x,n)
+  *	copysign(x,y)
+- *	finite(x)
++ *	isfinite(x)
+  *
+  * Method:
+  *	1. Argument Reduction: given the input x, find r and integer k such
+  *	   that
+- *	                   x = k*ln2 + r,  |r| <= 0.5*ln2 .
++ *	        x = k*ln2 + r,  |r| <= 0.5*ln2.
+  *	   r will be represented as r := z+c for better accuracy.
+  *
+  *	2. Compute exp(r) by
+@@ -69,105 +68,59 @@ __FBSDID("$FreeBSD$");
+  *	with 1,156,000 random arguments on a VAX, the maximum observed
+  *	error was 0.869 ulps (units in the last place).
+  */
+-
+-#include "mathimpl.h"
+-
+-static const double p1 = 0x1.555555555553ep-3;
+-static const double p2 = -0x1.6c16c16bebd93p-9;
+-static const double p3 = 0x1.1566aaf25de2cp-14;
+-static const double p4 = -0x1.bbd41c5d26bf1p-20;
+-static const double p5 = 0x1.6376972bea4d0p-25;
+-static const double ln2hi = 0x1.62e42fee00000p-1;
+-static const double ln2lo = 0x1.a39ef35793c76p-33;
+-static const double lnhuge = 0x1.6602b15b7ecf2p9;
+-static const double lntiny = -0x1.77af8ebeae354p9;
+-static const double invln2 = 0x1.71547652b82fep0;
+-
+-#if 0
+-double exp(x)
+-double x;
+-{
+-	double  z,hi,lo,c;
+-	int k;
+-
+-#if !defined(vax)&&!defined(tahoe)
+-	if(x!=x) return(x);	/* x is NaN */
+-#endif	/* !defined(vax)&&!defined(tahoe) */
+-	if( x <= lnhuge ) {
+-		if( x >= lntiny ) {
+-
+-		    /* argument reduction : x --> x - k*ln2 */
+-
+-			k=invln2*x+copysign(0.5,x);	/* k=NINT(x/ln2) */
+-
+-		    /* express x-k*ln2 as hi-lo and let x=hi-lo rounded */
+-
+-			hi=x-k*ln2hi;
+-			x=hi-(lo=k*ln2lo);
+-
+-		    /* return 2^k*[1+x+x*c/(2+c)]  */
+-			z=x*x;
+-			c= x - z*(p1+z*(p2+z*(p3+z*(p4+z*p5))));
+-			return  scalb(1.0+(hi-(lo-(x*c)/(2.0-c))),k);
+-
+-		}
+-		/* end of x > lntiny */
+-
+-		else
+-		     /* exp(-big#) underflows to zero */
+-		     if(finite(x))  return(scalb(1.0,-5000));
+-
+-		     /* exp(-INF) is zero */
+-		     else return(0.0);
+-	}
+-	/* end of x < lnhuge */
+-
+-	else
+-	/* exp(INF) is INF, exp(+big#) overflows to INF */
+-	    return( finite(x) ?  scalb(1.0,5000)  : x);
+-}
+-#endif
++static const double
++    p1 =  1.6666666666666660e-01, /* 0x3fc55555, 0x55555553 */
++    p2 = -2.7777777777564776e-03, /* 0xbf66c16c, 0x16c0ac3c */
++    p3 =  6.6137564717940088e-05, /* 0x3f11566a, 0xb5c2ba0d */
++    p4 = -1.6534060280704225e-06, /* 0xbebbbd53, 0x273e8fb7 */
++    p5 =  4.1437773411069054e-08; /* 0x3e663f2a, 0x09c94b6c */
++
++static const double
++    ln2hi = 0x1.62e42fee00000p-1,   /* High 32 bits round-down. */
++    ln2lo = 0x1.a39ef35793c76p-33;  /* Next 53 bits round-to-nearst. */
++
++static const double
++    lnhuge =  0x1.6602b15b7ecf2p9,  /* (DBL_MAX_EXP + 9) * log(2.) */
++    lntiny = -0x1.77af8ebeae354p9,  /* (DBL_MIN_EXP - 53 - 10) * log(2.) */
++    invln2 =  0x1.71547652b82fep0;  /* 1 / log(2.) */
+ 
+ /* returns exp(r = x + c) for |c| < |x| with no overlap.  */
+ 
+-double __exp__D(x, c)
+-double x, c;
++static double
++__exp__D(double x, double c)
+ {
+-	double  z,hi,lo;
++	double hi, lo, z;
+ 	int k;
+ 
+-	if (x != x)	/* x is NaN */
++	if (x != x)	/* x is NaN. */
+ 		return(x);
+-	if ( x <= lnhuge ) {
+-		if ( x >= lntiny ) {
+ 
+-		    /* argument reduction : x --> x - k*ln2 */
+-			z = invln2*x;
+-			k = z + copysign(.5, x);
+-
+-		    /* express (x+c)-k*ln2 as hi-lo and let x=hi-lo rounded */
+-
+-			hi=(x-k*ln2hi);			/* Exact. */
+-			x= hi - (lo = k*ln2lo-c);
+-		    /* return 2^k*[1+x+x*c/(2+c)]  */
+-			z=x*x;
+-			c= x - z*(p1+z*(p2+z*(p3+z*(p4+z*p5))));
+-			c = (x*c)/(2.0-c);
+-
+-			return  scalb(1.+(hi-(lo - c)), k);
++	if (x <= lnhuge) {
++		if (x >= lntiny) {
++			/* argument reduction: x --> x - k*ln2 */
++			z = invln2 * x;
++			k = z + copysign(0.5, x);
++
++		    	/*
++			 * Express (x + c) - k * ln2 as hi - lo.
++			 * Let x = hi - lo rounded.
++			 */
++			hi = x - k * ln2hi;	/* Exact. */
++			lo = k * ln2lo - c;
++			x = hi - lo;
++
++			/* Return 2^k*[1+x+x*c/(2+c)]  */
++			z = x * x;
++			c = x - z * (p1 + z * (p2 + z * (p3 + z * (p4 +
++			    z * p5))));
++			c = (x * c) / (2 - c);
++
++			return (ldexp(1 + (hi - (lo - c)), k));
++		} else {
++			/* exp(-INF) is 0. exp(-big) underflows to 0.  */
++			return (isfinite(x) ? ldexp(1., -5000) : 0);
+ 		}
+-		/* end of x > lntiny */
+-
+-		else
+-		     /* exp(-big#) underflows to zero */
+-		     if(finite(x))  return(scalb(1.0,-5000));
+-
+-		     /* exp(-INF) is zero */
+-		     else return(0.0);
+-	}
+-	/* end of x < lnhuge */
+-
+-	else
++	} else
+ 	/* exp(INF) is INF, exp(+big#) overflows to INF */
+-	    return( finite(x) ?  scalb(1.0,5000)  : x);
++		return (isfinite(x) ? ldexp(1., 5000) : x);
+ }
+diff --git a/libm/upstream-freebsd/lib/msun/bsdsrc/b_log.c b/libm/upstream-freebsd/lib/msun/bsdsrc/b_log.c
+index c164dfa50..9d09ac754 100644
+--- a/libm/upstream-freebsd/lib/msun/bsdsrc/b_log.c
++++ b/libm/upstream-freebsd/lib/msun/bsdsrc/b_log.c
+@@ -33,10 +33,6 @@
+ #include <sys/cdefs.h>
+ __FBSDID("$FreeBSD$");
+ 
+-#include <math.h>
+-
+-#include "mathimpl.h"
+-
+ /* Table-driven natural logarithm.
+  *
+  * This code was derived, with minor modifications, from:
+@@ -44,25 +40,27 @@ __FBSDID("$FreeBSD$");
+  *	Logarithm in IEEE Floating-Point arithmetic." ACM Trans.
+  *	Math Software, vol 16. no 4, pp 378-400, Dec 1990).
+  *
+- * Calculates log(2^m*F*(1+f/F)), |f/j| <= 1/256,
++ * Calculates log(2^m*F*(1+f/F)), |f/F| <= 1/256,
+  * where F = j/128 for j an integer in [0, 128].
+  *
+  * log(2^m) = log2_hi*m + log2_tail*m
+- * since m is an integer, the dominant term is exact.
++ * The leading term is exact, because m is an integer,
+  * m has at most 10 digits (for subnormal numbers),
+  * and log2_hi has 11 trailing zero bits.
+  *
+- * log(F) = logF_hi[j] + logF_lo[j] is in tabular form in log_table.h
++ * log(F) = logF_hi[j] + logF_lo[j] is in table below.
+  * logF_hi[] + 512 is exact.
+  *
+  * log(1+f/F) = 2*f/(2*F + f) + 1/12 * (2*f/(2*F + f))**3 + ...
+- * the leading term is calculated to extra precision in two
++ *
++ * The leading term is calculated to extra precision in two
+  * parts, the larger of which adds exactly to the dominant
+  * m and F terms.
++ *
+  * There are two cases:
+- *	1. when m, j are non-zero (m | j), use absolute
++ *	1. When m and j are non-zero (m | j), use absolute
+  *	   precision for the leading term.
+- *	2. when m = j = 0, |1-x| < 1/256, and log(x) ~= (x-1).
++ *	2. When m = j = 0, |1-x| < 1/256, and log(x) ~= (x-1).
+  *	   In this case, use a relative precision of 24 bits.
+  * (This is done differently in the original paper)
+  *
+@@ -70,11 +68,21 @@ __FBSDID("$FreeBSD$");
+  *	0	return signalling -Inf
+  *	neg	return signalling NaN
+  *	+Inf	return +Inf
+-*/
++ */
+ 
+ #define N 128
+ 
+-/* Table of log(Fj) = logF_head[j] + logF_tail[j], for Fj = 1+j/128.
++/*
++ * Coefficients in the polynomial approximation of log(1+f/F).
++ * Domain of x is [0,1./256] with 2**(-64.187) precision.
++ */
++static const double
++    A1 =  8.3333333333333329e-02, /* 0x3fb55555, 0x55555555 */
++    A2 =  1.2499999999943598e-02, /* 0x3f899999, 0x99991a98 */
++    A3 =  2.2321527525957776e-03; /* 0x3f624929, 0xe24e70be */
++
++/*
++ * Table of log(Fj) = logF_head[j] + logF_tail[j], for Fj = 1+j/128.
+  * Used for generation of extend precision logarithms.
+  * The constant 35184372088832 is 2^45, so the divide is exact.
+  * It ensures correct reading of logF_head, even for inaccurate
+@@ -82,12 +90,7 @@ __FBSDID("$FreeBSD$");
+  * right answer for integers less than 2^53.)
+  * Values for log(F) were generated using error < 10^-57 absolute
+  * with the bc -l package.
+-*/
+-static double	A1 = 	  .08333333333333178827;
+-static double	A2 = 	  .01250000000377174923;
+-static double	A3 =	 .002232139987919447809;
+-static double	A4 =	.0004348877777076145742;
+-
++ */
+ static double logF_head[N+1] = {
+ 	0.,
+ 	.007782140442060381246,
+@@ -351,118 +354,51 @@ static double logF_tail[N+1] = {
+ 	 .00000000000025144230728376072,
+ 	-.00000000000017239444525614834
+ };
+-
+-#if 0
+-double
+-#ifdef _ANSI_SOURCE
+-log(double x)
+-#else
+-log(x) double x;
+-#endif
+-{
+-	int m, j;
+-	double F, f, g, q, u, u2, v, zero = 0.0, one = 1.0;
+-	volatile double u1;
+-
+-	/* Catch special cases */
+-	if (x <= 0)
+-		if (x == zero)	/* log(0) = -Inf */
+-			return (-one/zero);
+-		else		/* log(neg) = NaN */
+-			return (zero/zero);
+-	else if (!finite(x))
+-		return (x+x);		/* x = NaN, Inf */
+-
+-	/* Argument reduction: 1 <= g < 2; x/2^m = g;	*/
+-	/* y = F*(1 + f/F) for |f| <= 2^-8		*/
+-
+-	m = logb(x);
+-	g = ldexp(x, -m);
+-	if (m == -1022) {
+-		j = logb(g), m += j;
+-		g = ldexp(g, -j);
+-	}
+-	j = N*(g-1) + .5;
+-	F = (1.0/N) * j + 1;	/* F*128 is an integer in [128, 512] */
+-	f = g - F;
+-
+-	/* Approximate expansion for log(1+f/F) ~= u + q */
+-	g = 1/(2*F+f);
+-	u = 2*f*g;
+-	v = u*u;
+-	q = u*v*(A1 + v*(A2 + v*(A3 + v*A4)));
+-
+-    /* case 1: u1 = u rounded to 2^-43 absolute.  Since u < 2^-8,
+-     * 	       u1 has at most 35 bits, and F*u1 is exact, as F has < 8 bits.
+-     *         It also adds exactly to |m*log2_hi + log_F_head[j] | < 750
+-    */
+-	if (m | j)
+-		u1 = u + 513, u1 -= 513;
+-
+-    /* case 2:	|1-x| < 1/256. The m- and j- dependent terms are zero;
+-     * 		u1 = u to 24 bits.
+-    */
+-	else
+-		u1 = u, TRUNC(u1);
+-	u2 = (2.0*(f - F*u1) - u1*f) * g;
+-			/* u1 + u2 = 2f/(2F+f) to extra precision.	*/
+-
+-	/* log(x) = log(2^m*F*(1+f/F)) =				*/
+-	/* (m*log2_hi+logF_head[j]+u1) + (m*log2_lo+logF_tail[j]+q);	*/
+-	/* (exact) + (tiny)						*/
+-
+-	u1 += m*logF_head[N] + logF_head[j];		/* exact */
+-	u2 = (u2 + logF_tail[j]) + q;			/* tiny */
+-	u2 += logF_tail[N]*m;
+-	return (u1 + u2);
+-}
+-#endif
+-
+ /*
+  * Extra precision variant, returning struct {double a, b;};
+- * log(x) = a+b to 63 bits, with a rounded to 26 bits.
++ * log(x) = a+b to 63 bits, with 'a' rounded to 24 bits.
+  */
+-struct Double
+-#ifdef _ANSI_SOURCE
++static struct Double
+ __log__D(double x)
+-#else
+-__log__D(x) double x;
+-#endif
+ {
+ 	int m, j;
+-	double F, f, g, q, u, v, u2;
+-	volatile double u1;
++	double F, f, g, q, u, v, u1, u2;
+ 	struct Double r;
+ 
+-	/* Argument reduction: 1 <= g < 2; x/2^m = g;	*/
+-	/* y = F*(1 + f/F) for |f| <= 2^-8		*/
+-
+-	m = logb(x);
+-	g = ldexp(x, -m);
++	/*
++	 * Argument reduction: 1 <= g < 2; x/2^m = g;
++	 * y = F*(1 + f/F) for |f| <= 2^-8
++	 */
++	g = frexp(x, &m);
++	g *= 2;
++	m--;
+ 	if (m == -1022) {
+-		j = logb(g), m += j;
++		j = ilogb(g);
++		m += j;
+ 		g = ldexp(g, -j);
+ 	}
+-	j = N*(g-1) + .5;
+-	F = (1.0/N) * j + 1;
++	j = N * (g - 1) + 0.5;
++	F = (1. / N) * j + 1;
+ 	f = g - F;
+ 
+-	g = 1/(2*F+f);
+-	u = 2*f*g;
+-	v = u*u;
+-	q = u*v*(A1 + v*(A2 + v*(A3 + v*A4)));
+-	if (m | j)
+-		u1 = u + 513, u1 -= 513;
+-	else
+-		u1 = u, TRUNC(u1);
+-	u2 = (2.0*(f - F*u1) - u1*f) * g;
++	g = 1 / (2 * F + f);
++	u = 2 * f * g;
++	v = u * u;
++	q = u * v * (A1 + v * (A2 + v * A3));
++	if (m | j) {
++		u1 = u + 513;
++		u1 -= 513;
++	} else {
++		u1 = (float)u;
++	}
++	u2 = (2 * (f - F * u1) - u1 * f) * g;
+ 
+-	u1 += m*logF_head[N] + logF_head[j];
++	u1 += m * logF_head[N] + logF_head[j];
+ 
+-	u2 +=  logF_tail[j]; u2 += q;
+-	u2 += logF_tail[N]*m;
+-	r.a = u1 + u2;			/* Only difference is here */
+-	TRUNC(r.a);
++	u2 += logF_tail[j];
++	u2 += q;
++	u2 += logF_tail[N] * m;
++	r.a = (float)(u1 + u2);		/* Only difference is here. */
+ 	r.b = (u1 - r.a) + u2;
+ 	return (r);
+ }
+diff --git a/libm/upstream-freebsd/lib/msun/bsdsrc/b_tgamma.c b/libm/upstream-freebsd/lib/msun/bsdsrc/b_tgamma.c
+index 5cb1f93f2..493ced376 100644
+--- a/libm/upstream-freebsd/lib/msun/bsdsrc/b_tgamma.c
++++ b/libm/upstream-freebsd/lib/msun/bsdsrc/b_tgamma.c
+@@ -29,37 +29,46 @@
+  * SUCH DAMAGE.
+  */
+ 
++/*
++ * The original code, FreeBSD's old svn r93211, contained the following
++ * attribution:
++ *
++ *    This code by P. McIlroy, Oct 1992;
++ *
++ *    The financial support of UUNET Communications Services is greatfully
++ *    acknowledged.
++ *
++ *  The algorithm remains, but the code has been re-arranged to facilitate
++ *  porting to other precisions.
++ */
++
+ /* @(#)gamma.c	8.1 (Berkeley) 6/4/93 */
+ #include <sys/cdefs.h>
+ __FBSDID("$FreeBSD$");
+ 
+-/*
+- * This code by P. McIlroy, Oct 1992;
+- *
+- * The financial support of UUNET Communications Services is greatfully
+- * acknowledged.
+- */
++#include <float.h>
+ 
+-#include <math.h>
+-#include "mathimpl.h"
++#include "math.h"
++#include "math_private.h"
+ 
+-/* METHOD:
+- * x < 0: Use reflection formula, G(x) = pi/(sin(pi*x)*x*G(x))
+- * 	At negative integers, return NaN and raise invalid.
+- *
+- * x < 6.5:
+- *	Use argument reduction G(x+1) = xG(x) to reach the
+- *	range [1.066124,2.066124].  Use a rational
+- *	approximation centered at the minimum (x0+1) to
+- *	ensure monotonicity.
+- *
+- * x >= 6.5: Use the asymptotic approximation (Stirling's formula)
+- *	adjusted for equal-ripples:
+- *
+- *	log(G(x)) ~= (x-.5)*(log(x)-1) + .5(log(2*pi)-1) + 1/x*P(1/(x*x))
++/* Used in b_log.c and below. */
++struct Double {
++	double a;
++	double b;
++};
++
++#include "b_log.c"
++#include "b_exp.c"
++
++/*
++ * The range is broken into several subranges.  Each is handled by its
++ * helper functions.
+  *
+- *	Keep extra precision in multiplying (x-.5)(log(x)-1), to
+- *	avoid premature round-off.
++ *         x >=   6.0: large_gam(x)
++ *   6.0 > x >= xleft: small_gam(x) where xleft = 1 + left + x0.
++ * xleft > x >   iota: smaller_gam(x) where iota = 1e-17.
++ *  iota > x >  -itoa: Handle x near 0.
++ * -iota > x         : neg_gam
+  *
+  * Special values:
+  *	-Inf:			return NaN and raise invalid;
+@@ -77,201 +86,224 @@ __FBSDID("$FreeBSD$");
+  *	Maximum observed error < 4ulp in 1,000,000 trials.
+  */
+ 
+-static double neg_gam(double);
+-static double small_gam(double);
+-static double smaller_gam(double);
+-static struct Double large_gam(double);
+-static struct Double ratfun_gam(double, double);
+-
+-/*
+- * Rational approximation, A0 + x*x*P(x)/Q(x), on the interval
+- * [1.066.., 2.066..] accurate to 4.25e-19.
+- */
+-#define LEFT -.3955078125	/* left boundary for rat. approx */
+-#define x0 .461632144968362356785	/* xmin - 1 */
+-
+-#define a0_hi 0.88560319441088874992
+-#define a0_lo -.00000000000000004996427036469019695
+-#define P0	 6.21389571821820863029017800727e-01
+-#define P1	 2.65757198651533466104979197553e-01
+-#define P2	 5.53859446429917461063308081748e-03
+-#define P3	 1.38456698304096573887145282811e-03
+-#define P4	 2.40659950032711365819348969808e-03
+-#define Q0	 1.45019531250000000000000000000e+00
+-#define Q1	 1.06258521948016171343454061571e+00
+-#define Q2	-2.07474561943859936441469926649e-01
+-#define Q3	-1.46734131782005422506287573015e-01
+-#define Q4	 3.07878176156175520361557573779e-02
+-#define Q5	 5.12449347980666221336054633184e-03
+-#define Q6	-1.76012741431666995019222898833e-03
+-#define Q7	 9.35021023573788935372153030556e-05
+-#define Q8	 6.13275507472443958924745652239e-06
+ /*
+  * Constants for large x approximation (x in [6, Inf])
+  * (Accurate to 2.8*10^-19 absolute)
+  */
+-#define lns2pi_hi 0.418945312500000
+-#define lns2pi_lo -.000006779295327258219670263595
+-#define Pa0	 8.33333333333333148296162562474e-02
+-#define Pa1	-2.77777777774548123579378966497e-03
+-#define Pa2	 7.93650778754435631476282786423e-04
+-#define Pa3	-5.95235082566672847950717262222e-04
+-#define Pa4	 8.41428560346653702135821806252e-04
+-#define Pa5	-1.89773526463879200348872089421e-03
+-#define Pa6	 5.69394463439411649408050664078e-03
+-#define Pa7	-1.44705562421428915453880392761e-02
+-
+-static const double zero = 0., one = 1.0, tiny = 1e-300;
+ 
+-double
+-tgamma(x)
+-	double x;
++static const double zero = 0.;
++static const volatile double tiny = 1e-300;
++/*
++ * x >= 6
++ *
++ * Use the asymptotic approximation (Stirling's formula) adjusted fof
++ * equal-ripples:
++ *
++ * log(G(x)) ~= (x-0.5)*(log(x)-1) + 0.5(log(2*pi)-1) + 1/x*P(1/(x*x))
++ *
++ * Keep extra precision in multiplying (x-.5)(log(x)-1), to avoid
++ * premature round-off.
++ *
++ * Accurate to max(ulp(1/128) absolute, 2^-66 relative) error.
++ */
++static const double
++    ln2pi_hi =  0.41894531250000000,
++    ln2pi_lo = -6.7792953272582197e-6,
++    Pa0 =  8.3333333333333329e-02, /* 0x3fb55555, 0x55555555 */
++    Pa1 = -2.7777777777735404e-03, /* 0xbf66c16c, 0x16c145ec */
++    Pa2 =  7.9365079044114095e-04, /* 0x3f4a01a0, 0x183de82d */
++    Pa3 = -5.9523715464225254e-04, /* 0xbf438136, 0x0e681f62 */
++    Pa4 =  8.4161391899445698e-04, /* 0x3f4b93f8, 0x21042a13 */
++    Pa5 = -1.9065246069191080e-03, /* 0xbf5f3c8b, 0x357cb64e */
++    Pa6 =  5.9047708485785158e-03, /* 0x3f782f99, 0xdaf5d65f */
++    Pa7 = -1.6484018705183290e-02; /* 0xbf90e12f, 0xc4fb4df0 */
++
++static struct Double
++large_gam(double x)
+ {
++	double p, z, thi, tlo, xhi, xlo;
+ 	struct Double u;
+ 
+-	if (x >= 6) {
+-		if(x > 171.63)
+-			return (x / zero);
+-		u = large_gam(x);
+-		return(__exp__D(u.a, u.b));
+-	} else if (x >= 1.0 + LEFT + x0)
+-		return (small_gam(x));
+-	else if (x > 1.e-17)
+-		return (smaller_gam(x));
+-	else if (x > -1.e-17) {
+-		if (x != 0.0)
+-			u.a = one - tiny;	/* raise inexact */
+-		return (one/x);
+-	} else if (!finite(x))
+-		return (x - x);		/* x is NaN or -Inf */
+-	else
+-		return (neg_gam(x));
++	z = 1 / (x * x);
++	p = Pa0 + z * (Pa1 + z * (Pa2 + z * (Pa3 + z * (Pa4 + z * (Pa5 +
++	    z * (Pa6 + z * Pa7))))));
++	p = p / x;
++
++	u = __log__D(x);
++	u.a -= 1;
++
++	/* Split (x - 0.5) in high and low parts. */
++	x -= 0.5;
++	xhi = (float)x;
++	xlo = x - xhi;
++
++	/* Compute  t = (x-.5)*(log(x)-1) in extra precision. */
++	thi = xhi * u.a;
++	tlo = xlo * u.a + x * u.b;
++
++	/* Compute thi + tlo + ln2pi_hi + ln2pi_lo + p. */
++	tlo += ln2pi_lo;
++	tlo += p;
++	u.a = ln2pi_hi + tlo;
++	u.a += thi;
++	u.b = thi - u.a;
++	u.b += ln2pi_hi;
++	u.b += tlo;
++	return (u);
+ }
+ /*
+- * Accurate to max(ulp(1/128) absolute, 2^-66 relative) error.
++ * Rational approximation, A0 + x * x * P(x) / Q(x), on the interval
++ * [1.066.., 2.066..] accurate to 4.25e-19.
++ *
++ * Returns r.a + r.b = a0 + (z + c)^2 * p / q, with r.a truncated.
+  */
++static const double
++#if 0
++    a0_hi =  8.8560319441088875e-1,
++    a0_lo = -4.9964270364690197e-17,
++#else
++    a0_hi =  8.8560319441088875e-01, /* 0x3fec56dc, 0x82a74aef */
++    a0_lo = -4.9642368725563397e-17, /* 0xbc8c9deb, 0xaa64afc3 */
++#endif
++    P0 =  6.2138957182182086e-1,
++    P1 =  2.6575719865153347e-1,
++    P2 =  5.5385944642991746e-3,
++    P3 =  1.3845669830409657e-3,
++    P4 =  2.4065995003271137e-3,
++    Q0 =  1.4501953125000000e+0,
++    Q1 =  1.0625852194801617e+0,
++    Q2 = -2.0747456194385994e-1,
++    Q3 = -1.4673413178200542e-1,
++    Q4 =  3.0787817615617552e-2,
++    Q5 =  5.1244934798066622e-3,
++    Q6 = -1.7601274143166700e-3,
++    Q7 =  9.3502102357378894e-5,
++    Q8 =  6.1327550747244396e-6;
++
+ static struct Double
+-large_gam(x)
+-	double x;
++ratfun_gam(double z, double c)
+ {
+-	double z, p;
+-	struct Double t, u, v;
++	double p, q, thi, tlo;
++	struct Double r;
+ 
+-	z = one/(x*x);
+-	p = Pa0+z*(Pa1+z*(Pa2+z*(Pa3+z*(Pa4+z*(Pa5+z*(Pa6+z*Pa7))))));
+-	p = p/x;
++	q = Q0 + z * (Q1 + z * (Q2 + z * (Q3 + z * (Q4 + z * (Q5 + 
++	    z * (Q6 + z * (Q7 + z * Q8)))))));
++	p = P0 + z * (P1 + z * (P2 + z * (P3 + z * P4)));
++	p = p / q;
+ 
+-	u = __log__D(x);
+-	u.a -= one;
+-	v.a = (x -= .5);
+-	TRUNC(v.a);
+-	v.b = x - v.a;
+-	t.a = v.a*u.a;			/* t = (x-.5)*(log(x)-1) */
+-	t.b = v.b*u.a + x*u.b;
+-	/* return t.a + t.b + lns2pi_hi + lns2pi_lo + p */
+-	t.b += lns2pi_lo; t.b += p;
+-	u.a = lns2pi_hi + t.b; u.a += t.a;
+-	u.b = t.a - u.a;
+-	u.b += lns2pi_hi; u.b += t.b;
+-	return (u);
++	/* Split z into high and low parts. */
++	thi = (float)z;
++	tlo = (z - thi) + c;
++	tlo *= (thi + z);
++
++	/* Split (z+c)^2 into high and low parts. */
++	thi *= thi;
++	q = thi;
++	thi = (float)thi;
++	tlo += (q - thi);
++
++	/* Split p/q into high and low parts. */
++	r.a = (float)p;
++	r.b = p - r.a;
++
++	tlo = tlo * p + thi * r.b + a0_lo;
++	thi *= r.a;				/* t = (z+c)^2*(P/Q) */
++	r.a = (float)(thi + a0_hi);
++	r.b = ((a0_hi - r.a) + thi) + tlo;
++	return (r);				/* r = a0 + t */
+ }
+ /*
++ * x < 6
++ *
++ * Use argument reduction G(x+1) = xG(x) to reach the range [1.066124,
++ * 2.066124].  Use a rational approximation centered at the minimum
++ * (x0+1) to ensure monotonicity.
++ *
+  * Good to < 1 ulp.  (provably .90 ulp; .87 ulp on 1,000,000 runs.)
+  * It also has correct monotonicity.
+  */
++static const double
++    left = -0.3955078125,	/* left boundary for rat. approx */
++    x0 = 4.6163214496836236e-1;	/* xmin - 1 */
++
+ static double
+-small_gam(x)
+-	double x;
++small_gam(double x)
+ {
+-	double y, ym1, t;
++	double t, y, ym1;
+ 	struct Double yy, r;
+-	y = x - one;
+-	ym1 = y - one;
+-	if (y <= 1.0 + (LEFT + x0)) {
++
++	y = x - 1;
++	if (y <= 1 + (left + x0)) {
+ 		yy = ratfun_gam(y - x0, 0);
+ 		return (yy.a + yy.b);
+ 	}
+-	r.a = y;
+-	TRUNC(r.a);
+-	yy.a = r.a - one;
+-	y = ym1;
+-	yy.b = r.b = y - yy.a;
++
++	r.a = (float)y;
++	yy.a = r.a - 1;
++	y = y - 1 ;
++	r.b = yy.b = y - yy.a;
++
+ 	/* Argument reduction: G(x+1) = x*G(x) */
+-	for (ym1 = y-one; ym1 > LEFT + x0; y = ym1--, yy.a--) {
+-		t = r.a*yy.a;
+-		r.b = r.a*yy.b + y*r.b;
+-		r.a = t;
+-		TRUNC(r.a);
++	for (ym1 = y - 1; ym1 > left + x0; y = ym1--, yy.a--) {
++		t = r.a * yy.a;
++		r.b = r.a * yy.b + y * r.b;
++		r.a = (float)t;
+ 		r.b += (t - r.a);
+ 	}
++
+ 	/* Return r*tgamma(y). */
+ 	yy = ratfun_gam(y - x0, 0);
+-	y = r.b*(yy.a + yy.b) + r.a*yy.b;
+-	y += yy.a*r.a;
++	y = r.b * (yy.a + yy.b) + r.a * yy.b;
++	y += yy.a * r.a;
+ 	return (y);
+ }
+ /*
+- * Good on (0, 1+x0+LEFT].  Accurate to 1ulp.
++ * Good on (0, 1+x0+left].  Accurate to 1 ulp.
+  */
+ static double
+-smaller_gam(x)
+-	double x;
++smaller_gam(double x)
+ {
+-	double t, d;
+-	struct Double r, xx;
+-	if (x < x0 + LEFT) {
+-		t = x, TRUNC(t);
+-		d = (t+x)*(x-t);
++	double d, rhi, rlo, t, xhi, xlo;
++	struct Double r;
++
++	if (x < x0 + left) {
++		t = (float)x;
++		d = (t + x) * (x - t);
+ 		t *= t;
+-		xx.a = (t + x), TRUNC(xx.a);
+-		xx.b = x - xx.a; xx.b += t; xx.b += d;
+-		t = (one-x0); t += x;
+-		d = (one-x0); d -= t; d += x;
+-		x = xx.a + xx.b;
++		xhi = (float)(t + x);
++		xlo = x - xhi;
++		xlo += t;
++		xlo += d;
++		t = 1 - x0;
++		t += x;
++		d = 1 - x0;
++		d -= t;
++		d += x;
++		x = xhi + xlo;
+ 	} else {
+-		xx.a =  x, TRUNC(xx.a);
+-		xx.b = x - xx.a;
++		xhi = (float)x;
++		xlo = x - xhi;
+ 		t = x - x0;
+-		d = (-x0 -t); d += x;
++		d = - x0 - t;
++		d += x;
+ 	}
++
+ 	r = ratfun_gam(t, d);
+-	d = r.a/x, TRUNC(d);
+-	r.a -= d*xx.a; r.a -= d*xx.b; r.a += r.b;
+-	return (d + r.a/x);
++	d = (float)(r.a / x);
++	r.a -= d * xhi;
++	r.a -= d * xlo;
++	r.a += r.b;
++
++	return (d + r.a / x);
+ }
+ /*
+- * returns (z+c)^2 * P(z)/Q(z) + a0
++ * x < 0
++ *
++ * Use reflection formula, G(x) = pi/(sin(pi*x)*x*G(x)).
++ * At negative integers, return NaN and raise invalid.
+  */
+-static struct Double
+-ratfun_gam(z, c)
+-	double z, c;
+-{
+-	double p, q;
+-	struct Double r, t;
+-
+-	q = Q0 +z*(Q1+z*(Q2+z*(Q3+z*(Q4+z*(Q5+z*(Q6+z*(Q7+z*Q8)))))));
+-	p = P0 + z*(P1 + z*(P2 + z*(P3 + z*P4)));
+-
+-	/* return r.a + r.b = a0 + (z+c)^2*p/q, with r.a truncated to 26 bits. */
+-	p = p/q;
+-	t.a = z, TRUNC(t.a);		/* t ~= z + c */
+-	t.b = (z - t.a) + c;
+-	t.b *= (t.a + z);
+-	q = (t.a *= t.a);		/* t = (z+c)^2 */
+-	TRUNC(t.a);
+-	t.b += (q - t.a);
+-	r.a = p, TRUNC(r.a);		/* r = P/Q */
+-	r.b = p - r.a;
+-	t.b = t.b*p + t.a*r.b + a0_lo;
+-	t.a *= r.a;			/* t = (z+c)^2*(P/Q) */
+-	r.a = t.a + a0_hi, TRUNC(r.a);
+-	r.b = ((a0_hi-r.a) + t.a) + t.b;
+-	return (r);			/* r = a0 + t */
+-}
+-
+ static double
+-neg_gam(x)
+-	double x;
++neg_gam(double x)
+ {
+ 	int sgn = 1;
+ 	struct Double lg, lsine;
+@@ -280,23 +312,29 @@ neg_gam(x)
+ 	y = ceil(x);
+ 	if (y == x)		/* Negative integer. */
+ 		return ((x - x) / zero);
++
+ 	z = y - x;
+ 	if (z > 0.5)
+-		z = one - z;
+-	y = 0.5 * y;
++		z = 1 - z;
++
++	y = y / 2;
+ 	if (y == ceil(y))
+ 		sgn = -1;
+-	if (z < .25)
+-		z = sin(M_PI*z);
++
++	if (z < 0.25)
++		z = sinpi(z);
+ 	else
+-		z = cos(M_PI*(0.5-z));
++		z = cospi(0.5 - z);
++
+ 	/* Special case: G(1-x) = Inf; G(x) may be nonzero. */
+ 	if (x < -170) {
++
+ 		if (x < -190)
+-			return ((double)sgn*tiny*tiny);
+-		y = one - x;		/* exact: 128 < |x| < 255 */
++			return (sgn * tiny * tiny);
++
++		y = 1 - x;			/* exact: 128 < |x| < 255 */
+ 		lg = large_gam(y);
+-		lsine = __log__D(M_PI/z);	/* = TRUNC(log(u)) + small */
++		lsine = __log__D(M_PI / z);	/* = TRUNC(log(u)) + small */
+ 		lg.a -= lsine.a;		/* exact (opposite signs) */
+ 		lg.b -= lsine.b;
+ 		y = -(lg.a + lg.b);
+@@ -305,11 +343,58 @@ neg_gam(x)
+ 		if (sgn < 0) y = -y;
+ 		return (y);
+ 	}
+-	y = one-x;
+-	if (one-y == x)
++
++	y = 1 - x;
++	if (1 - y == x)
+ 		y = tgamma(y);
+ 	else		/* 1-x is inexact */
+-		y = -x*tgamma(-x);
++		y = - x * tgamma(-x);
++
+ 	if (sgn < 0) y = -y;
+-	return (M_PI / (y*z));
++	return (M_PI / (y * z));
++}
++/*
++ * xmax comes from lgamma(xmax) - emax * log(2) = 0.
++ * static const float  xmax = 35.040095f
++ * static const double xmax = 171.624376956302725;
++ * ld80: LD80C(0xdb718c066b352e20, 10, 1.75554834290446291689e+03L),
++ * ld128: 1.75554834290446291700388921607020320e+03L,
++ *
++ * iota is a sloppy threshold to isolate x = 0.
++ */
++static const double xmax = 171.624376956302725;
++static const double iota = 0x1p-56;
++
++double
++tgamma(double x)
++{
++	struct Double u;
++
++	if (x >= 6) {
++		if (x > xmax)
++			return (x / zero);
++		u = large_gam(x);
++		return (__exp__D(u.a, u.b));
++	}
++
++	if (x >= 1 + left + x0)
++		return (small_gam(x));
++
++	if (x > iota)
++		return (smaller_gam(x));
++
++	if (x > -iota) {
++		if (x != 0.)
++			u.a = 1 - tiny;	/* raise inexact */
++		return (1 / x);
++	}
++
++	if (!isfinite(x))
++		return (x - x);		/* x is NaN or -Inf */
++
++	return (neg_gam(x));
+ }
++
++#if (LDBL_MANT_DIG == 53)
++__weak_reference(tgamma, tgammal);
++#endif
+diff --git a/libm/upstream-freebsd/lib/msun/ld128/k_cosl.c b/libm/upstream-freebsd/lib/msun/ld128/k_cosl.c
+index fe57773a1..422357bf8 100644
+--- a/libm/upstream-freebsd/lib/msun/ld128/k_cosl.c
++++ b/libm/upstream-freebsd/lib/msun/ld128/k_cosl.c
+@@ -21,8 +21,8 @@ __FBSDID("$FreeBSD$");
+ #include "math_private.h"
+ 
+ /*
+- * Domain [-0.7854, 0.7854], range ~[-1.80e-37, 1.79e-37]:
+- * |cos(x) - c(x))| < 2**-122.0
++ * Domain [-0.7854, 0.7854], range ~[-1.17e-39, 1.19e-39]:
++ * |cos(x) - c(x))| < 2**-129.3
+  *
+  * 113-bit precision requires more care than 64-bit precision, since
+  * simple methods give a minimax polynomial with coefficient for x^2
+@@ -31,21 +31,19 @@ __FBSDID("$FreeBSD$");
+  */
+ static const double
+ one = 1.0;
+-
+ static const long double
+-C1 =  0.04166666666666666666666666666666658424671L,
+-C2 = -0.001388888888888888888888888888863490893732L,
+-C3 =  0.00002480158730158730158730158600795304914210L,
+-C4 = -0.2755731922398589065255474947078934284324e-6L,
+-C5 =  0.2087675698786809897659225313136400793948e-8L,
+-C6 = -0.1147074559772972315817149986812031204775e-10L,
+-C7 =  0.4779477332386808976875457937252120293400e-13L;
+-
+-static const double
+-C8 = -0.1561920696721507929516718307820958119868e-15,
+-C9 =  0.4110317413744594971475941557607804508039e-18,
+-C10 = -0.8896592467191938803288521958313920156409e-21,
+-C11 =  0.1601061435794535138244346256065192782581e-23;
++C1 =  4.16666666666666666666666666666666667e-02L,
++C2 = -1.38888888888888888888888888888888834e-03L,
++C3 =  2.48015873015873015873015873015446795e-05L,
++C4 = -2.75573192239858906525573190949988493e-07L,
++C5 =  2.08767569878680989792098886701451072e-09L,
++C6 = -1.14707455977297247136657111139971865e-11L,
++C7 =  4.77947733238738518870113294139830239e-14L,
++C8 = -1.56192069685858079920640872925306403e-16L,
++C9 =  4.11031762320473354032038893429515732e-19L,
++C10= -8.89679121027589608738005163931958096e-22L,
++C11=  1.61171797801314301767074036661901531e-24L,
++C12= -2.46748624357670948912574279501044295e-27L;
+ 
+ long double
+ __kernel_cosl(long double x, long double y)
+@@ -54,7 +52,7 @@ __kernel_cosl(long double x, long double y)
+ 
+ 	z  = x*x;
+ 	r  = z*(C1+z*(C2+z*(C3+z*(C4+z*(C5+z*(C6+z*(C7+
+-	    z*(C8+z*(C9+z*(C10+z*C11))))))))));
++	    z*(C8+z*(C9+z*(C10+z*(C11+z*C12)))))))))));
+ 	hz = 0.5*z;
+ 	w  = one-hz;
+ 	return w + (((one-w)-hz) + (z*r-x*y));
+diff --git a/libm/upstream-freebsd/lib/msun/ld128/s_logl.c b/libm/upstream-freebsd/lib/msun/ld128/s_logl.c
+index 93a2a7c35..4774a271e 100644
+--- a/libm/upstream-freebsd/lib/msun/ld128/s_logl.c
++++ b/libm/upstream-freebsd/lib/msun/ld128/s_logl.c
+@@ -697,14 +697,15 @@ invln10_hi =  4.3429448176175356e-1,		/*  0x1bcb7b15000000.0p-54 */
+ invln2_hi =  1.4426950402557850e0;		/*  0x17154765000000.0p-52 */
+ static const long double
+ invln10_lo =  1.41498268538580090791605082294397000e-10L,	/*  0x137287195355baaafad33dc323ee3.0p-145L */
+-invln2_lo =  6.33178418956604368501892137426645911e-10L;	/*  0x15c17f0bbbe87fed0691d3e88eb57.0p-143L */
++invln2_lo =  6.33178418956604368501892137426645911e-10L,	/*  0x15c17f0bbbe87fed0691d3e88eb57.0p-143L */
++invln10_lo_plus_hi = invln10_lo + invln10_hi,
++invln2_lo_plus_hi = invln2_lo + invln2_hi;
+ 
+ long double
+ log10l(long double x)
+ {
+ 	struct ld r;
+-	long double lo;
+-	float hi;
++	long double hi, lo;
+ 
+ 	ENTERI();
+ 	DOPRINT_START(&x);
+@@ -712,18 +713,17 @@ log10l(long double x)
+ 	if (!r.lo_set)
+ 		RETURNPI(r.hi);
+ 	_2sumF(r.hi, r.lo);
+-	hi = r.hi;
++	hi = (float)r.hi;
+ 	lo = r.lo + (r.hi - hi);
+ 	RETURN2PI(invln10_hi * hi,
+-	    (invln10_lo + invln10_hi) * lo + invln10_lo * hi);
++	    invln10_lo_plus_hi * lo + invln10_lo * hi);
+ }
+ 
+ long double
+ log2l(long double x)
+ {
+ 	struct ld r;
+-	long double lo;
+-	float hi;
++	long double hi, lo;
+ 
+ 	ENTERI();
+ 	DOPRINT_START(&x);
+@@ -731,10 +731,10 @@ log2l(long double x)
+ 	if (!r.lo_set)
+ 		RETURNPI(r.hi);
+ 	_2sumF(r.hi, r.lo);
+-	hi = r.hi;
++	hi = (float)r.hi;
+ 	lo = r.lo + (r.hi - hi);
+ 	RETURN2PI(invln2_hi * hi,
+-	    (invln2_lo + invln2_hi) * lo + invln2_lo * hi);
++	    invln2_lo_plus_hi * lo + invln2_lo * hi);
+ }
+ 
+ #endif /* STRUCT_RETURN */
+diff --git a/libm/upstream-freebsd/lib/msun/src/e_hypotl.c b/libm/upstream-freebsd/lib/msun/src/e_hypotl.c
+index 9189b1fab..fc43538df 100644
+--- a/libm/upstream-freebsd/lib/msun/src/e_hypotl.c
++++ b/libm/upstream-freebsd/lib/msun/src/e_hypotl.c
+@@ -82,7 +82,7 @@ hypotl(long double x, long double y)
+ 	        man_t manh, manl;
+ 		GET_LDBL_MAN(manh,manl,b);
+ 		if((manh|manl)==0) return a;
+-		t1=0;
++		t1=1;
+ 		SET_HIGH_WORD(t1,ESW(MAX_EXP-2));	/* t1=2^(MAX_EXP-2) */
+ 		b *= t1;
+ 		a *= t1;
+diff --git a/libm/upstream-freebsd/lib/msun/src/e_powf.c b/libm/upstream-freebsd/lib/msun/src/e_powf.c
+index 53f1d37d6..122da455f 100644
+--- a/libm/upstream-freebsd/lib/msun/src/e_powf.c
++++ b/libm/upstream-freebsd/lib/msun/src/e_powf.c
+@@ -136,7 +136,7 @@ __ieee754_powf(float x, float y)
+     /* |y| is huge */
+ 	if(iy>0x4d000000) { /* if |y| > 2**27 */
+ 	/* over/underflow if x is not close to one */
+-	    if(ix<0x3f7ffff8) return (hy<0)? sn*huge*huge:sn*tiny*tiny;
++	    if(ix<0x3f7ffff6) return (hy<0)? sn*huge*huge:sn*tiny*tiny;
+ 	    if(ix>0x3f800007) return (hy>0)? sn*huge*huge:sn*tiny*tiny;
+ 	/* now |1-x| is tiny <= 2**-20, suffice to compute
+ 	   log(x) by x-x^2/2+x^3/3-x^4/4 */
+diff --git a/libm/upstream-freebsd/lib/msun/src/e_sqrt.c b/libm/upstream-freebsd/lib/msun/src/e_sqrt.c
+index 12fb56e13..37351a425 100644
+--- a/libm/upstream-freebsd/lib/msun/src/e_sqrt.c
++++ b/libm/upstream-freebsd/lib/msun/src/e_sqrt.c
+@@ -14,6 +14,18 @@
+ #include <sys/cdefs.h>
+ __FBSDID("$FreeBSD$");
+ 
++#include <float.h>
++
++#include "math.h"
++#include "math_private.h"
++
++#ifdef USE_BUILTIN_SQRT
++double
++__ieee754_sqrt(double x)
++{
++	return (__builtin_sqrt(x));
++}
++#else
+ /* __ieee754_sqrt(x)
+  * Return correctly rounded sqrt.
+  *           ------------------------------------------
+@@ -84,11 +96,6 @@ __FBSDID("$FreeBSD$");
+  *---------------
+  */
+ 
+-#include <float.h>
+-
+-#include "math.h"
+-#include "math_private.h"
+-
+ static	const double	one	= 1.0, tiny=1.0e-300;
+ 
+ double
+@@ -187,6 +194,7 @@ __ieee754_sqrt(double x)
+ 	INSERT_WORDS(z,ix0,ix1);
+ 	return z;
+ }
++#endif
+ 
+ #if (LDBL_MANT_DIG == 53)
+ __weak_reference(sqrt, sqrtl);
+diff --git a/libm/upstream-freebsd/lib/msun/src/e_sqrtf.c b/libm/upstream-freebsd/lib/msun/src/e_sqrtf.c
+index 7eba4d07f..06e5d62fa 100644
+--- a/libm/upstream-freebsd/lib/msun/src/e_sqrtf.c
++++ b/libm/upstream-freebsd/lib/msun/src/e_sqrtf.c
+@@ -20,6 +20,13 @@ static char rcsid[] = "$FreeBSD$";
+ #include "math.h"
+ #include "math_private.h"
+ 
++#ifdef USE_BUILTIN_SQRTF
++float
++__ieee754_sqrtf(float x)
++{
++	return (__builtin_sqrtf(x));
++}
++#else
+ static	const float	one	= 1.0, tiny=1.0e-30;
+ 
+ float
+@@ -87,3 +94,4 @@ __ieee754_sqrtf(float x)
+ 	SET_FLOAT_WORD(z,ix);
+ 	return z;
+ }
++#endif
+diff --git a/libm/upstream-freebsd/lib/msun/src/k_cospi.h b/libm/upstream-freebsd/lib/msun/src/k_cospi.h
+new file mode 100644
+index 000000000..32985be80
+--- /dev/null
++++ b/libm/upstream-freebsd/lib/msun/src/k_cospi.h
+@@ -0,0 +1,44 @@
++/*-
++ * Copyright (c) 2017 Steven G. Kargl
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice unmodified, this list of conditions, and the following
++ *    disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * The basic kernel for x in [0,0.25].  To use the kernel for cos(x), the
++ * argument to __kernel_cospi() must be multiplied by pi.
++ */
++
++static inline double
++__kernel_cospi(double x)
++{
++	double_t hi, lo;
++
++	hi = (float)x;
++	lo = x - hi;
++	lo = lo * (pi_lo + pi_hi) + hi * pi_lo;
++	hi *= pi_hi;
++	_2sumF(hi, lo);
++	return (__kernel_cos(hi, lo));
++}
++
+diff --git a/libm/upstream-freebsd/lib/msun/src/k_sincosl.h b/libm/upstream-freebsd/lib/msun/src/k_sincosl.h
+index 4d4dc69f7..6425f14a1 100644
+--- a/libm/upstream-freebsd/lib/msun/src/k_sincosl.h
++++ b/libm/upstream-freebsd/lib/msun/src/k_sincosl.h
+@@ -76,13 +76,6 @@ __kernel_sincosl(long double x, long double y, int iy, long double *sn,
+ #elif LDBL_MANT_DIG == 113	/* ld128 version of k_sincosl.c. */
+ 
+ static const long double
+-C1 =  0.04166666666666666666666666666666658424671L,
+-C2 = -0.001388888888888888888888888888863490893732L,
+-C3 =  0.00002480158730158730158730158600795304914210L,
+-C4 = -0.2755731922398589065255474947078934284324e-6L,
+-C5 =  0.2087675698786809897659225313136400793948e-8L,
+-C6 = -0.1147074559772972315817149986812031204775e-10L,
+-C7 =  0.4779477332386808976875457937252120293400e-13L,
+ S1 = -0.16666666666666666666666666666666666606732416116558L,
+ S2 =  0.0083333333333333333333333333333331135404851288270047L,
+ S3 = -0.00019841269841269841269841269839935785325638310428717L,
+@@ -93,15 +86,25 @@ S7 = -0.76471637318198151807063387954939213287488216303768e-12L,
+ S8 =  0.28114572543451292625024967174638477283187397621303e-14L;
+ 
+ static const double
+-C8  = -0.1561920696721507929516718307820958119868e-15,
+-C9  =  0.4110317413744594971475941557607804508039e-18,
+-C10 = -0.8896592467191938803288521958313920156409e-21,
+-C11 =  0.1601061435794535138244346256065192782581e-23,
+ S9  = -0.82206352458348947812512122163446202498005154296863e-17,
+ S10 =  0.19572940011906109418080609928334380560135358385256e-19,
+ S11 = -0.38680813379701966970673724299207480965452616911420e-22,
+ S12 =  0.64038150078671872796678569586315881020659912139412e-25;
+ 
++static const long double
++C1 =  4.16666666666666666666666666666666667e-02L,
++C2 = -1.38888888888888888888888888888888834e-03L,
++C3 =  2.48015873015873015873015873015446795e-05L,
++C4 = -2.75573192239858906525573190949988493e-07L,
++C5 =  2.08767569878680989792098886701451072e-09L,
++C6 = -1.14707455977297247136657111139971865e-11L,
++C7 =  4.77947733238738518870113294139830239e-14L,
++C8 = -1.56192069685858079920640872925306403e-16L,
++C9 =  4.11031762320473354032038893429515732e-19L,
++C10= -8.89679121027589608738005163931958096e-22L,
++C11=  1.61171797801314301767074036661901531e-24L,
++C12= -2.46748624357670948912574279501044295e-27L;
++
+ static inline void
+ __kernel_sincosl(long double x, long double y, int iy, long double *sn, 
+     long double *cs)
+@@ -120,12 +123,12 @@ __kernel_sincosl(long double x, long double y, int iy, long double *sn,
+ 	if (iy == 0)
+ 		*sn = x + v * (S1 + z * r);
+ 	else
+-		*cs = x - ((z * (y / 2 - v * r) - y) - v * S1);
++		*sn = x - ((z * (y / 2 - v * r) - y) - v * S1);
+ 
+ 	hz = z / 2;
+ 	w = 1 - hz;
+ 	r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * (C6 + 
+-	    z * (C7 + z * (C8 + z * (C9 + z * (C10 + z * C11))))))))));
++	    z * (C7 + z * (C8 + z * (C9 + z * (C10 + z * (C11+z*C12)))))))))));
+ 
+ 	*cs =  w + (((1 - w) - hz) + (z * r - x * y));
+ }
+diff --git a/libm/upstream-freebsd/lib/msun/src/k_sinpi.h b/libm/upstream-freebsd/lib/msun/src/k_sinpi.h
+new file mode 100644
+index 000000000..66152ba99
+--- /dev/null
++++ b/libm/upstream-freebsd/lib/msun/src/k_sinpi.h
+@@ -0,0 +1,43 @@
++/*-
++ * Copyright (c) 2017 Steven G. Kargl
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice unmodified, this list of conditions, and the following
++ *    disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * The basic kernel for x in [0,0.25].  To use the kernel for sin(x), the
++ * argument to __kernel_sinpi() must be multiplied by pi.
++ */
++
++static inline double
++__kernel_sinpi(double x)
++{
++	double_t hi, lo;
++
++	hi = (float)x;
++	lo = x - hi;
++	lo = lo * (pi_lo + pi_hi) + hi * pi_lo;
++	hi *= pi_hi;
++	_2sumF(hi, lo);
++	return (__kernel_sin(hi, lo, 1));
++}
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_cexp.c b/libm/upstream-freebsd/lib/msun/src/s_cexp.c
+index 2ef8ba197..a1f853eca 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_cexp.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_cexp.c
+@@ -30,6 +30,7 @@
+ __FBSDID("$FreeBSD$");
+ 
+ #include <complex.h>
++#include <float.h>
+ #include <math.h>
+ 
+ #include "math_private.h"
+@@ -41,7 +42,7 @@ cexp_ovfl = 0x4096b8e4;			/* (MAX_EXP - MIN_DENORM_EXP) * ln2 */
+ double complex
+ cexp(double complex z)
+ {
+-	double x, y, exp_x;
++	double c, exp_x, s, x, y;
+ 	uint32_t hx, hy, lx, ly;
+ 
+ 	x = creal(z);
+@@ -55,8 +56,10 @@ cexp(double complex z)
+ 		return (CMPLX(exp(x), y));
+ 	EXTRACT_WORDS(hx, lx, x);
+ 	/* cexp(0 + I y) = cos(y) + I sin(y) */
+-	if (((hx & 0x7fffffff) | lx) == 0)
+-		return (CMPLX(cos(y), sin(y)));
++	if (((hx & 0x7fffffff) | lx) == 0) {
++		sincos(y, &s, &c);
++		return (CMPLX(c, s));
++	}
+ 
+ 	if (hy >= 0x7ff00000) {
+ 		if (lx != 0 || (hx & 0x7fffffff) != 0x7ff00000) {
+@@ -86,6 +89,11 @@ cexp(double complex z)
+ 		 *  -  x = NaN (spurious inexact exception from y)
+ 		 */
+ 		exp_x = exp(x);
+-		return (CMPLX(exp_x * cos(y), exp_x * sin(y)));
++		sincos(y, &s, &c);
++		return (CMPLX(exp_x * c, exp_x * s));
+ 	}
+ }
++
++#if (LDBL_MANT_DIG == 53)
++__weak_reference(cexp, cexpl);
++#endif
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_cexpf.c b/libm/upstream-freebsd/lib/msun/src/s_cexpf.c
+index b815c99af..d905b74ff 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_cexpf.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_cexpf.c
+@@ -41,7 +41,7 @@ cexp_ovfl = 0x43400074;		/* (MAX_EXP - MIN_DENORM_EXP) * ln2 */
+ float complex
+ cexpf(float complex z)
+ {
+-	float x, y, exp_x;
++	float c, exp_x, s, x, y;
+ 	uint32_t hx, hy;
+ 
+ 	x = crealf(z);
+@@ -55,8 +55,10 @@ cexpf(float complex z)
+ 		return (CMPLXF(expf(x), y));
+ 	GET_FLOAT_WORD(hx, x);
+ 	/* cexp(0 + I y) = cos(y) + I sin(y) */
+-	if ((hx & 0x7fffffff) == 0)
+-		return (CMPLXF(cosf(y), sinf(y)));
++	if ((hx & 0x7fffffff) == 0) {
++		sincosf(y, &s, &c);
++		return (CMPLXF(c, s));
++	}
+ 
+ 	if (hy >= 0x7f800000) {
+ 		if ((hx & 0x7fffffff) != 0x7f800000) {
+@@ -86,6 +88,7 @@ cexpf(float complex z)
+ 		 *  -  x = NaN (spurious inexact exception from y)
+ 		 */
+ 		exp_x = expf(x);
+-		return (CMPLXF(exp_x * cosf(y), exp_x * sinf(y)));
++		sincosf(y, &s, &c);
++		return (CMPLXF(exp_x * c, exp_x * s));
+ 	}
+ }
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_cosl.c b/libm/upstream-freebsd/lib/msun/src/s_cosl.c
+index 46a2e8620..3d066483f 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_cosl.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_cosl.c
+@@ -39,12 +39,17 @@ __FBSDID("$FreeBSD$");
+ #include <ieeefp.h>
+ #endif
+ 
++#include "fpmath.h"
+ #include "math.h"
+ #include "math_private.h"
+ #if LDBL_MANT_DIG == 64
+ #include "../ld80/e_rem_pio2l.h"
++static const union IEEEl2bits
++pio4u = LD80C(0xc90fdaa22168c235, -00001,  7.85398163397448309628e-01L);
++#define	pio4	(pio4u.e)
+ #elif LDBL_MANT_DIG == 113
+ #include "../ld128/e_rem_pio2l.h"
++long double pio4 =  7.85398163397448309615660845819875721e-1L;
+ #else
+ #error "Unsupported long double format"
+ #endif
+@@ -71,7 +76,7 @@ cosl(long double x)
+ 	ENTERI();
+ 
+ 	/* Optimize the case where x is already within range. */
+-	if (z.e < M_PI_4)
++	if (z.e < pio4)
+ 		RETURNI(__kernel_cosl(z.e, 0));
+ 
+ 	e0 = __ieee754_rem_pio2l(x, y);
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_cospi.c b/libm/upstream-freebsd/lib/msun/src/s_cospi.c
+new file mode 100644
+index 000000000..860219efd
+--- /dev/null
++++ b/libm/upstream-freebsd/lib/msun/src/s_cospi.c
+@@ -0,0 +1,152 @@
++/*-
++ * Copyright (c) 2017 Steven G. Kargl
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice unmodified, this list of conditions, and the following
++ *    disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/**
++ * cospi(x) computes cos(pi*x) without multiplication by pi (almost).  First,
++ * note that cospi(-x) = cospi(x), so the algorithm considers only |x|.  The
++ * method used depends on the magnitude of x.
++ *
++ * 1. For small |x|, cospi(x) = 1 with FE_INEXACT raised where a sloppy
++ *    threshold is used.  The threshold is |x| < 0x1pN with N = -(P/2+M).
++ *    P is the precision of the floating-point type and M = 2 to 4.
++ *
++ * 2. For |x| < 1, argument reduction is not required and sinpi(x) is 
++ *    computed by calling a kernel that leverages the kernels for sin(x)
++ *    ans cos(x).  See k_sinpi.c and k_cospi.c for details.
++ *
++ * 3. For 1 <= |x| < 0x1p(P-1), argument reduction is required where
++ *    |x| = j0 + r with j0 an integer and the remainder r satisfies
++ *    0 <= r < 1.  With the given domain, a simplified inline floor(x)
++ *    is used.  Also, note the following identity
++ *
++ *    cospi(x) = cos(pi*(j0+r))
++ *             = cos(pi*j0) * cos(pi*r) - sin(pi*j0) * sin(pi*r)
++ *             = cos(pi*j0) * cos(pi*r)
++ *             = +-cospi(r)
++ *
++ *    If j0 is even, then cos(pi*j0) = 1. If j0 is odd, then cos(pi*j0) = -1.
++ *    cospi(r) is then computed via an appropriate kernel.
++ *
++ * 4. For |x| >= 0x1p(P-1), |x| is integral and cospi(x) = 1.
++ *
++ * 5. Special cases:
++ *
++ *    cospi(+-0) = 1.
++ *    cospi(n.5) = 0 for n an integer.
++ *    cospi(+-inf) = nan.  Raises the "invalid" floating-point exception.
++ *    cospi(nan) = nan.  Raises the "invalid" floating-point exception.
++ */
++
++#include <float.h>
++#include "math.h"
++#include "math_private.h"
++
++static const double
++pi_hi = 3.1415926814079285e+00,	/* 0x400921fb 0x58000000 */
++pi_lo =-2.7818135228334233e-08;	/* 0xbe5dde97 0x3dcb3b3a */
++
++#include "k_cospi.h"
++#include "k_sinpi.h"
++
++volatile static const double vzero = 0;
++
++double
++cospi(double x)
++{
++	double ax, c;
++	uint32_t hx, ix, j0, lx;
++
++	EXTRACT_WORDS(hx, lx, x);
++	ix = hx & 0x7fffffff;
++	INSERT_WORDS(ax, ix, lx);
++
++	if (ix < 0x3ff00000) {			/* |x| < 1 */
++		if (ix < 0x3fd00000) {		/* |x| < 0.25 */
++			if (ix < 0x3e200000) {	/* |x| < 0x1p-29 */
++				if ((int)ax == 0)
++					return (1);
++			}
++			return (__kernel_cospi(ax));
++		}
++
++		if (ix < 0x3fe00000)		/* |x| < 0.5 */
++			c = __kernel_sinpi(0.5 - ax);
++		else if (ix < 0x3fe80000){	/* |x| < 0.75 */
++			if (ax == 0.5)
++				return (0);
++			c = -__kernel_sinpi(ax - 0.5);
++		} else
++			c = -__kernel_cospi(1 - ax);
++		return (c);
++	}
++
++	if (ix < 0x43300000) {		/* 1 <= |x| < 0x1p52 */
++		/* Determine integer part of ax. */
++		j0 = ((ix >> 20) & 0x7ff) - 0x3ff;
++		if (j0 < 20) {
++			ix &= ~(0x000fffff >> j0);
++			lx = 0;
++		} else {
++			lx &= ~((uint32_t)0xffffffff >> (j0 - 20));
++		}
++		INSERT_WORDS(x, ix, lx);
++
++		ax -= x;
++		EXTRACT_WORDS(ix, lx, ax);
++
++
++		if (ix < 0x3fe00000) {		/* |x| < 0.5 */
++			if (ix < 0x3fd00000)	/* |x| < 0.25 */
++				c = ix == 0 ? 1 : __kernel_cospi(ax);
++			else 
++				c = __kernel_sinpi(0.5 - ax);
++		} else {
++			if (ix < 0x3fe80000) {	/* |x| < 0.75 */
++				if (ax == 0.5)
++					return (0);
++				c = -__kernel_sinpi(ax - 0.5);
++			} else
++				c = -__kernel_cospi(1 - ax);
++		}
++
++		if (j0 > 30)
++			x -= 0x1p30;
++		j0 = (uint32_t)x;
++		return (j0 & 1 ? -c : c);
++	}
++
++	if (ix >= 0x7f800000)
++		return (vzero / vzero);
++
++	/*
++	 * |x| >= 0x1p52 is always an even integer, so return 1.
++	 */
++	return (1);
++}
++
++#if LDBL_MANT_DIG == 53
++__weak_reference(cospi, cospil);
++#endif
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_ctanh.c b/libm/upstream-freebsd/lib/msun/src/s_ctanh.c
+index 88afeb50e..e5840a1bf 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_ctanh.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_ctanh.c
+@@ -111,11 +111,13 @@ ctanh(double complex z)
+ 	}
+ 
+ 	/*
+-	 * ctanh(x + I NaN) = d(NaN) + I d(NaN)
+-	 * ctanh(x +- I Inf) = dNaN + I dNaN
++	 * ctanh(+-0 + i NAN) = +-0 + i NaN
++	 * ctanh(+-0 +- i Inf) = +-0 + i NaN
++	 * ctanh(x + i NAN) = NaN + i NaN
++	 * ctanh(x +- i Inf) = NaN + i NaN
+ 	 */
+ 	if (!isfinite(y))
+-		return (CMPLX(y - y, y - y));
++		return (CMPLX(x ? y - y : x, y - y));
+ 
+ 	/*
+ 	 * ctanh(+-huge +- I y) ~= +-1 +- I 2sin(2y)/exp(2x), using the
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_ctanhf.c b/libm/upstream-freebsd/lib/msun/src/s_ctanhf.c
+index d2bd0b678..c46f86d2e 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_ctanhf.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_ctanhf.c
+@@ -61,7 +61,7 @@ ctanhf(float complex z)
+ 	}
+ 
+ 	if (!isfinite(y))
+-		return (CMPLXF(y - y, y - y));
++		return (CMPLXF(ix ? y - y : x, y - y));
+ 
+ 	if (ix >= 0x41300000) {	/* |x| >= 11 */
+ 		float exp_mx = expf(-fabsf(x));
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_fma.c b/libm/upstream-freebsd/lib/msun/src/s_fma.c
+index 41a6424fd..95cffd0ba 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_fma.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_fma.c
+@@ -35,6 +35,13 @@ __FBSDID("$FreeBSD$");
+ 
+ #include "math_private.h"
+ 
++#ifdef USE_BUILTIN_FMA
++double
++fma(double x, double y, double z)
++{
++	return (__builtin_fma(x, y, z));
++}
++#else
+ /*
+  * A struct dd represents a floating-point number with twice the precision
+  * of a double.  We maintain the invariant that "hi" stores the 53 high-order
+@@ -284,6 +291,7 @@ fma(double x, double y, double z)
+ 	else
+ 		return (add_and_denormalize(r.hi, adj, spread));
+ }
++#endif /* !USE_BUILTIN_FMA */
+ 
+ #if (LDBL_MANT_DIG == 53)
+ __weak_reference(fma, fmal);
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_fmaf.c b/libm/upstream-freebsd/lib/msun/src/s_fmaf.c
+index 389cf1b11..4591cc219 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_fmaf.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_fmaf.c
+@@ -34,6 +34,13 @@ __FBSDID("$FreeBSD$");
+ #include "math.h"
+ #include "math_private.h"
+ 
++#ifdef USE_BUILTIN_FMAF
++float
++fmaf(float x, float y, float z)
++{
++	return (__builtin_fmaf(x, y, z));
++}
++#else
+ /*
+  * Fused multiply-add: Compute x * y + z with a single rounding error.
+  *
+@@ -69,3 +76,4 @@ fmaf(float x, float y, float z)
+ 		SET_LOW_WORD(adjusted_result, lr + 1);
+ 	return (adjusted_result);
+ }
++#endif /* !USE_BUILTIN_FMAF */
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_fmax.c b/libm/upstream-freebsd/lib/msun/src/s_fmax.c
+index 0c234bcc5..b53b1e64d 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_fmax.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_fmax.c
+@@ -34,6 +34,13 @@ __FBSDID("$FreeBSD$");
+ 
+ #include "fpmath.h"
+ 
++#ifdef USE_BUILTIN_FMAX
++double
++fmax(double x, double y)
++{
++	return (__builtin_fmax(x, y));
++}
++#else
+ double
+ fmax(double x, double y)
+ {
+@@ -54,6 +61,7 @@ fmax(double x, double y)
+ 
+ 	return (x > y ? x : y);
+ }
++#endif
+ 
+ #if (LDBL_MANT_DIG == 53)
+ __weak_reference(fmax, fmaxl);
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_fmaxf.c b/libm/upstream-freebsd/lib/msun/src/s_fmaxf.c
+index 8e9d1baf3..8d3d14f4b 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_fmaxf.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_fmaxf.c
+@@ -33,6 +33,13 @@ __FBSDID("$FreeBSD$");
+ 
+ #include "fpmath.h"
+ 
++#ifdef USE_BUILTIN_FMAXF
++float
++fmaxf(float x, float y)
++{
++	return (__builtin_fmaxf(x, y));
++}
++#else
+ float
+ fmaxf(float x, float y)
+ {
+@@ -53,3 +60,4 @@ fmaxf(float x, float y)
+ 
+ 	return (x > y ? x : y);
+ }
++#endif
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_fmin.c b/libm/upstream-freebsd/lib/msun/src/s_fmin.c
+index d7f24c121..53f36c1c2 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_fmin.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_fmin.c
+@@ -34,6 +34,13 @@ __FBSDID("$FreeBSD$");
+ 
+ #include "fpmath.h"
+ 
++#ifdef USE_BUILTIN_FMIN
++double
++fmin(double x, double y)
++{
++	return (__builtin_fmin(x, y));
++}
++#else
+ double
+ fmin(double x, double y)
+ {
+@@ -54,6 +61,7 @@ fmin(double x, double y)
+ 
+ 	return (x < y ? x : y);
+ }
++#endif
+ 
+ #if (LDBL_MANT_DIG == 53)
+ __weak_reference(fmin, fminl);
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_fminf.c b/libm/upstream-freebsd/lib/msun/src/s_fminf.c
+index 258316725..58b6a489b 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_fminf.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_fminf.c
+@@ -33,6 +33,13 @@ __FBSDID("$FreeBSD$");
+ 
+ #include "fpmath.h"
+ 
++#ifdef USE_BUILTIN_FMINF
++float
++fminf(float x, float y)
++{
++	return (__builtin_fminf(x, y));
++}
++#else
+ float
+ fminf(float x, float y)
+ {
+@@ -53,3 +60,4 @@ fminf(float x, float y)
+ 
+ 	return (x < y ? x : y);
+ }
++#endif
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_lround.c b/libm/upstream-freebsd/lib/msun/src/s_lround.c
+index 66d9183a7..1dd8e697f 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_lround.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_lround.c
+@@ -49,9 +49,11 @@ __FBSDID("$FreeBSD$");
+  * that everything is in range.  At compile time, INRANGE(x) should reduce to
+  * two floating-point comparisons in the former case, or TRUE otherwise.
+  */
++static const type type_min = (type)DTYPE_MIN;
++static const type type_max = (type)DTYPE_MAX;
+ static const type dtype_min = (type)DTYPE_MIN - 0.5;
+ static const type dtype_max = (type)DTYPE_MAX + 0.5;
+-#define	INRANGE(x)	(dtype_max - (type)DTYPE_MAX != 0.5 || \
++#define	INRANGE(x)	(dtype_max - type_max != 0.5 || \
+ 			 ((x) > dtype_min && (x) < dtype_max))
+ 
+ dtype
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_scalbn.c b/libm/upstream-freebsd/lib/msun/src/s_scalbn.c
+index b048b0596..2d4f7a3c6 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_scalbn.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_scalbn.c
+@@ -1,66 +1,47 @@
+-/* @(#)s_scalbn.c 5.1 93/09/24 */
+ /*
+- * ====================================================
+- * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
++ * Copyright (c) 2005-2020 Rich Felker, et al.
+  *
+- * Developed at SunPro, a Sun Microsystems, Inc. business.
+- * Permission to use, copy, modify, and distribute this
+- * software is freely granted, provided that this notice
+- * is preserved.
+- * ====================================================
+- */
+-
+-#include <sys/cdefs.h>
+-__FBSDID("$FreeBSD$");
+-
+-/*
+- * scalbn (double x, int n)
+- * scalbn(x,n) returns x* 2**n  computed by  exponent
+- * manipulation rather than by actually performing an
+- * exponentiation or a multiplication.
++ * SPDX-License-Identifier: MIT
++ *
++ * Please see https://git.musl-libc.org/cgit/musl/tree/COPYRIGHT
++ * for all contributors to musl.
+  */
+-
+ #include <float.h>
++#include <math.h>
++#include <stdint.h>
+ 
+-#include "math.h"
+-#include "math_private.h"
+-
+-static const double
+-two54   =  1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
+-twom54  =  5.55111512312578270212e-17, /* 0x3C900000, 0x00000000 */
+-huge   = 1.0e+300,
+-tiny   = 1.0e-300;
+-
+-double
+-scalbn (double x, int n)
++double scalbn(double x, int n)
+ {
+-	int32_t k,hx,lx;
+-	EXTRACT_WORDS(hx,lx,x);
+-        k = (hx&0x7ff00000)>>20;		/* extract exponent */
+-        if (k==0) {				/* 0 or subnormal x */
+-            if ((lx|(hx&0x7fffffff))==0) return x; /* +-0 */
+-	    x *= two54;
+-	    GET_HIGH_WORD(hx,x);
+-	    k = ((hx&0x7ff00000)>>20) - 54;
+-            if (n< -50000) return tiny*x; 	/*underflow*/
+-	    }
+-        if (k==0x7ff) return x+x;		/* NaN or Inf */
+-        k = k+n;
+-        if (k >  0x7fe) return huge*copysign(huge,x); /* overflow  */
+-        if (k > 0) 				/* normal result */
+-	    {SET_HIGH_WORD(x,(hx&0x800fffff)|(k<<20)); return x;}
+-        if (k <= -54) {
+-            if (n > 50000) 	/* in case integer overflow in n+k */
+-		return huge*copysign(huge,x);	/*overflow*/
+-	    else
+-		return tiny*copysign(tiny,x); 	/*underflow*/
++	union {double f; uint64_t i;} u;
++	double_t y = x;
++
++	if (n > 1023) {
++		y *= 0x1p1023;
++		n -= 1023;
++		if (n > 1023) {
++			y *= 0x1p1023;
++			n -= 1023;
++			if (n > 1023)
++				n = 1023;
++		}
++	} else if (n < -1022) {
++		/* make sure final n < -53 to avoid double
++		   rounding in the subnormal range */
++		y *= 0x1p-1022 * 0x1p53;
++		n += 1022 - 53;
++		if (n < -1022) {
++			y *= 0x1p-1022 * 0x1p53;
++			n += 1022 - 53;
++			if (n < -1022)
++				n = -1022;
++		}
+ 	}
+-        k += 54;				/* subnormal result */
+-	SET_HIGH_WORD(x,(hx&0x800fffff)|(k<<20));
+-        return x*twom54;
++	u.i = (uint64_t)(0x3ff+n)<<52;
++	x = y * u.f;
++	return x;
+ }
+ 
+-#if (LDBL_MANT_DIG == 53)
++#if (LDBL_MANT_DIG == 53) && !defined(scalbn)
+ __weak_reference(scalbn, ldexpl);
+ __weak_reference(scalbn, scalbnl);
+ #endif
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_scalbnf.c b/libm/upstream-freebsd/lib/msun/src/s_scalbnf.c
+index 21d001c1f..8cf1e0115 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_scalbnf.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_scalbnf.c
+@@ -1,57 +1,41 @@
+-/* s_scalbnf.c -- float version of s_scalbn.c.
+- * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+- */
+-
+ /*
+- * ====================================================
+- * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
++ * Copyright (c) 2005-2020 Rich Felker, et al.
+  *
+- * Developed at SunPro, a Sun Microsystems, Inc. business.
+- * Permission to use, copy, modify, and distribute this
+- * software is freely granted, provided that this notice
+- * is preserved.
+- * ====================================================
++ * SPDX-License-Identifier: MIT
++ *
++ * Please see https://git.musl-libc.org/cgit/musl/tree/COPYRIGHT
++ * for all contributors to musl.
+  */
++#include <math.h>
++#include <stdint.h>
+ 
+-#include <sys/cdefs.h>
+-__FBSDID("$FreeBSD$");
+-
+-#include "math.h"
+-#include "math_private.h"
+-
+-static const float
+-two25   =  3.355443200e+07,	/* 0x4c000000 */
+-twom25  =  2.9802322388e-08,	/* 0x33000000 */
+-huge   = 1.0e+30,
+-tiny   = 1.0e-30;
+-
+-float
+-scalbnf (float x, int n)
++float scalbnf(float x, int n)
+ {
+-	int32_t k,ix;
+-	GET_FLOAT_WORD(ix,x);
+-        k = (ix&0x7f800000)>>23;		/* extract exponent */
+-        if (k==0) {				/* 0 or subnormal x */
+-            if ((ix&0x7fffffff)==0) return x; /* +-0 */
+-	    x *= two25;
+-	    GET_FLOAT_WORD(ix,x);
+-	    k = ((ix&0x7f800000)>>23) - 25;
+-            if (n< -50000) return tiny*x; 	/*underflow*/
+-	    }
+-        if (k==0xff) return x+x;		/* NaN or Inf */
+-        k = k+n;
+-        if (k >  0xfe) return huge*copysignf(huge,x); /* overflow  */
+-        if (k > 0) 				/* normal result */
+-	    {SET_FLOAT_WORD(x,(ix&0x807fffff)|(k<<23)); return x;}
+-        if (k <= -25) {
+-            if (n > 50000) 	/* in case integer overflow in n+k */
+-		return huge*copysignf(huge,x);	/*overflow*/
+-	    else
+-		return tiny*copysignf(tiny,x);	/*underflow*/
++	union {float f; uint32_t i;} u;
++	float_t y = x;
++
++	if (n > 127) {
++		y *= 0x1p127f;
++		n -= 127;
++		if (n > 127) {
++			y *= 0x1p127f;
++			n -= 127;
++			if (n > 127)
++				n = 127;
++		}
++	} else if (n < -126) {
++		y *= 0x1p-126f * 0x1p24f;
++		n += 126 - 24;
++		if (n < -126) {
++			y *= 0x1p-126f * 0x1p24f;
++			n += 126 - 24;
++			if (n < -126)
++				n = -126;
++		}
+ 	}
+-        k += 25;				/* subnormal result */
+-	SET_FLOAT_WORD(x,(ix&0x807fffff)|(k<<23));
+-        return x*twom25;
++	u.i = (uint32_t)(0x7f+n)<<23;
++	x = y * u.f;
++	return x;
+ }
+ 
+ __strong_reference(scalbnf, ldexpf);
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_scalbnl.c b/libm/upstream-freebsd/lib/msun/src/s_scalbnl.c
+index 28b0cf9b7..6044c1b1d 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_scalbnl.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_scalbnl.c
+@@ -1,71 +1,49 @@
+-/* @(#)s_scalbn.c 5.1 93/09/24 */
+ /*
+- * ====================================================
+- * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
++ * Copyright (c) 2005-2020 Rich Felker, et al.
+  *
+- * Developed at SunPro, a Sun Microsystems, Inc. business.
+- * Permission to use, copy, modify, and distribute this
+- * software is freely granted, provided that this notice
+- * is preserved.
+- * ====================================================
++ * SPDX-License-Identifier: MIT
++ *
++ * Please see https://git.musl-libc.org/cgit/musl/tree/COPYRIGHT
++ * for all contributors to musl.
+  */
+-
+-#include <sys/cdefs.h>
+-__FBSDID("$FreeBSD$");
+-
++#include <math.h>
++#include <float.h>
++#include "math_private.h"
++#include "fpmath.h"
+ /*
+  * scalbnl (long double x, int n)
+  * scalbnl(x,n) returns x* 2**n  computed by  exponent
+  * manipulation rather than by actually performing an
+  * exponentiation or a multiplication.
+  */
+-
+-/*
+- * We assume that a long double has a 15-bit exponent.  On systems
+- * where long double is the same as double, scalbnl() is an alias
+- * for scalbn(), so we don't use this routine.
+- */
+-
+-#include <float.h>
+-#include <math.h>
+-
+-#include "fpmath.h"
+-
+-#if LDBL_MAX_EXP != 0x4000
+-#error "Unsupported long double format"
+-#endif
+-
+-static const long double
+-huge = 0x1p16000L,
+-tiny = 0x1p-16000L;
+-
+-long double
+-scalbnl (long double x, int n)
++#if (LDBL_MANT_DIG == 64 || LDBL_MANT_DIG == 113) && LDBL_MAX_EXP == 16384
++long double scalbnl(long double x, int n)
+ {
+ 	union IEEEl2bits u;
+-	int k;
+-	u.e = x;
+-        k = u.bits.exp;				/* extract exponent */
+-        if (k==0) {				/* 0 or subnormal x */
+-            if ((u.bits.manh|u.bits.manl)==0) return x;	/* +-0 */
+-	    u.e *= 0x1p+128;
+-	    k = u.bits.exp - 128;
+-            if (n< -50000) return tiny*x; 	/*underflow*/
+-	    }
+-        if (k==0x7fff) return x+x;		/* NaN or Inf */
+-        k = k+n;
+-        if (k >= 0x7fff) return huge*copysignl(huge,x); /* overflow  */
+-        if (k > 0) 				/* normal result */
+-	    {u.bits.exp = k; return u.e;}
+-        if (k <= -128) {
+-            if (n > 50000) 	/* in case integer overflow in n+k */
+-		return huge*copysign(huge,x);	/*overflow*/
+-	    else
+-		return tiny*copysign(tiny,x); 	/*underflow*/
++
++	if (n > 16383) {
++		x *= 0x1p16383L;
++		n -= 16383;
++		if (n > 16383) {
++			x *= 0x1p16383L;
++			n -= 16383;
++			if (n > 16383)
++				n = 16383;
++		}
++	} else if (n < -16382) {
++		x *= 0x1p-16382L * 0x1p113L;
++		n += 16382 - 113;
++		if (n < -16382) {
++			x *= 0x1p-16382L * 0x1p113L;
++			n += 16382 - 113;
++			if (n < -16382)
++				n = -16382;
++		}
+ 	}
+-        k += 128;				/* subnormal result */
+-	u.bits.exp = k;
+-        return u.e*0x1p-128;
++	u.e = 1.0;
++	u.xbits.expsign = 0x3fff + n;
++	return x * u.e;
+ }
+-
+ __strong_reference(scalbnl, ldexpl);
++#endif
++
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_sincosl.c b/libm/upstream-freebsd/lib/msun/src/s_sincosl.c
+index aef36c232..3dd34575f 100644
+--- a/libm/upstream-freebsd/lib/msun/src/s_sincosl.c
++++ b/libm/upstream-freebsd/lib/msun/src/s_sincosl.c
+@@ -50,11 +50,10 @@ void
+ sincosl(long double x, long double *sn, long double *cs)
+ {
+ 	union IEEEl2bits z;
+-	int e0, sgn;
++	int e0;
+ 	long double y[2];
+ 
+ 	z.e = x;
+-	sgn = z.bits.sign;
+ 	z.bits.sign = 0;
+ 
+ 	ENTERV();
+diff --git a/libm/upstream-freebsd/lib/msun/src/s_sinpi.c b/libm/upstream-freebsd/lib/msun/src/s_sinpi.c
+new file mode 100644
+index 000000000..858459a5f
+--- /dev/null
++++ b/libm/upstream-freebsd/lib/msun/src/s_sinpi.c
+@@ -0,0 +1,169 @@
++/*-
++ * Copyright (c) 2017 Steven G. Kargl
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice unmodified, this list of conditions, and the following
++ *    disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/**
++ * sinpi(x) computes sin(pi*x) without multiplication by pi (almost).  First,
++ * note that sinpi(-x) = -sinpi(x), so the algorithm considers only |x| and
++ * includes reflection symmetry by considering the sign of x on output.  The
++ * method used depends on the magnitude of x.
++ *
++ * 1. For small |x|, sinpi(x) = pi * x where a sloppy threshold is used.  The
++ *    threshold is |x| < 0x1pN with N = -(P/2+M).  P is the precision of the
++ *    floating-point type and M = 2 to 4.  To achieve high accuracy, pi is 
++ *    decomposed into high and low parts with the high part containing a
++ *    number of trailing zero bits.  x is also split into high and low parts.
++ *
++ * 2. For |x| < 1, argument reduction is not required and sinpi(x) is 
++ *    computed by calling a kernel that leverages the kernels for sin(x)
++ *    ans cos(x).  See k_sinpi.c and k_cospi.c for details.
++ *
++ * 3. For 1 <= |x| < 0x1p(P-1), argument reduction is required where
++ *    |x| = j0 + r with j0 an integer and the remainder r satisfies
++ *    0 <= r < 1.  With the given domain, a simplified inline floor(x)
++ *    is used.  Also, note the following identity
++ *
++ *    sinpi(x) = sin(pi*(j0+r))
++ *             = sin(pi*j0) * cos(pi*r) + cos(pi*j0) * sin(pi*r)
++ *             = cos(pi*j0) * sin(pi*r)
++ *             = +-sinpi(r)
++ *
++ *    If j0 is even, then cos(pi*j0) = 1. If j0 is odd, then cos(pi*j0) = -1.
++ *    sinpi(r) is then computed via an appropriate kernel.
++ *
++ * 4. For |x| >= 0x1p(P-1), |x| is integral and sinpi(x) = copysign(0,x).
++ *
++ * 5. Special cases:
++ *
++ *    sinpi(+-0) = +-0
++ *    sinpi(+-n) = +-0, for positive integers n.
++ *    sinpi(+-inf) = nan.  Raises the "invalid" floating-point exception.
++ *    sinpi(nan) = nan.  Raises the "invalid" floating-point exception.
++ */
++
++#include <float.h>
++#include "math.h"
++#include "math_private.h"
++
++static const double
++pi_hi = 3.1415926814079285e+00,	/* 0x400921fb 0x58000000 */
++pi_lo =-2.7818135228334233e-08;	/* 0xbe5dde97 0x3dcb3b3a */
++
++#include "k_cospi.h"
++#include "k_sinpi.h"
++
++volatile static const double vzero = 0;
++
++double
++sinpi(double x)
++{
++	double ax, hi, lo, s;
++	uint32_t hx, ix, j0, lx;
++
++	EXTRACT_WORDS(hx, lx, x);
++	ix = hx & 0x7fffffff;
++	INSERT_WORDS(ax, ix, lx);
++
++	if (ix < 0x3ff00000) {			/* |x| < 1 */
++		if (ix < 0x3fd00000) {		/* |x| < 0.25 */
++			if (ix < 0x3e200000) {	/* |x| < 0x1p-29 */
++				if (x == 0)
++					return (x);
++				/*
++				 * To avoid issues with subnormal values,
++				 * scale the computation and rescale on 
++				 * return.
++				 */
++				INSERT_WORDS(hi, hx, 0);
++				hi *= 0x1p53;
++				lo = x * 0x1p53 - hi;
++				s = (pi_lo + pi_hi) * lo + pi_lo * hi +
++				    pi_hi * hi;
++				return (s * 0x1p-53);
++			}
++
++			s = __kernel_sinpi(ax);
++			return ((hx & 0x80000000) ? -s : s);
++		}
++
++		if (ix < 0x3fe00000)		/* |x| < 0.5 */
++			s = __kernel_cospi(0.5 - ax);
++		else if (ix < 0x3fe80000)	/* |x| < 0.75 */
++			s = __kernel_cospi(ax - 0.5);
++		else
++			s = __kernel_sinpi(1 - ax);
++		return ((hx & 0x80000000) ? -s : s);
++	}
++
++	if (ix < 0x43300000) {			/* 1 <= |x| < 0x1p52 */
++		/* Determine integer part of ax. */
++		j0 = ((ix >> 20) & 0x7ff) - 0x3ff;
++		if (j0 < 20) {
++			ix &= ~(0x000fffff >> j0);
++			lx = 0;
++		} else {
++			lx &= ~((uint32_t)0xffffffff >> (j0 - 20));
++		}
++		INSERT_WORDS(x, ix, lx);
++
++		ax -= x;
++		EXTRACT_WORDS(ix, lx, ax);
++
++		if (ix == 0)
++			s = 0;
++		else {
++			if (ix < 0x3fe00000) {		/* |x| < 0.5 */
++				if (ix < 0x3fd00000)	/* |x| < 0.25 */
++					s = __kernel_sinpi(ax);
++				else 
++					s = __kernel_cospi(0.5 - ax);
++			} else {
++				if (ix < 0x3fe80000)	/* |x| < 0.75 */
++					s = __kernel_cospi(ax - 0.5);
++				else
++					s = __kernel_sinpi(1 - ax);
++			}
++
++			if (j0 > 30)
++				x -= 0x1p30;
++			j0 = (uint32_t)x;
++			if (j0 & 1) s = -s;
++		}
++
++		return ((hx & 0x80000000) ? -s : s);
++	}
++
++	if (ix >= 0x7f800000)
++		return (vzero / vzero);
++
++	/*
++	 * |x| >= 0x1p52 is always an integer, so return +-0.
++	 */
++	return (copysign(0, x));
++}
++
++#if LDBL_MANT_DIG == 53
++__weak_reference(sinpi, sinpil);
++#endif
+-- 
+2.34.1
+

@@ -1,7 +1,7 @@
-From 01fe49b1e6d702c8a47a8febc0194061df7bb382 Mon Sep 17 00:00:00 2001
+From 542145f3021f1f00e28330e1da6a7c54a5c6799a Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Thu, 5 Apr 2018 17:59:39 +0100
-Subject: [PATCH 10/13] [master] ARM64: Implicit suspend checks using LDR.
+Subject: [PATCH 10/31] [master] ARM64: Implicit suspend checks using LDR.
 
 Implement implicit suspend checks in compiled managed code.
 Use a single instruction `ldr x21, [x21, #0]` for the check

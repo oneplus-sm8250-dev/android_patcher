@@ -1,0 +1,228 @@
+From 11dbfa418570d3e2657f161d6e4c01cfe884ebde Mon Sep 17 00:00:00 2001
+From: Hans Boehm <hboehm@google.com>
+Date: Tue, 7 Sep 2021 17:17:22 -0700
+Subject: [PATCH 24/31] Do not mark large objects for evacuation
+
+We previously copied entire page-aligned regions containing a single
+large object under certain unlikely conditions. Aside from occasionally
+causing us to run out of memory in the GC under even less likely
+conditions, this generally appears to be wasted effort. The copy
+is allocated before deallocating from-space regions, so there is
+no reason to believe it will reduce fragmentation at the region
+level, which seems to be its only plausible benefit.
+
+Remove the code to copy such objects, since that situation no
+longer arises.
+
+Have the space flip clear live_bytes, fixing an earlier bug that
+otherwise causes this CL to break. (Thanks to lokeshgidra@ for this
+piece.)
+
+Add a large comment to live_bytes_ better explaining its use.
+
+Drive-by-fix: Remove "temporary" output for b/116087961 that has
+been closed for 2 years.
+
+Test: Build and boot AOSP. Run test from bug repeatedly.
+Bug: 191912426
+Change-Id: I1603cd898aedcbcdd75fe019770213f0eae506d3
+---
+ runtime/gc/collector/concurrent_copying.cc | 34 ++++------
+ runtime/gc/space/region_space.cc           | 77 ++++++++--------------
+ runtime/gc/space/region_space.h            |  6 ++
+ 3 files changed, 49 insertions(+), 68 deletions(-)
+
+diff --git a/runtime/gc/collector/concurrent_copying.cc b/runtime/gc/collector/concurrent_copying.cc
+index 867a3fee00..6194b22835 100644
+--- a/runtime/gc/collector/concurrent_copying.cc
++++ b/runtime/gc/collector/concurrent_copying.cc
+@@ -554,11 +554,12 @@ class ConcurrentCopying::FlipCallback : public Closure {
+     }
+     {
+       TimingLogger::ScopedTiming split2("(Paused)SetFromSpace", cc->GetTimings());
+-      // Only change live bytes for 1-phase full heap CC.
++      // Only change live bytes for 1-phase full heap CC, that is if we are either not running in
++      // generational-mode, or it's an 'evacuate-all' mode GC.
+       cc->region_space_->SetFromSpace(
+           cc->rb_table_,
+           evac_mode,
+-          /*clear_live_bytes=*/ !cc->use_generational_cc_);
++          /*clear_live_bytes=*/ !cc->use_generational_cc_ || cc->force_evacuate_all_);
+     }
+     cc->SwapStacks();
+     if (ConcurrentCopying::kEnableFromSpaceAccountingCheck) {
+@@ -2236,9 +2237,7 @@ inline void ConcurrentCopying::ProcessMarkStackRef(mirror::Object* to_ref) {
+         << " type=" << to_ref->PrettyTypeOf()
+         << " young_gen=" << std::boolalpha << young_gen_ << std::noboolalpha
+         << " space=" << heap_->DumpSpaceNameFromAddress(to_ref)
+-        << " region_type=" << rtype
+-        // TODO: Temporary; remove this when this is no longer needed (b/116087961).
+-        << " runtime->sentinel=" << Runtime::Current()->GetSentinel().Read<kWithoutReadBarrier>();
++        << " region_type=" << rtype;
+   }
+   bool add_to_live_bytes = false;
+   // Invariant: There should be no object from a newly-allocated
+@@ -3433,9 +3432,9 @@ mirror::Object* ConcurrentCopying::Copy(Thread* const self,
+   // Note that from_ref is a from space ref so the SizeOf() call will access the from-space meta
+   // objects, but it's ok and necessary.
+   size_t obj_size = from_ref->SizeOf<kDefaultVerifyFlags>();
+-  size_t region_space_alloc_size = (obj_size <= space::RegionSpace::kRegionSize)
+-      ? RoundUp(obj_size, space::RegionSpace::kAlignment)
+-      : RoundUp(obj_size, space::RegionSpace::kRegionSize);
++  size_t region_space_alloc_size = RoundUp(obj_size, space::RegionSpace::kAlignment);
++  // Large objects are never evacuated.
++  CHECK_LE(region_space_alloc_size, space::RegionSpace::kRegionSize);
+   size_t region_space_bytes_allocated = 0U;
+   size_t non_moving_space_bytes_allocated = 0U;
+   size_t bytes_allocated = 0U;
+@@ -3507,18 +3506,13 @@ mirror::Object* ConcurrentCopying::Copy(Thread* const self,
+       FillWithFakeObject(self, to_ref, bytes_allocated);
+       if (!fall_back_to_non_moving) {
+         DCHECK(region_space_->IsInToSpace(to_ref));
+-        if (bytes_allocated > space::RegionSpace::kRegionSize) {
+-          // Free the large alloc.
+-          region_space_->FreeLarge</*kForEvac=*/ true>(to_ref, bytes_allocated);
+-        } else {
+-          // Record the lost copy for later reuse.
+-          heap_->num_bytes_allocated_.fetch_add(bytes_allocated, std::memory_order_relaxed);
+-          to_space_bytes_skipped_.fetch_add(bytes_allocated, std::memory_order_relaxed);
+-          to_space_objects_skipped_.fetch_add(1, std::memory_order_relaxed);
+-          MutexLock mu(self, skipped_blocks_lock_);
+-          skipped_blocks_map_.insert(std::make_pair(bytes_allocated,
+-                                                    reinterpret_cast<uint8_t*>(to_ref)));
+-        }
++        // Record the lost copy for later reuse.
++        heap_->num_bytes_allocated_.fetch_add(bytes_allocated, std::memory_order_relaxed);
++        to_space_bytes_skipped_.fetch_add(bytes_allocated, std::memory_order_relaxed);
++        to_space_objects_skipped_.fetch_add(1, std::memory_order_relaxed);
++        MutexLock mu(self, skipped_blocks_lock_);
++        skipped_blocks_map_.insert(std::make_pair(bytes_allocated,
++                                                  reinterpret_cast<uint8_t*>(to_ref)));
+       } else {
+         DCHECK(heap_->non_moving_space_->HasAddress(to_ref));
+         DCHECK_EQ(bytes_allocated, non_moving_space_bytes_allocated);
+diff --git a/runtime/gc/space/region_space.cc b/runtime/gc/space/region_space.cc
+index 091dc4e055..7df33b983d 100644
+--- a/runtime/gc/space/region_space.cc
++++ b/runtime/gc/space/region_space.cc
+@@ -223,71 +223,52 @@ inline bool RegionSpace::Region::ShouldBeEvacuated(EvacMode evac_mode) {
+   DCHECK(GetUseGenerationalCC() || (evac_mode != kEvacModeNewlyAllocated));
+   DCHECK((IsAllocated() || IsLarge()) && IsInToSpace());
+   // The region should be evacuated if:
+-  // - the evacuation is forced (`evac_mode == kEvacModeForceAll`); or
++  // - the evacuation is forced (!large && `evac_mode == kEvacModeForceAll`); or
+   // - the region was allocated after the start of the previous GC (newly allocated region); or
+-  // - the live ratio is below threshold (`kEvacuateLivePercentThreshold`).
++  // - !large and the live ratio is below threshold (`kEvacuateLivePercentThreshold`).
++  if (IsLarge()) {
++    // It makes no sense to evacuate in the large case, since the region only contains zero or
++    // one object. If the regions is completely empty, we'll reclaim it anyhow. If its one object
++    // is live, we would just be moving around region-aligned memory.
++    return false;
++  }
+   if (UNLIKELY(evac_mode == kEvacModeForceAll)) {
+     return true;
+   }
+-  bool result = false;
++  DCHECK(IsAllocated());
+   if (is_newly_allocated_) {
+     // Invariant: newly allocated regions have an undefined live bytes count.
+     DCHECK_EQ(live_bytes_, static_cast<size_t>(-1));
+-    if (IsAllocated()) {
+-      // We always evacuate newly-allocated non-large regions as we
+-      // believe they contain many dead objects (a very simple form of
+-      // the generational hypothesis, even before the Sticky-Bit CC
+-      // approach).
+-      //
+-      // TODO: Verify that assertion by collecting statistics on the
+-      // number/proportion of live objects in newly allocated regions
+-      // in RegionSpace::ClearFromSpace.
+-      //
+-      // Note that a side effect of evacuating a newly-allocated
+-      // non-large region is that the "newly allocated" status will
+-      // later be removed, as its live objects will be copied to an
+-      // evacuation region, which won't be marked as "newly
+-      // allocated" (see RegionSpace::AllocateRegion).
+-      result = true;
+-    } else {
+-      DCHECK(IsLarge());
+-      // We never want to evacuate a large region (and the associated
+-      // tail regions), except if:
+-      // - we are forced to do so (see the `kEvacModeForceAll` case
+-      //   above); or
+-      // - we know that the (sole) object contained in this region is
+-      //   dead (see the corresponding logic below, in the
+-      //   `kEvacModeLivePercentNewlyAllocated` case).
+-      // For a newly allocated region (i.e. allocated since the
+-      // previous GC started), we don't have any liveness information
+-      // (the live bytes count is -1 -- also note this region has been
+-      // a to-space one between the time of its allocation and now),
+-      // so we prefer not to evacuate it.
+-      result = false;
+-    }
++    // We always evacuate newly-allocated non-large regions as we
++    // believe they contain many dead objects (a very simple form of
++    // the generational hypothesis, even before the Sticky-Bit CC
++    // approach).
++    //
++    // TODO: Verify that assertion by collecting statistics on the
++    // number/proportion of live objects in newly allocated regions
++    // in RegionSpace::ClearFromSpace.
++    //
++    // Note that a side effect of evacuating a newly-allocated
++    // non-large region is that the "newly allocated" status will
++    // later be removed, as its live objects will be copied to an
++    // evacuation region, which won't be marked as "newly
++    // allocated" (see RegionSpace::AllocateRegion).
++    return true;
+   } else if (evac_mode == kEvacModeLivePercentNewlyAllocated) {
+     bool is_live_percent_valid = (live_bytes_ != static_cast<size_t>(-1));
+     if (is_live_percent_valid) {
+       DCHECK(IsInToSpace());
+-      DCHECK(!IsLargeTail());
+       DCHECK_NE(live_bytes_, static_cast<size_t>(-1));
+       DCHECK_LE(live_bytes_, BytesAllocated());
+       const size_t bytes_allocated = RoundUp(BytesAllocated(), kRegionSize);
+       DCHECK_LE(live_bytes_, bytes_allocated);
+-      if (IsAllocated()) {
+-        // Side node: live_percent == 0 does not necessarily mean
+-        // there's no live objects due to rounding (there may be a
+-        // few).
+-        result = (live_bytes_ * 100U < kEvacuateLivePercentThreshold * bytes_allocated);
+-      } else {
+-        DCHECK(IsLarge());
+-        result = (live_bytes_ == 0U);
+-      }
+-    } else {
+-      result = false;
++      // Side node: live_percent == 0 does not necessarily mean
++      // there's no live objects due to rounding (there may be a
++      // few).
++      return live_bytes_ * 100U < kEvacuateLivePercentThreshold * bytes_allocated;
+     }
+   }
+-  return result;
++  return false;
+ }
+ 
+ void RegionSpace::ZeroLiveBytesForLargeObject(mirror::Object* obj) {
+diff --git a/runtime/gc/space/region_space.h b/runtime/gc/space/region_space.h
+index c3b272d6cf..1463eb7d2a 100644
+--- a/runtime/gc/space/region_space.h
++++ b/runtime/gc/space/region_space.h
+@@ -614,6 +614,12 @@ class RegionSpace final : public ContinuousMemMapAllocSpace {
+     static bool GetUseGenerationalCC();
+ 
+     size_t idx_;                        // The region's index in the region space.
++    // Number of bytes in live objects, or -1 for newly allocated regions.  Used to compute
++    // percent live for region evacuation decisions, and to determine whether an unevacuated
++    // region is completely empty, and thus can be reclaimed. Reset to zero either at the
++    // beginning of MarkingPhase(), or during the flip for a nongenerational GC, where we
++    // don't have a separate mark phase. It is then incremented whenever a mark bit in that
++    // region is set.
+     size_t live_bytes_;                 // The live bytes. Used to compute the live percent.
+     uint8_t* begin_;                    // The begin address of the region.
+     Thread* thread_;                    // The owning thread if it's a tlab.
+-- 
+2.34.1
+

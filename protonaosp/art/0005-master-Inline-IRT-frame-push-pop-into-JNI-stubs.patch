@@ -1,7 +1,7 @@
-From 4666eb8cb8f9343f6f96e095f64c2485d68cd970 Mon Sep 17 00:00:00 2001
+From fc83250927b513112eedbafd0dc18d6bdef00a9b Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Tue, 23 Mar 2021 16:32:52 +0000
-Subject: [PATCH 05/13] [master] Inline IRT frame push/pop into JNI stubs.
+Subject: [PATCH 05/31] [master] Inline IRT frame push/pop into JNI stubs.
 
 Golem results for art-opt-cc (higher is better):
 linux-ia32                       before after

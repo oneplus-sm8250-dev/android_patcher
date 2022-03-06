@@ -1,0 +1,48 @@
+From 8940509e6f24f3522222a094e633c39ef168d83d Mon Sep 17 00:00:00 2001
+From: Nicolas Geoffray <ngeoffray@google.com>
+Date: Tue, 11 Jan 2022 18:47:33 +0000
+Subject: [PATCH 23/31] Fix thread pool check.
+
+We also need to check the zygote priority for a zygote process.
+
+Test: boot with the debug apex
+Bug: 214049018
+Change-Id: I121cc71a609adb5fe92c18e6422b981708920aff
+---
+ runtime/jit/jit.h  | 4 ++++
+ runtime/runtime.cc | 4 +++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/runtime/jit/jit.h b/runtime/jit/jit.h
+index 33a3861b99..6cb4654e2b 100644
+--- a/runtime/jit/jit.h
++++ b/runtime/jit/jit.h
+@@ -286,6 +286,10 @@ class Jit {
+     return options_->GetOsrThreshold();
+   }
+ 
++  int GetZygoteThreadPoolPthreadPriority() const {
++    return options_->GetZygoteThreadPoolPthreadPriority();
++  }
++
+   uint16_t HotMethodThreshold() const {
+     return options_->GetCompileThreshold();
+   }
+diff --git a/runtime/runtime.cc b/runtime/runtime.cc
+index 68dc2bdbce..0e04901c5c 100644
+--- a/runtime/runtime.cc
++++ b/runtime/runtime.cc
+@@ -709,7 +709,9 @@ void Runtime::PostZygoteFork() {
+     // Ensure that the threads in the JIT pool have been created with the right
+     // priority.
+     if (kIsDebugBuild && jit->GetThreadPool() != nullptr) {
+-      jit->GetThreadPool()->CheckPthreadPriority(jit->GetThreadPoolPthreadPriority());
++      jit->GetThreadPool()->CheckPthreadPriority(
++          IsZygote() ? jit->GetZygoteThreadPoolPthreadPriority()
++                     : jit->GetThreadPoolPthreadPriority());
+     }
+   }
+   // Reset all stats.
+-- 
+2.34.1
+

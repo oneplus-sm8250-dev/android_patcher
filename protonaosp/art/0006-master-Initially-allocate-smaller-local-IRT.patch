@@ -1,7 +1,7 @@
-From 2dffb30ac79b86ae79980ddd5d34f2cc3a90eb1b Mon Sep 17 00:00:00 2001
+From c6e45963fb4163572bee35d25d4bd7c5aa9f0787 Mon Sep 17 00:00:00 2001
 From: Hans Boehm <hboehm@google.com>
 Date: Thu, 23 Sep 2021 12:26:04 -0700
-Subject: [PATCH 06/13] [master] Initially allocate smaller local IRT
+Subject: [PATCH 06/31] [master] Initially allocate smaller local IRT
 
 Introduce a separate small object allocator to allocate tables for
 the initial local indirect reference tables, so they don't each

@@ -1,7 +1,7 @@
 From 299ead9545fbdfb4f2cad62c0e65374fef99ac0e Mon Sep 17 00:00:00 2001
 From: Suresh Koleti <skoleti@codeaurora.org>
 Date: Mon, 21 Jun 2021 20:02:28 +0530
-Subject: [PATCH] IMS: Add method to store multi sim voice capability
+Subject: [PATCH 1/2] IMS: Add method to store multi sim voice capability
 
 - Add new method multi_sim_voice_capability to
   set/get multi sim voice capability.

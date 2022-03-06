@@ -1,0 +1,157 @@
+From 4d2066c61e5c42a7ea20b30b3ccbe12b39e7b28d Mon Sep 17 00:00:00 2001
+From: Jake Weinstein <jake@aospa.co>
+Date: Mon, 11 Dec 2017 03:27:49 -0500
+Subject: [PATCH 15/16] Use builtins for
+ fma/fmax/fmin/nearbyint/rint/round/trunc on 32-bit ARM
+
+All except fma/fmaf are only used for ARMv8 targets.
+
+Change-Id: I6883743c896eeacbb53ee5e1a366e14d812b0297
+---
+ libm/Android.bp         | 33 ++++++++++++++++++++++++++++++++-
+ libm/builtins.cpp       | 34 +++++++++++++++++++++-------------
+ libm/fake_long_double.c | 15 +++++++++++++++
+ 3 files changed, 68 insertions(+), 14 deletions(-)
+
+diff --git a/libm/Android.bp b/libm/Android.bp
+index d08a86dcb..93ae0546b 100644
+--- a/libm/Android.bp
++++ b/libm/Android.bp
+@@ -288,7 +288,7 @@ cc_library {
+             srcs: [
+                 "arm/fenv.c",
+             ],
+-            neon: {
++            armv7_a_neon: {
+                 srcs: [
+                     "arm/sqrt.S",
+                     "arm/floor.S",
+@@ -298,8 +298,39 @@ cc_library {
+                     "upstream-freebsd/lib/msun/src/e_sqrt.c",
+                     "upstream-freebsd/lib/msun/src/e_sqrtf.c",
+                     "upstream-freebsd/lib/msun/src/s_floor.c",
++                    "upstream-freebsd/lib/msun/src/s_fma.c",
++                    "upstream-freebsd/lib/msun/src/s_fmaf.c",
+                 ],
+             },
++            aarch32: {
++                srcs: [
++                    "arm/sqrt.S",
++                ],
++                exclude_srcs: [
++                    "upstream-freebsd/lib/msun/src/e_sqrt.c",
++                    "upstream-freebsd/lib/msun/src/e_sqrtf.c",
++                    "upstream-freebsd/lib/msun/src/s_ceil.c",
++                    "upstream-freebsd/lib/msun/src/s_ceilf.c",
++                    "upstream-freebsd/lib/msun/src/s_floor.c",
++                    "upstream-freebsd/lib/msun/src/s_floorf.c",
++                    "upstream-freebsd/lib/msun/src/s_fma.c",
++                    "upstream-freebsd/lib/msun/src/s_fmaf.c",
++                    "upstream-freebsd/lib/msun/src/s_fmax.c",
++                    "upstream-freebsd/lib/msun/src/s_fmaxf.c",
++                    "upstream-freebsd/lib/msun/src/s_fmin.c",
++                    "upstream-freebsd/lib/msun/src/s_fminf.c",
++                    "upstream-freebsd/lib/msun/src/s_nearbyintf.c",
++                    "upstream-freebsd/lib/msun/src/s_nearbyint.c",
++                    "upstream-freebsd/lib/msun/src/s_rint.c",
++                    "upstream-freebsd/lib/msun/src/s_rintf.c",
++                    "upstream-freebsd/lib/msun/src/s_round.c",
++                    "upstream-freebsd/lib/msun/src/s_roundf.c",
++                    "upstream-freebsd/lib/msun/src/s_trunc.c",
++                    "upstream-freebsd/lib/msun/src/s_truncf.c",
++                ],
++                cflags: ["-D__AARCH32__"],
++                cppflags: ["-D__AARCH32__"],
++            },
+             instruction_set: "arm",
+             pack_relocations: false,
+             ldflags: ["-Wl,--hash-style=both"],
+diff --git a/libm/builtins.cpp b/libm/builtins.cpp
+index 8d431e2c2..12b408ff4 100644
+--- a/libm/builtins.cpp
++++ b/libm/builtins.cpp
+@@ -47,16 +47,22 @@ long double fabsl(long double x) {
+ }
+ #endif
+ 
+-#if defined(__aarch64__)
++// fma has builtin routines for ARMv7-A NEON, ARMv8, and ARM64
++
++#if defined (__ARM_NEON__) || defined (__aarch64__)
++float fmaf(float x, float y, float z) { return __builtin_fmaf(x, y, z); }
++double fma(double x, double y, double z) { return __builtin_fma(x, y, z); }
++#endif
++
++// ceil/floor/fmax/fmin/nearbyint/rint/round/trunc have builtin routines for ARMv8 and ARM64
++
++#if defined (__AARCH32__) || defined (__aarch64__)
+ float ceilf(float x) { return __builtin_ceilf(x); }
+ double ceil(double x) { return __builtin_ceil(x); }
+ 
+ float floorf(float x) { return __builtin_floorf(x); }
+ double floor(double x) { return __builtin_floor(x); }
+ 
+-float fmaf(float x, float y, float z) { return __builtin_fmaf(x, y, z); }
+-double fma(double x, double y, double z) { return __builtin_fma(x, y, z); }
+-
+ float fmaxf(float x, float y) { return __builtin_fmaxf(x, y); }
+ double fmax(double x, double y) { return __builtin_fmax(x, y); }
+ 
+@@ -66,6 +72,17 @@ double fmin(double x, double y) { return __builtin_fmin(x, y); }
+ float nearbyintf(float x) { return __builtin_nearbyintf(x); }
+ double nearbyint(double x) { return __builtin_nearbyint(x); }
+ 
++float rintf(float x) { return __builtin_rintf(x); }
++double rint(double x) { return __builtin_rint(x); }
++
++float roundf(float x) { return __builtin_roundf(x); }
++double round(double x) { return __builtin_round(x); }
++
++float truncf(float x) { return __builtin_truncf(x); }
++double trunc(double x) { return __builtin_trunc(x); }
++#endif
++
++#if defined (__aarch64__)
+ // msun s_nearbyint.c defines all floating-point version, so we need to
+ // redefine the long double one here. For aarch64, clang/compiler-rt
+ // soft-float routines does not use single/double floating-point operation,
+@@ -78,13 +95,4 @@ long double nearbyintl(long double x) {
+     fesetenv(&env);
+     return (ret);
+ }
+-
+-float rintf(float x) { return __builtin_rintf(x); }
+-double rint(double x) { return __builtin_rint(x); }
+-
+-float roundf(float x) { return __builtin_roundf(x); }
+-double round(double x) { return __builtin_round(x); }
+-
+-float truncf(float x) { return __builtin_truncf(x); }
+-double trunc(double x) { return __builtin_trunc(x); }
+ #endif
+diff --git a/libm/fake_long_double.c b/libm/fake_long_double.c
+index 26edfeb1f..cc884f2e2 100644
+--- a/libm/fake_long_double.c
++++ b/libm/fake_long_double.c
+@@ -44,3 +44,18 @@ void sincosl(long double x, long double* s, long double* c) { sincos(x, (double*
+ 
+ // FreeBSD doesn't have an ld128 implementation of tgammal, so both LP32 and LP64 need this.
+ long double tgammal(long double x) { return tgamma(x); }
++
++// builtins.cpp does not provide the long double wrappers for the
++// routines it implements.
++
++#if defined (__ARM_NEON__)
++long double fmal(long double a1, long double a2, long double a3) { return fma(a1, a2, a3); }
++#endif
++
++#if defined (__AARCH32__)
++long double ceill(long double x) { return ceil(x); }
++long double floorl(long double x) { return floor(x); }
++long double nearbyintl(long double x) { return nearbyint(x); }
++long double rintl(long double x) { return rint(x); }
++long double truncl(long double x) { return trunc(x); }
++#endif
+-- 
+2.34.1
+
