@@ -1,4 +1,4 @@
-From 48ef723ab5b3bc03bd87e7fdb7c889b049055753 Mon Sep 17 00:00:00 2001
+From d4dced9be715e6f1cdc6b52dd7ee39e0b81e5e6a Mon Sep 17 00:00:00 2001
 From: Nolen Johnson <johnsonnolen@gmail.com>
 Date: Wed, 12 Feb 2020 00:03:01 +0000
 Subject: [PATCH 24/63] recovery: Mark as Lineage Recovery
@@ -40,5 +40,5 @@ index 6a125c08..2a5ab4c7 100644
    // help messages:                  Swipe up/down to move
    //                                 Swipe left/right to select
 -- 
-2.34.1
+2.36.0
 

@@ -1,4 +1,4 @@
-From 993b3b12c597240516621b3d224c290d8132ff16 Mon Sep 17 00:00:00 2001
+From aa620222a22cee0972506554e741fbe0b24d4cb0 Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Wed, 31 Jul 2019 10:53:24 -0500
 Subject: [PATCH 7/8] Define AArch32 soong variable
@@ -35,5 +35,5 @@ index d68a0d1d1..76fea3060 100644
  		},
  	},
 -- 
-2.34.1
+2.36.0
 

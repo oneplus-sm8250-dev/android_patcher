@@ -1,4 +1,4 @@
-From 121e4c621be170c937665906f08be3ae615a23bb Mon Sep 17 00:00:00 2001
+From f239fdaf929ddb6313e5e4a3be205260424bb729 Mon Sep 17 00:00:00 2001
 From: Usama Arif <usama.arif@linaro.org>
 Date: Fri, 15 Nov 2019 10:53:29 +0000
 Subject: [PATCH 15/31] [master] ARM64: FP16 min and max intrinsic for ARMv8
@@ -442,5 +442,5 @@ index 6efaf7fde9..215584d356 100644
      }
  }
 -- 
-2.34.1
+2.36.0
 

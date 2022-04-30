@@ -1,4 +1,4 @@
-From 4edef2c9f49022a318e62f740f60f60837310aa7 Mon Sep 17 00:00:00 2001
+From fb0fdce7627f05a15fc8fe46a0100c80bb44d222 Mon Sep 17 00:00:00 2001
 From: Tim Zimmermann <tim@linux4.de>
 Date: Tue, 8 Jun 2021 16:14:55 +0200
 Subject: [PATCH 60/63] recovery: make wiping dynamic partitions work
@@ -80,5 +80,5 @@ index 082ffb8a..3d788cea 100644
      PLOG(ERROR) << "Failed to unmount volume!";
      return false;
 -- 
-2.34.1
+2.36.0
 

@@ -1,4 +1,4 @@
-From 91d9ff8fe83c9517473931462e294ce9796f166c Mon Sep 17 00:00:00 2001
+From b05c0accede5a43782f3c9eca4e9faed791d1edd Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Mon, 4 Oct 2021 09:57:48 +0100
 Subject: [PATCH 02/31] [master] libprofile: Clear method bitmap padding bits.
@@ -29,5 +29,5 @@ index 8267174b2d..ef8d0ed682 100644
  
    uint16_t last_method_index = 0;
 -- 
-2.34.1
+2.36.0
 

@@ -1,4 +1,4 @@
-From fee185d7ed03e8a91b63dc5e78e607d9924337af Mon Sep 17 00:00:00 2001
+From 072f9d69712032d543b507830f803b3e335ddbac Mon Sep 17 00:00:00 2001
 From: Srinivas Rao Narne <snarne@codeaurora.org>
 Date: Tue, 23 Jan 2018 15:31:48 -0800
 Subject: [PATCH 01/16] Add inaddr.h header file.
@@ -80,5 +80,5 @@ index 000000000..524addabf
 +
 +#endif
 -- 
-2.34.1
+2.36.0
 

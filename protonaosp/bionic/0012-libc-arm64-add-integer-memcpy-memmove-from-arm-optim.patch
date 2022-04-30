@@ -1,4 +1,4 @@
-From fa37021bd6592c773c66e998d15e3745f97152bf Mon Sep 17 00:00:00 2001
+From a2730388b74879b0b12c4e835bbf4652b1cbbc07 Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Mon, 16 Dec 2019 05:28:07 +0100
 Subject: [PATCH 12/16] libc: arm64: add integer memcpy/memmove from
@@ -346,5 +346,5 @@ index 0f752ea4a..f101f5ddf 100644
  #if defined(WMEMMOVE)
  END(wmemmove)
 -- 
-2.34.1
+2.36.0
 

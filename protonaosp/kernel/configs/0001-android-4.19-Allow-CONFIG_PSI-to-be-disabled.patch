@@ -1,4 +1,4 @@
-From 138b7c9c489c43b9239d2c7af8e16f2114a12a16 Mon Sep 17 00:00:00 2001
+From 45ec1c05d0c05f6a79e888db42351ea1b3bb0eca Mon Sep 17 00:00:00 2001
 From: Alexander Koskovich <zvnexus@outlook.com>
 Date: Mon, 14 Dec 2020 08:51:52 -0700
 Subject: [PATCH] android-4.19: Allow CONFIG_PSI to be disabled.
@@ -49,5 +49,5 @@ index d2bb2ad..6d413d1 100644
  CONFIG_QUOTA=y
  CONFIG_QUOTACTL=y
 -- 
-2.34.1
+2.36.0
 

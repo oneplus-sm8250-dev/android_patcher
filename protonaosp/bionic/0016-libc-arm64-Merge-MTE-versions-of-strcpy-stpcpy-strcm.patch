@@ -1,4 +1,4 @@
-From 1b965aca2878a16674b1d1f677bfeeb5f050b91a Mon Sep 17 00:00:00 2001
+From d5c8958ac8632504ce8b997c86447db92515a26a Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Mon, 14 Feb 2022 13:26:41 +0900
 Subject: [PATCH 16/16] libc: arm64: Merge MTE versions of
@@ -94,5 +94,5 @@ index 161ece8ea..7b39a8f41 100644
  
  NOTE_GNU_PROPERTY()
 -- 
-2.34.1
+2.36.0
 

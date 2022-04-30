@@ -1,4 +1,4 @@
-From cf3d6578306f7adc0dbc8cbab4499dbf6bb63c1c Mon Sep 17 00:00:00 2001
+From 09d3829744467df58efed42ab0935240038a1838 Mon Sep 17 00:00:00 2001
 From: Nicolas Geoffray <ngeoffray@google.com>
 Date: Mon, 29 Nov 2021 14:47:21 +0000
 Subject: [PATCH 11/31] [master] Handle baseline/optimized compilation kind in
@@ -114,5 +114,5 @@ index 9d9a7d3bd4..5ac68a7337 100644
        {
          MutexLock mu(self, *Locks::jit_lock_);
 -- 
-2.34.1
+2.36.0
 

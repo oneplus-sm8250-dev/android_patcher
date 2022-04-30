@@ -1,4 +1,4 @@
-From e9ce0f223146fb9df5f3d88668594a731c90473f Mon Sep 17 00:00:00 2001
+From 37dd3da30cc6b150af20009fc4a9e79f5820d811 Mon Sep 17 00:00:00 2001
 From: ShuJieWang <wangshujie.matt@bytedance.com>
 Date: Wed, 22 Dec 2021 18:15:58 +0800
 Subject: [PATCH 17/31] Add a new Lock 'env_hooks_lock_' to avoid race
@@ -76,5 +76,5 @@ index 015f85cba9..394bfb4426 100644
    size_t enable_allocation_tracking_delta_;
    std::atomic<bool> allocation_tracking_enabled_;
 -- 
-2.34.1
+2.36.0
 

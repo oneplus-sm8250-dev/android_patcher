@@ -1,4 +1,4 @@
-From fc83250927b513112eedbafd0dc18d6bdef00a9b Mon Sep 17 00:00:00 2001
+From 9a2c47b212d08f809f8cceb411a957d27453d224 Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Tue, 23 Mar 2021 16:32:52 +0000
 Subject: [PATCH 05/31] [master] Inline IRT frame push/pop into JNI stubs.
@@ -1580,5 +1580,5 @@ index 31a328d979..95eb0e14ed 100644
    static constexpr const char* kDex2OatCmdLineKey = "dex2oat-cmdline";
    static constexpr const char* kDebuggableKey = "debuggable";
 -- 
-2.34.1
+2.36.0
 

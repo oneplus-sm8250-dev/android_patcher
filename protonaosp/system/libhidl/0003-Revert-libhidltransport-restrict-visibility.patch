@@ -1,4 +1,4 @@
-From a908bca5a6fa30fea6cd6f356112d1ddce4382fb Mon Sep 17 00:00:00 2001
+From 8ee7b5ce35041b859f071084a9bec9d780275c44 Mon Sep 17 00:00:00 2001
 From: Daniel Norman <danielnorman@google.com>
 Date: Mon, 28 Oct 2019 14:52:07 -0700
 Subject: [PATCH 3/3] Revert "libhidltransport: restrict visibility"
@@ -36,5 +36,5 @@ index 33ba0e9..8bf5242 100644
  
  cc_defaults {
 -- 
-2.34.1
+2.36.0
 

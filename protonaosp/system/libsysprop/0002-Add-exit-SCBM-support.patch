@@ -1,4 +1,4 @@
-From 5f654f701d9028be9f78611917be56a356306ae3 Mon Sep 17 00:00:00 2001
+From 8c0293cecffba34ba85335a337e0ce93cd9e5f8f Mon Sep 17 00:00:00 2001
 From: Chaitanya Saggurthi <csaggurt@codeaurora.org>
 Date: Fri, 5 Nov 2021 18:39:21 +0530
 Subject: [PATCH 2/2] Add exit SCBM support
@@ -31,5 +31,5 @@ index cad22ff..3141707 100644
 +    prop_name: "ril.inscbm"
 +}
 -- 
-2.34.1
+2.36.0
 

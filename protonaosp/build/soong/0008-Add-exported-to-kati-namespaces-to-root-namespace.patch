@@ -1,4 +1,4 @@
-From 1991c02cb78e2db6f560f68d20584de74cf391aa Mon Sep 17 00:00:00 2001
+From 7028b25efec6b0be11e79c07bdda7116057f3750 Mon Sep 17 00:00:00 2001
 From: LuK1337 <priv.luk@gmail.com>
 Date: Sun, 16 Jan 2022 20:44:58 +0100
 Subject: [PATCH 8/8] Add exported-to-kati namespaces to root namespace
@@ -26,5 +26,5 @@ index d137636e2..ccda7c45a 100644
  
  	r.namespacesByDir.Store(namespace.Path, namespace)
 -- 
-2.34.1
+2.36.0
 

@@ -1,4 +1,4 @@
-From 55c262e6fd24182c02c4d6f34c7bccbee9bde58f Mon Sep 17 00:00:00 2001
+From edfed1000a46efeb67f23d2505bb3025bbf35229 Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Mon, 5 Oct 2020 15:11:36 +0200
 Subject: [PATCH 47/63] recovery: Always use the text menu for rescue party
@@ -28,5 +28,5 @@ index 25c84f9d..632995ef 100644
      return 0;
    }
 -- 
-2.34.1
+2.36.0
 

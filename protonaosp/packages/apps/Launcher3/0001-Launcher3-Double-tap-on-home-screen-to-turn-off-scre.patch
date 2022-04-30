@@ -1,4 +1,4 @@
-From 47184cbfe260bcf7c81abb13291df285f43734f8 Mon Sep 17 00:00:00 2001
+From 2eec268cd6846fa176001344ae9f6e13b8e82811 Mon Sep 17 00:00:00 2001
 From: Thecrazyskull <anaskarbila@gmail.com>
 Date: Fri, 10 Feb 2017 09:38:50 -0500
 Subject: [PATCH] Launcher3: Double tap on home screen to turn off screen
@@ -13,10 +13,10 @@ Signed-off-by: Omkar Chandorkar <gotenksIN@aosip.dev>
  3 files changed, 14 insertions(+)
 
 diff --git a/Android.mk b/Android.mk
-index c222f24afa..6ebd47ecec 100644
+index ceaaf138f2..45907a6bf9 100644
 --- a/Android.mk
 +++ b/Android.mk
-@@ -105,6 +105,7 @@ else
+@@ -69,6 +69,7 @@ else
    LOCAL_MIN_SDK_VERSION := 26
  endif
  LOCAL_PACKAGE_NAME := Launcher3QuickStep
@@ -25,10 +25,10 @@ index c222f24afa..6ebd47ecec 100644
  LOCAL_SYSTEM_EXT_MODULE := true
  LOCAL_OVERRIDES_PACKAGES := Home Launcher2 Launcher3
 diff --git a/AndroidManifest-common.xml b/AndroidManifest-common.xml
-index e7ca83882c..d98be3d554 100644
+index 530b9ca528..838e656fe0 100644
 --- a/AndroidManifest-common.xml
 +++ b/AndroidManifest-common.xml
-@@ -42,6 +42,8 @@
+@@ -41,6 +41,8 @@
      <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
      <!-- for rotating surface by arbitrary degree -->
      <uses-permission android:name="android.permission.ROTATE_SURFACE_FLINGER" />
@@ -38,7 +38,7 @@ index e7ca83882c..d98be3d554 100644
      <!--
      Permissions required for read/write access to the workspace data. These permission name
 diff --git a/src/com/android/launcher3/touch/WorkspaceTouchListener.java b/src/com/android/launcher3/touch/WorkspaceTouchListener.java
-index 4fa658e7d5..96955dcdf8 100644
+index 20d2ad36a5..88ddd93c82 100644
 --- a/src/com/android/launcher3/touch/WorkspaceTouchListener.java
 +++ b/src/com/android/launcher3/touch/WorkspaceTouchListener.java
 @@ -24,8 +24,10 @@ import static android.view.MotionEvent.ACTION_UP;
@@ -52,7 +52,7 @@ index 4fa658e7d5..96955dcdf8 100644
  import android.view.GestureDetector;
  import android.view.HapticFeedbackConstants;
  import android.view.MotionEvent;
-@@ -68,6 +70,8 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
+@@ -67,6 +69,8 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
  
      private int mLongPressState = STATE_CANCELLED;
  
@@ -61,7 +61,7 @@ index 4fa658e7d5..96955dcdf8 100644
      private final GestureDetector mGestureDetector;
  
      public WorkspaceTouchListener(Launcher launcher, Workspace workspace) {
-@@ -76,6 +80,7 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
+@@ -75,6 +79,7 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
          // Use twice the touch slop as we are looking for long press which is more
          // likely to cause movement.
          mTouchSlop = 2 * ViewConfiguration.get(launcher).getScaledTouchSlop();
@@ -69,7 +69,7 @@ index 4fa658e7d5..96955dcdf8 100644
          mGestureDetector = new GestureDetector(workspace.getContext(), this);
      }
  
-@@ -181,4 +186,10 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
+@@ -180,4 +185,10 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
              }
          }
      }
@@ -81,5 +81,5 @@ index 4fa658e7d5..96955dcdf8 100644
 +    }
  }
 -- 
-2.34.1
+2.36.0
 

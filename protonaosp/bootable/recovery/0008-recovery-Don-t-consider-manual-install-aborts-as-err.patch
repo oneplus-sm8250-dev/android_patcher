@@ -1,4 +1,4 @@
-From 0329ea5ab76355467919430dce588d162ec537a6 Mon Sep 17 00:00:00 2001
+From 101f597b6716bd8659c059f527f8d2648369fabe Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Sun, 4 Oct 2020 21:59:52 +0200
 Subject: [PATCH 08/63] recovery: Don't consider manual install aborts as
@@ -64,5 +64,5 @@ index 627bc13c..f6a9e837 100644
          if (status == INSTALL_SUCCESS) {
            update_in_progress = false;
 -- 
-2.34.1
+2.36.0
 

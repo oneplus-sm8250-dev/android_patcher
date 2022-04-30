@@ -1,4 +1,4 @@
-From 9067c267d019fe8a5815c7c399fa1a2ddc38142e Mon Sep 17 00:00:00 2001
+From ea34147405edc44fb9d2dbb7f4ee89bcb8b5ae95 Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mkbestas@lineageos.org>
 Date: Fri, 27 Sep 2019 19:52:13 +0300
 Subject: [PATCH 10/63] recovery: Add wipe system partition option
@@ -97,5 +97,5 @@ index 98120e02..d6e94fcc 100644
  
    explicit Device(RecoveryUI* ui);
 -- 
-2.34.1
+2.36.0
 

@@ -1,4 +1,4 @@
-From 1ab1539c1f1754a080df83d36daf5afd2a376e09 Mon Sep 17 00:00:00 2001
+From 64ab7c4596fb8c18c784cd3937bccc60f93e7ec8 Mon Sep 17 00:00:00 2001
 From: Steve Kondik <shade@chemlab.org>
 Date: Sun, 24 Nov 2013 21:40:09 -0800
 Subject: [PATCH 18/63] recovery: Puke out an /etc/fstab so stuff like
@@ -73,5 +73,5 @@ index 75b586d4..58630bec 100644
  
  Volume* volume_for_mount_point(const std::string& mount_point) {
 -- 
-2.34.1
+2.36.0
 

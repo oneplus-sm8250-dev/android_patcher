@@ -1,4 +1,4 @@
-From ac68a545dc18b3239b58b368dfe3aa49dde69dac Mon Sep 17 00:00:00 2001
+From 64cc8f3904ecc50c0a51188231a967ed733ec72d Mon Sep 17 00:00:00 2001
 From: Vojtech Bocek <vbocek@gmail.com>
 Date: Sun, 8 Mar 2015 16:32:41 +0100
 Subject: [PATCH 20/63] recovery: init: mount pstore fs
@@ -24,5 +24,5 @@ index 5cacb8bd..4306b701 100644
      ifup lo
      hostname localhost
 -- 
-2.34.1
+2.36.0
 

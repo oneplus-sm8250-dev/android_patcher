@@ -1,4 +1,4 @@
-From 1f625d7ef07e4667ca09ea8ec0b623003b0b7557 Mon Sep 17 00:00:00 2001
+From c698dd595de313875bd8cd7be9a7b03c4f24e589 Mon Sep 17 00:00:00 2001
 From: Nicolas Geoffray <ngeoffray@google.com>
 Date: Wed, 19 Jan 2022 10:34:57 +0000
 Subject: [PATCH 26/31] Introduce FindSuperMethodToCall to find the target of a
@@ -705,5 +705,5 @@ index f45e45c8ee..31b4cc574a 100644
  
    if (invoke_type == kInterface) {
 -- 
-2.34.1
+2.36.0
 

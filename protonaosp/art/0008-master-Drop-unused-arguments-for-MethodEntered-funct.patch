@@ -1,4 +1,4 @@
-From 9bbd043ca929191ed68b6eee8000c394209687b9 Mon Sep 17 00:00:00 2001
+From ad2158f54f4388fdbb951521cee7018753848a28 Mon Sep 17 00:00:00 2001
 From: Mythri Alle <mythria@google.com>
 Date: Tue, 21 Sep 2021 15:09:58 +0000
 Subject: [PATCH 08/31] [master] Drop unused arguments for MethodEntered
@@ -261,5 +261,5 @@ index 782b5fe347..c2516c70e9 100644
    void MethodExited(art::Thread* thread ATTRIBUTE_UNUSED,
                      art::Handle<art::mirror::Object> this_object ATTRIBUTE_UNUSED,
 -- 
-2.34.1
+2.36.0
 

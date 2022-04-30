@@ -1,4 +1,4 @@
-From 6c7e93f992ceed28d879eb7f917091e6dfd7a564 Mon Sep 17 00:00:00 2001
+From 66aa5476b02994334780c78eea20e3fa74b348fb Mon Sep 17 00:00:00 2001
 From: Richard Hansen <rhansen@rhansen.org>
 Date: Tue, 12 May 2020 18:18:43 -0400
 Subject: [PATCH 37/63] recovery: Draw the help message below the menu on
@@ -44,5 +44,5 @@ index f2720b6d..56b75bef 100644
  
    // Display from the bottom up, until we hit the top of the screen, the bottom of the menu, or
 -- 
-2.34.1
+2.36.0
 

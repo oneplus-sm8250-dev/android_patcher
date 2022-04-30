@@ -1,4 +1,4 @@
-From 4232d91b2eee9a01fc0909789ee3356011e5db79 Mon Sep 17 00:00:00 2001
+From f35beb33935d0b44d66760cee00e3584559013dc Mon Sep 17 00:00:00 2001
 From: Peter Collingbourne <pcc@google.com>
 Date: Tue, 8 Feb 2022 17:48:42 -0800
 Subject: [PATCH 29/31] Simplify some functions in OatMethod.
@@ -89,5 +89,5 @@ index 0fd7032fb1..c6b497a987 100644
      uint32_t code_offset_;
  
 -- 
-2.34.1
+2.36.0
 

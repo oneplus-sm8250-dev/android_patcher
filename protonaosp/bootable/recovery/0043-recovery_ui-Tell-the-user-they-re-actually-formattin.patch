@@ -1,4 +1,4 @@
-From d97c1a4e6446e2d6b6744955d4952a492fbad671 Mon Sep 17 00:00:00 2001
+From c9ebbd1ff1baaff58fec78db73aeb65816d0fb36 Mon Sep 17 00:00:00 2001
 From: Nolen Johnson <johnsonnolen@gmail.com>
 Date: Sun, 12 Apr 2020 14:13:31 -0400
 Subject: [PATCH 43/63] recovery_ui: Tell the user they're actually formatting
@@ -65,5 +65,5 @@ index 38a2551d..0e96b1e9 100644
  
  static std::vector<std::string> g_update_header{ "Apply update" };
 -- 
-2.34.1
+2.36.0
 

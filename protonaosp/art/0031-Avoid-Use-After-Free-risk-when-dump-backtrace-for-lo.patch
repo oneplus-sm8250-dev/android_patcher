@@ -1,4 +1,4 @@
-From 027b2262be65f511497a7c39a3fff23dc5d1c90f Mon Sep 17 00:00:00 2001
+From 646c0f53b89957508e78902eedd1d5c6b345a1d2 Mon Sep 17 00:00:00 2001
 From: wangguibo <wangguibo@xiaomi.com>
 Date: Sat, 22 Jan 2022 16:01:18 +0800
 Subject: [PATCH 31/31] Avoid Use-After-Free risk when dump backtrace for long
@@ -60,5 +60,5 @@ index 6574ec0db6..5709333756 100644
    uint64_t interval = MilliTime() - last_dump_time_ms;
    if (interval < kIntervalMillis * try_times) {
 -- 
-2.34.1
+2.36.0
 

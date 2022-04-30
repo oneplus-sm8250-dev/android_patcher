@@ -1,4 +1,4 @@
-From f7e3590d74e1b9c78b64be999576c4904b918b33 Mon Sep 17 00:00:00 2001
+From 27a5a2bf61fc48d48759582d1c3f5d6bd79d691e Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Fri, 29 Oct 2021 14:27:16 +0100
 Subject: [PATCH 01/31] [master] arm: Fix VarHandle.compareAndSet/long
@@ -40,5 +40,5 @@ index 2a2f245025..337df08e94 100644
          GenerateReverseBytes(assembler, value_type, old_value, out);
        }
 -- 
-2.34.1
+2.36.0
 

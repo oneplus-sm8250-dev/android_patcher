@@ -1,4 +1,4 @@
-From 299ead9545fbdfb4f2cad62c0e65374fef99ac0e Mon Sep 17 00:00:00 2001
+From 826dcde0cb9300c671d6b887da80a7a208eed851 Mon Sep 17 00:00:00 2001
 From: Suresh Koleti <skoleti@codeaurora.org>
 Date: Mon, 21 Jun 2021 20:02:28 +0530
 Subject: [PATCH 1/2] IMS: Add method to store multi sim voice capability
@@ -33,5 +33,5 @@ index 15999e7..cad22ff 100644
 +    prop_name: "ril.multisim.voice_capability"
 +}
 -- 
-2.34.1
+2.36.0
 

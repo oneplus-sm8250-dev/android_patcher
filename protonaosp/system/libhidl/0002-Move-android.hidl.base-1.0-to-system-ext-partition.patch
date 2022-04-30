@@ -1,4 +1,4 @@
-From 3ddb495c619e020f9a4dfd42bb309cce58f5a69a Mon Sep 17 00:00:00 2001
+From 4a2d34de5485ddd962c2cf16c5580e8b49ed68a7 Mon Sep 17 00:00:00 2001
 From: Benergy Meenan Ravuri <bravuri@codeaurora.org>
 Date: Tue, 28 Jan 2020 14:37:35 +0530
 Subject: [PATCH 2/3] Move android.hidl.base@1.0 to system ext partition
@@ -22,5 +22,5 @@ index bb4fe82..08440fc 100644
      shared_libs: [
          "libhidlbase",
 -- 
-2.34.1
+2.36.0
 

@@ -1,4 +1,4 @@
-From dbd4e6a4b7c93f59f572bdf567811b7ffe8c3bf6 Mon Sep 17 00:00:00 2001
+From 7899d2d23db0c363e741239ac252ba3059367058 Mon Sep 17 00:00:00 2001
 From: pengfeix <pengfeix@codeaurora.org>
 Date: Sat, 15 Apr 2017 23:01:13 +0800
 Subject: [PATCH] IMS: Add UT interface to query CF setting for service class.
@@ -46,5 +46,5 @@ index 61a11111..9fafb33e 100644
                  if (id < 0) {
                      sendFailureReport(result,
 -- 
-2.34.1
+2.36.0
 

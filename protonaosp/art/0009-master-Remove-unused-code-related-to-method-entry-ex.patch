@@ -1,4 +1,4 @@
-From 3939e0f0870b19dae27d0bff34b4fd39af0c0239 Mon Sep 17 00:00:00 2001
+From d6c02cfd8c88835dcd3c99e247418f17505e713f Mon Sep 17 00:00:00 2001
 From: Mythri Alle <mythria@google.com>
 Date: Wed, 27 Oct 2021 10:00:55 +0000
 Subject: [PATCH 09/31] [master] Remove unused code related to method entry /
@@ -551,5 +551,5 @@ index c2516c70e9..618742de9a 100644
                      art::JValue& return_value ATTRIBUTE_UNUSED)
        override REQUIRES_SHARED(art::Locks::mutator_lock_) { }
 -- 
-2.34.1
+2.36.0
 

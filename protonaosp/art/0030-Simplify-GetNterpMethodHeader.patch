@@ -1,4 +1,4 @@
-From 9364f51cb427eeaf40cc011be6e0565d7ba0b2ab Mon Sep 17 00:00:00 2001
+From ad33096faac41e49ad2fe8d4a7e4b2bc725119a0 Mon Sep 17 00:00:00 2001
 From: Peter Collingbourne <pcc@google.com>
 Date: Thu, 10 Feb 2022 18:32:01 -0800
 Subject: [PATCH 30/31] Simplify GetNterpMethodHeader().
@@ -31,5 +31,5 @@ index 543ff720ef..30a3662b49 100644
  }
  
 -- 
-2.34.1
+2.36.0
 

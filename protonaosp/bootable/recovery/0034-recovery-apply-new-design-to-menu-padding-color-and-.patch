@@ -1,4 +1,4 @@
-From c4c87f9bac49e0386ea32c5b1ddd239d0749c329 Mon Sep 17 00:00:00 2001
+From 05d15260be41d6af94a975684c22f60dcbd7a7a2 Mon Sep 17 00:00:00 2001
 From: Jesse Chan <jc@lineageos.org>
 Date: Tue, 28 Apr 2020 14:49:13 +0000
 Subject: [PATCH 34/63] recovery: apply new design to menu padding, color and
@@ -437,5 +437,5 @@ zL;Sx7K#*B&mxq0`<~|-<X62n))@H^EbEi35Tq-PE@dVn`*KfT3(lr18002ovPDHLk
 FV1n7<%Y*;`
 
 -- 
-2.34.1
+2.36.0
 

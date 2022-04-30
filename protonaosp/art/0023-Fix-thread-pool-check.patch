@@ -1,4 +1,4 @@
-From 8940509e6f24f3522222a094e633c39ef168d83d Mon Sep 17 00:00:00 2001
+From 791a5ad9cc4489f73b1c7c0729efc8679f41b372 Mon Sep 17 00:00:00 2001
 From: Nicolas Geoffray <ngeoffray@google.com>
 Date: Tue, 11 Jan 2022 18:47:33 +0000
 Subject: [PATCH 23/31] Fix thread pool check.
@@ -44,5 +44,5 @@ index 68dc2bdbce..0e04901c5c 100644
    }
    // Reset all stats.
 -- 
-2.34.1
+2.36.0
 

@@ -1,41 +1,38 @@
-From 59df9602da40f3cda852a51d5912792769f47379 Mon Sep 17 00:00:00 2001
+From 4164ac7700717e4d21422d68e3eabbbb6a6d4a6c Mon Sep 17 00:00:00 2001
 From: jhenrique09 <jhenrique09.mcz@hotmail.com>
 Date: Tue, 24 Mar 2020 16:36:07 -0300
-Subject: [PATCH 1/2] [2/2] av: Remove restrictions for system audio record
+Subject: [PATCH 1/2] av: Remove restrictions for system audio record [2/2]
 
 * Give freedom to screen recorder apps
 
 Change-Id: I726bde4f44bba6fc8cd771ae90c8864b26cdd919
 ---
- .../libaaudio/src/utility/AAudioUtilities.cpp | 14 +----------
+ .../libaaudio/src/utility/AAudioUtilities.cpp |  4 ++--
  .../managerdefinitions/src/AudioPolicyMix.cpp | 24 -------------------
- 2 files changed, 1 insertion(+), 37 deletions(-)
+ 2 files changed, 2 insertions(+), 26 deletions(-)
 
 diff --git a/media/libaaudio/src/utility/AAudioUtilities.cpp b/media/libaaudio/src/utility/AAudioUtilities.cpp
-index d79572557a..f63e765516 100644
+index e44cceec22..e22e820a6a 100644
 --- a/media/libaaudio/src/utility/AAudioUtilities.cpp
 +++ b/media/libaaudio/src/utility/AAudioUtilities.cpp
-@@ -236,19 +236,7 @@ audio_source_t AAudioConvert_inputPresetToAudioSource(aaudio_input_preset_t pres
- 
- audio_flags_mask_t AAudioConvert_allowCapturePolicyToAudioFlagsMask(
-         aaudio_allowed_capture_policy_t policy) {
+@@ -239,7 +239,7 @@ audio_flags_mask_t AAudioConvert_allowCapturePolicyToAudioFlagsMask(
+         aaudio_spatialization_behavior_t spatializationBehavior,
+         bool isContentSpatialized) {
+     audio_flags_mask_t flagsMask = AUDIO_FLAG_NONE;
 -    switch (policy) {
--        case AAUDIO_UNSPECIFIED:
--        case AAUDIO_ALLOW_CAPTURE_BY_ALL:
--            return AUDIO_FLAG_NONE;
--        case AAUDIO_ALLOW_CAPTURE_BY_SYSTEM:
--            return AUDIO_FLAG_NO_MEDIA_PROJECTION;
--        case AAUDIO_ALLOW_CAPTURE_BY_NONE:
--            return static_cast<audio_flags_mask_t>(
--                    AUDIO_FLAG_NO_MEDIA_PROJECTION | AUDIO_FLAG_NO_SYSTEM_CAPTURE);
--        default:
--            ALOGE("%s() 0x%08X unrecognized", __func__, policy);
--            return AUDIO_FLAG_NONE; //
++    /*switch (policy) {
+         case AAUDIO_UNSPECIFIED:
+         case AAUDIO_ALLOW_CAPTURE_BY_ALL:
+             // flagsMask is not modified
+@@ -254,7 +254,7 @@ audio_flags_mask_t AAudioConvert_allowCapturePolicyToAudioFlagsMask(
+         default:
+             ALOGE("%s() 0x%08X unrecognized capture policy", __func__, policy);
+             // flagsMask is not modified
 -    }
-+    return AUDIO_FLAG_NONE;
- }
++    }*/
  
- audio_flags_mask_t AAudioConvert_privacySensitiveToAudioFlagsMask(
+     switch (spatializationBehavior) {
+         case AAUDIO_UNSPECIFIED:
 diff --git a/services/audiopolicy/common/managerdefinitions/src/AudioPolicyMix.cpp b/services/audiopolicy/common/managerdefinitions/src/AudioPolicyMix.cpp
 index b209a8858f..7a6e6d08d9 100644
 --- a/services/audiopolicy/common/managerdefinitions/src/AudioPolicyMix.cpp
@@ -72,5 +69,5 @@ index b209a8858f..7a6e6d08d9 100644
  
          // TODO if adding more player rules (currently only 2), make rule handling "generic"
 -- 
-2.34.1
+2.36.0
 

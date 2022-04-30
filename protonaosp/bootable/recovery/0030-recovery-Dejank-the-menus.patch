@@ -1,4 +1,4 @@
-From 759b54e6b1263b9fa3816a4edf68134b0acc00e8 Mon Sep 17 00:00:00 2001
+From 3c5c24505bc800d45f637a06416cf6893975785c Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm@cyngn.com>
 Date: Mon, 24 Nov 2014 16:38:37 -0800
 Subject: [PATCH 30/63] recovery: Dejank the menus
@@ -23,5 +23,5 @@ index caa25abc..3d2bce48 100644
    return chosen_item;
  }
 -- 
-2.34.1
+2.36.0
 

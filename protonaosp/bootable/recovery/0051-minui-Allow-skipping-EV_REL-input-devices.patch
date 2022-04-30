@@ -1,4 +1,4 @@
-From 5f776f27474981b52056a680571cdb744bc9ec89 Mon Sep 17 00:00:00 2001
+From 196bb86f516e5ea6b1466a69e7d155278aa6d77d Mon Sep 17 00:00:00 2001
 From: Vitalii Kulikov <solk@solk.org.ua>
 Date: Mon, 16 Jan 2017 22:36:29 +0100
 Subject: [PATCH 51/63] minui: Allow skipping EV_REL input devices.
@@ -67,5 +67,5 @@ index 464edf02..4658ada1 100644
        return false;
      }
 -- 
-2.34.1
+2.36.0
 

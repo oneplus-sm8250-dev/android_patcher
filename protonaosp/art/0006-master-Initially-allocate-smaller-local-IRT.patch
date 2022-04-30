@@ -1,4 +1,4 @@
-From c6e45963fb4163572bee35d25d4bd7c5aa9f0787 Mon Sep 17 00:00:00 2001
+From 7b5ab015e65e22eafe19682ecf692b5a15186e2f Mon Sep 17 00:00:00 2001
 From: Hans Boehm <hboehm@google.com>
 Date: Thu, 23 Sep 2021 12:26:04 -0700
 Subject: [PATCH 06/31] [master] Initially allocate smaller local IRT
@@ -377,5 +377,5 @@ index b2093a303c..18fbde0e28 100644
  
    std::unique_ptr<JavaVMExt> java_vm_;
 -- 
-2.34.1
+2.36.0
 

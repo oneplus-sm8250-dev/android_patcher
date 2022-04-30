@@ -1,4 +1,4 @@
-From 542145f3021f1f00e28330e1da6a7c54a5c6799a Mon Sep 17 00:00:00 2001
+From 31ccc8abed435bb0efa391075dbc1979cef8fb34 Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Thu, 5 Apr 2018 17:59:39 +0100
 Subject: [PATCH 10/31] [master] ARM64: Implicit suspend checks using LDR.
@@ -589,5 +589,5 @@ index 4fee6df57d..2ab715dbfa 100644
             art::GetThreadOffset<art::kRuntimePointerSize>(art::kQuickAllocObjectInitialized)
                 .Int32Value())
 -- 
-2.34.1
+2.36.0
 

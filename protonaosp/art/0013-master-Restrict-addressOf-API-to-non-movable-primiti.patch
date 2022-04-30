@@ -1,4 +1,4 @@
-From 22f1881ed44a86202044eccb08c7bf61b93e0f4b Mon Sep 17 00:00:00 2001
+From f0f547b2a4d439849603d3a401ca3d04d9bcf1a0 Mon Sep 17 00:00:00 2001
 From: Lokesh Gidra <lokeshgidra@google.com>
 Date: Thu, 2 Dec 2021 19:27:15 -0800
 Subject: [PATCH 13/31] [master] Restrict addressOf() API to non-movable
@@ -30,5 +30,5 @@ index 842590408d..03d4fda2ac 100644
      ThrowRuntimeException("Trying to get address of movable array object");
      return 0;
 -- 
-2.34.1
+2.36.0
 

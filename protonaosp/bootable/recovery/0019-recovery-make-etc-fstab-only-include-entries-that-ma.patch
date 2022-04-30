@@ -1,4 +1,4 @@
-From 0fcf3c702952385807d9b4e8f9f28e235b59f925 Mon Sep 17 00:00:00 2001
+From 6d3c7af743fddfd9fc7c15989e8182a883934aeb Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Sun, 1 Mar 2020 13:33:27 +0100
 Subject: [PATCH 19/63] recovery: make /etc/fstab only include entries that
@@ -122,5 +122,5 @@ index 58630bec..304ab23c 100644
  }
  
 -- 
-2.34.1
+2.36.0
 

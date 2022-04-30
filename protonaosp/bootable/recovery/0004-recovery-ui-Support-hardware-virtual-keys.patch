@@ -1,4 +1,4 @@
-From e77539f1848e290043aac1ba7d06962244ab951d Mon Sep 17 00:00:00 2001
+From 639fe14d5b82d9c1ae84a2b254cdfbac264e6c49 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Thu, 24 Aug 2017 13:50:01 +0000
 Subject: [PATCH 04/63] recovery: ui: Support hardware virtual keys
@@ -317,5 +317,5 @@ index 8e5dd11b..c20e5978 100644
        ProcessKey(KEY_POWER, 1);  // press power key
        ProcessKey(KEY_POWER, 0);  // and release it
 -- 
-2.34.1
+2.36.0
 

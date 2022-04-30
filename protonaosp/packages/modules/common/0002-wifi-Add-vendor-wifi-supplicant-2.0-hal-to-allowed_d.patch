@@ -1,7 +1,7 @@
-From 6104dcb18bf696621392d7b9fac0033f2f872364 Mon Sep 17 00:00:00 2001
+From 3b2984a88ef09dab48a7ecfae6961f2e8d27024c Mon Sep 17 00:00:00 2001
 From: Mohammad Asaad Akram <asadkrm@codeaurora.org>
 Date: Mon, 7 Jun 2021 21:44:18 +0530
-Subject: [PATCH 2/4] wifi: Add vendor wifi supplicant 2.0 hal to allowed_deps
+Subject: [PATCH 2/3] wifi: Add vendor wifi supplicant 2.0 hal to allowed_deps
 
 This CL adds vendor wifi supplicant 2.0 hal to allowed_deps to make
 compiler happy.
@@ -15,10 +15,10 @@ CRs-Fixed: 2944180
  1 file changed, 1 insertion(+)
 
 diff --git a/build/allowed_deps.txt b/build/allowed_deps.txt
-index e8abbba..fde2388 100644
+index f768b77..8f07483 100644
 --- a/build/allowed_deps.txt
 +++ b/build/allowed_deps.txt
-@@ -726,6 +726,7 @@ tflite_support(minSdkVersion:30)
+@@ -729,6 +729,7 @@ tflite_support(minSdkVersion:30)
  vendor.qti.hardware.wifi.hostapd-V1.0-java(minSdkVersion:current)
  vendor.qti.hardware.wifi.hostapd-V1.1-java(minSdkVersion:current)
  vendor.qti.hardware.wifi.hostapd-V1.2-java(minSdkVersion:current)
@@ -27,5 +27,5 @@ index e8abbba..fde2388 100644
  wifi-nano-protos(minSdkVersion:30)
  xz-java(minSdkVersion:current)
 -- 
-2.34.1
+2.36.0
 

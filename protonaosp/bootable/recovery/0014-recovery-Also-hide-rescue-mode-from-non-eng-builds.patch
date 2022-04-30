@@ -1,4 +1,4 @@
-From eac93bb563e226bbfc8a8f5a4c0113c7d7475774 Mon Sep 17 00:00:00 2001
+From e6d4514900eb55977a0b01c10ebd44bf41c1df16 Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mkbestas@lineageos.org>
 Date: Fri, 27 Sep 2019 20:30:04 +0300
 Subject: [PATCH 14/63] recovery: Also hide rescue mode from non eng builds
@@ -23,5 +23,5 @@ index 21dcdad5..9787f6d7 100644
    }
  
 -- 
-2.34.1
+2.36.0
 

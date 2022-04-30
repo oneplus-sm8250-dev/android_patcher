@@ -1,4 +1,4 @@
-From 05504a43e38660ec5a940986294727023ae646c2 Mon Sep 17 00:00:00 2001
+From 63d9fa464cbfb8c5fd965e3d3bf73e7fea36e14f Mon Sep 17 00:00:00 2001
 From: Steve Kondik <shade@chemlab.org>
 Date: Sat, 19 Oct 2013 19:49:20 -0700
 Subject: [PATCH 17/63] recovery: Get a proper shell environment in recovery
@@ -125,5 +125,5 @@ index bce3309a..02710f7c 100644
      // We start adbd in recovery for the device with userdebug build or a unlocked bootloader.
      std::string usb_config =
 -- 
-2.34.1
+2.36.0
 

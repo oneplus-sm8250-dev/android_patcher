@@ -1,4 +1,4 @@
-From 9ba346e4ac58e134a42c3dbb54a3ea31af8e875b Mon Sep 17 00:00:00 2001
+From bbcda3207d78cc5b4a45ce6e1048605955be15d5 Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Tue, 4 Jan 2022 09:28:42 +0000
 Subject: [PATCH 16/31] ARM64: Disable implicit suspend checks.
@@ -62,5 +62,5 @@ index bd9c00565b..68dc2bdbce 100644
      case InstructionSet::kArm:
      case InstructionSet::kThumb2:
 -- 
-2.34.1
+2.36.0
 
