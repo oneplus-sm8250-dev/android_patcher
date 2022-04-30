@@ -1,7 +1,7 @@
-From 4928c7f6de7cc3677f8d9cdd237d94596a65363d Mon Sep 17 00:00:00 2001
+From d6258351a94e95b5ffaeffa00bf4f5d9ea05938f Mon Sep 17 00:00:00 2001
 From: Sam Mortimer <sam@mortimer.me.uk>
 Date: Thu, 5 Sep 2019 15:16:13 -0700
-Subject: [PATCH 3/8] soong: Add PathForSourceRelaxed
+Subject: [PATCH 3/9] soong: Add PathForSourceRelaxed
 
 Used by vendor/lineage generated kernel header module.
 
@@ -85,5 +85,5 @@ index fb751175e..232a4a97a 100644
  // rooted from the module's local source directory, if the path exists, or an empty OptionalPath if
  // it doesn't exist. Dependencies are added so that the ninja file will be regenerated if the state
 -- 
-2.34.1
+2.37.1
 

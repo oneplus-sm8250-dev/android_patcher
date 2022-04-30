@@ -1,4 +1,4 @@
-From 057d09bf4a10cc49049e0bde7ddc3f3c083c1948 Mon Sep 17 00:00:00 2001
+From 01ee87a37366ec37c3edaa796c452c43d788c83f Mon Sep 17 00:00:00 2001
 From: LuK1337 <priv.luk@gmail.com>
 Date: Sat, 17 Oct 2020 16:45:51 +0200
 Subject: [PATCH 48/63] recovery: Handle LINEAGE_VERSION_APPEND_TIME_OF_DAY in
@@ -30,5 +30,5 @@ index 64a72059..ee2e6279 100644
  
    std::vector<std::string> title_lines = {
 -- 
-2.34.1
+2.37.1
 

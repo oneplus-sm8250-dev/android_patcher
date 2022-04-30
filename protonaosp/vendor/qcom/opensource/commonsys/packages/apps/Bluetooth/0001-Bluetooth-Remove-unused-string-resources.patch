@@ -1,4 +1,4 @@
-From 63176a33baf418a89c13747506094d0cd1d47c29 Mon Sep 17 00:00:00 2001
+From 4c8105ff65268e161541c833d099daf50a58134d Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mkbestas@lineageos.org>
 Date: Wed, 27 Feb 2019 00:11:55 +0200
 Subject: [PATCH 1/8] Bluetooth: Remove unused string resources
@@ -242,5 +242,5 @@ index 31c2febc8..000000000
 -    <string name="map_defaultnumber" msgid="3838264444043503815">"000000"</string>
 -</resources>
 -- 
-2.34.1
+2.37.1
 

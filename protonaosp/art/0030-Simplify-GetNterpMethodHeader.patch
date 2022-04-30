@@ -1,7 +1,7 @@
-From 9364f51cb427eeaf40cc011be6e0565d7ba0b2ab Mon Sep 17 00:00:00 2001
+From dbc99fc609986b0a2d70c876a7e5ecd16a1e28df Mon Sep 17 00:00:00 2001
 From: Peter Collingbourne <pcc@google.com>
 Date: Thu, 10 Feb 2022 18:32:01 -0800
-Subject: [PATCH 30/31] Simplify GetNterpMethodHeader().
+Subject: [PATCH 30/33] Simplify GetNterpMethodHeader().
 
 Reuse the existing function EntryPointToCodePointer() instead of
 reimplementing it here.
@@ -31,5 +31,5 @@ index 543ff720ef..30a3662b49 100644
  }
  
 -- 
-2.34.1
+2.37.1
 

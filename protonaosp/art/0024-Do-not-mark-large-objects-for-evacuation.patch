@@ -1,7 +1,7 @@
-From 11dbfa418570d3e2657f161d6e4c01cfe884ebde Mon Sep 17 00:00:00 2001
+From f49984d96a1f51229ae886dd29527dea2714d983 Mon Sep 17 00:00:00 2001
 From: Hans Boehm <hboehm@google.com>
 Date: Tue, 7 Sep 2021 17:17:22 -0700
-Subject: [PATCH 24/31] Do not mark large objects for evacuation
+Subject: [PATCH 24/33] Do not mark large objects for evacuation
 
 We previously copied entire page-aligned regions containing a single
 large object under certain unlikely conditions. Aside from occasionally
@@ -224,5 +224,5 @@ index c3b272d6cf..1463eb7d2a 100644
      uint8_t* begin_;                    // The begin address of the region.
      Thread* thread_;                    // The owning thread if it's a tlab.
 -- 
-2.34.1
+2.37.1
 

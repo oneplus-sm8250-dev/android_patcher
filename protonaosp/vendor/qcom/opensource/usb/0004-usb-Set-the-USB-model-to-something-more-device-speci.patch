@@ -1,0 +1,43 @@
+From 5c07f7dacb03e2486d5ea9bd13726e3946f64fdf Mon Sep 17 00:00:00 2001
+From: Alexander Koskovich <akoskovich@pm.me>
+Date: Wed, 2 Mar 2022 13:22:16 -0700
+Subject: [PATCH 4/4] usb: Set the USB model to something more device specific
+
+ * Also allow devices to override ro.product.vendor.model
+   in cases where it's not really suitable for UX facing
+   stuff, e.g. on ZenFone 8 our model is ASUS_I006D.
+   This is not a suitable model to show users.
+
+Change-Id: Ica487b993c215ad258cfc44062daffe868a65556
+---
+ etc/init.qcom.usb.sh | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/etc/init.qcom.usb.sh b/etc/init.qcom.usb.sh
+index a7e7faf..21c5741 100644
+--- a/etc/init.qcom.usb.sh
++++ b/etc/init.qcom.usb.sh
+@@ -142,16 +142,12 @@ esac
+ 
+ # check configfs is mounted or not
+ if [ -d /config/usb_gadget ]; then
+-	# Chip-serial is used for unique MSM identification in Product string
+-	msm_serial=`cat /sys/devices/soc0/serial_number`;
+-	# If MSM serial number is not available, then keep it blank instead of 0x00000000
+-	if [ "$msm_serial" != "" ]; then
+-		msm_serial_hex=`printf %08X $msm_serial`
++	usb_product=`getprop vendor.usb.product_string`;
++	vendor_model=`getprop ro.product.vendor.model`;
++	if [ "$usb_product" == "" ]; then
++		setprop vendor.usb.product_string "$vendor_model"
+ 	fi
+ 
+-	machine_type=`cat /sys/devices/soc0/machine`
+-	setprop vendor.usb.product_string "$machine_type-$soc_hwplatform _SN:$msm_serial_hex"
+-
+ 	# ADB requires valid iSerialNumber; if ro.serialno is missing, use dummy
+ 	serialnumber=`cat /config/usb_gadget/g1/strings/0x409/serialnumber 2> /dev/null`
+ 	if [ "$serialnumber" == "" ]; then
+-- 
+2.37.1
+

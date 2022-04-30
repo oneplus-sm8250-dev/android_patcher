@@ -1,4 +1,4 @@
-From 838a0733e8cf37d70f45126d9fdb8646085364fd Mon Sep 17 00:00:00 2001
+From b8de3f31fdd686e8422656cd41933c133047319a Mon Sep 17 00:00:00 2001
 From: Wilco Dijkstra <wdijkstr@arm.com>
 Date: Tue, 25 Feb 2020 10:18:46 +0000
 Subject: [PATCH 10/16] string: Cleanup memset
@@ -234,5 +234,5 @@ index 19d351098..e3a794890 100644
  
  NOTE_GNU_PROPERTY()
 -- 
-2.34.1
+2.37.1
 

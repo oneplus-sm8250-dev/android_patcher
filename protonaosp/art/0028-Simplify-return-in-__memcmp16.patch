@@ -1,7 +1,7 @@
-From 59adae9d97a7bdfc560f2e99d2d5da261078940e Mon Sep 17 00:00:00 2001
+From 13490c5266bbd7f396419860b22a2023d597ffe0 Mon Sep 17 00:00:00 2001
 From: David Srbecky <dsrbecky@google.com>
 Date: Fri, 4 Feb 2022 15:37:11 +0000
-Subject: [PATCH 28/31] Simplify return in __memcmp16
+Subject: [PATCH 28/33] Simplify return in __memcmp16
 
 Test: build
 Change-Id: I9b67c39c66ae7b4ebb07e5d23b0cfa00207a04ac
@@ -54,5 +54,5 @@ index b623a2a2cb..0195b05b27 100644
  5:      /*************** non-congruent case ***************/
  
 -- 
-2.34.1
+2.37.1
 

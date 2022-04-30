@@ -1,7 +1,7 @@
-From 6e2daebd9363c08ed08258fd27a9d250ad16a245 Mon Sep 17 00:00:00 2001
+From 24acbbd080f52f3082c6a789ba6ff557948f1e97 Mon Sep 17 00:00:00 2001
 From: Alexander Koskovich <zvnexus@outlook.com>
 Date: Sat, 21 Aug 2021 18:55:29 -0700
-Subject: [PATCH 2/3] usb: Add USB Soong namespace to product makefile.
+Subject: [PATCH 2/4] usb: Add USB Soong namespace to product makefile.
 
  * If this product makefile is picked up the likelihood
    of wanting to use the included USB scripts is high.
@@ -22,5 +22,5 @@ index dc996c6..c30877d 100644
  PRODUCT_PACKAGES += init.qcom.usb.rc init.qcom.usb.sh
  
 -- 
-2.34.1
+2.37.1
 

@@ -1,4 +1,4 @@
-From 4d2066c61e5c42a7ea20b30b3ccbe12b39e7b28d Mon Sep 17 00:00:00 2001
+From 419654f6bdbfa92fce6f66697c1c42d9bfd9bc26 Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Mon, 11 Dec 2017 03:27:49 -0500
 Subject: [PATCH 15/16] Use builtins for
@@ -153,5 +153,5 @@ index 26edfeb1f..cc884f2e2 100644
 +long double truncl(long double x) { return trunc(x); }
 +#endif
 -- 
-2.34.1
+2.37.1
 

@@ -1,4 +1,4 @@
-From bc07fb42c2ceb059acab809bade63f29ad4fb059 Mon Sep 17 00:00:00 2001
+From 184581864505b430a6ca5083b11617bab520445a Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Mon, 30 Mar 2020 00:01:21 +0200
 Subject: [PATCH 42/63] recovery: use ensure_volume_unmounted in format_volume
@@ -28,5 +28,5 @@ index 304ab23c..00a4b01f 100644
      return -1;
    }
 -- 
-2.34.1
+2.37.1
 

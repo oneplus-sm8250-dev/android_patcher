@@ -1,4 +1,4 @@
-From 3977d402cf6046e8bba2769cc49f7a52cd5d8632 Mon Sep 17 00:00:00 2001
+From 1703cd27fe90b6ea6a7e4f686607b9a8e19bff58 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Wed, 24 Jul 2019 21:12:07 +0200
 Subject: [PATCH 54/63] recovery: Hide unmountable volumes from selection
@@ -173,5 +173,5 @@ index e5a65d4e..c2cb8dde 100644
  
  class VolumeManager {
 -- 
-2.34.1
+2.37.1
 

@@ -1,0 +1,29 @@
+From f7807f63aef70493cfa41b915d9b896faac940a8 Mon Sep 17 00:00:00 2001
+From: LuK1337 <priv.luk@gmail.com>
+Date: Fri, 8 Jul 2022 22:39:47 +0200
+Subject: [PATCH 2/2] Add vendor.qti.hardware.vpp 1.4 to vendor framework
+ compat matrix
+
+As seen on OPlus SM8250 devices.
+
+Change-Id: I5b8b717ec5737bd8e46e76aca72989b4e49b3a48
+---
+ vendor_framework_compatibility_matrix.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/vendor_framework_compatibility_matrix.xml b/vendor_framework_compatibility_matrix.xml
+index 56b6e06..42ee243 100644
+--- a/vendor_framework_compatibility_matrix.xml
++++ b/vendor_framework_compatibility_matrix.xml
+@@ -511,7 +511,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+     </hal>
+     <hal format="hidl" optional="true">
+         <name>vendor.qti.hardware.vpp</name>
+-        <version>1.1-3</version>
++        <version>1.1-4</version>
+         <version>2.0</version>
+         <interface>
+             <name>IHidlVppService</name>
+-- 
+2.37.1
+

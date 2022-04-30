@@ -1,4 +1,4 @@
-From 23e6b51a0203e72e8223f2a223f5dd39648742aa Mon Sep 17 00:00:00 2001
+From a900b9b1214744223addaaddf6219f5a31b4c2f3 Mon Sep 17 00:00:00 2001
 From: Vishalcj17 <vishalcj@aospa.co>
 Date: Mon, 18 Oct 2021 13:43:28 +0900
 Subject: [PATCH 2/2] vibrator: Define AIDL library version
@@ -54,5 +54,5 @@ index 356c406..4309717 100644
      ],
  }
 -- 
-2.34.1
+2.37.1
 

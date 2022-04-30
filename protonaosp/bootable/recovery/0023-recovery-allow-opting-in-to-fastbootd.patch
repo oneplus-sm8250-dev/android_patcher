@@ -1,4 +1,4 @@
-From 1dc5a4a2010983335f8aebcdd934d5d5ebb375ae Mon Sep 17 00:00:00 2001
+From d6fa59a66780b734852e0bb784b7845baec7b2d7 Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Wed, 26 Feb 2020 17:25:54 +0100
 Subject: [PATCH 23/63] recovery: allow opting-in to fastbootd
@@ -48,5 +48,5 @@ index be98907d..339e3104 100644
    }
  
 -- 
-2.34.1
+2.37.1
 

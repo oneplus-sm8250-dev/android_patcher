@@ -1,7 +1,7 @@
-From 4232d91b2eee9a01fc0909789ee3356011e5db79 Mon Sep 17 00:00:00 2001
+From 57da1051a73dcfd4ce8bdb5906ceca03f3f2992d Mon Sep 17 00:00:00 2001
 From: Peter Collingbourne <pcc@google.com>
 Date: Tue, 8 Feb 2022 17:48:42 -0800
-Subject: [PATCH 29/31] Simplify some functions in OatMethod.
+Subject: [PATCH 29/33] Simplify some functions in OatMethod.
 
 The old code had different behavior in the case of methods with metadata
 and a code size of 0, but this is apparently not possible, at least not
@@ -89,5 +89,5 @@ index 0fd7032fb1..c6b497a987 100644
      uint32_t code_offset_;
  
 -- 
-2.34.1
+2.37.1
 

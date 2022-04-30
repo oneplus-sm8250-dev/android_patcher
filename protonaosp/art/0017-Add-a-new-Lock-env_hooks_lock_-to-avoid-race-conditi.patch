@@ -1,7 +1,7 @@
-From e9ce0f223146fb9df5f3d88668594a731c90473f Mon Sep 17 00:00:00 2001
+From d07f8265d9cbce65291a02fae4a253a3cf9c03ce Mon Sep 17 00:00:00 2001
 From: ShuJieWang <wangshujie.matt@bytedance.com>
 Date: Wed, 22 Dec 2021 18:15:58 +0800
-Subject: [PATCH 17/31] Add a new Lock 'env_hooks_lock_' to avoid race
+Subject: [PATCH 17/33] Add a new Lock 'env_hooks_lock_' to avoid race
  conditions
 
 For now, only TI agents would trigger AddEnvironmentHook() at runtime.
@@ -76,5 +76,5 @@ index 015f85cba9..394bfb4426 100644
    size_t enable_allocation_tracking_delta_;
    std::atomic<bool> allocation_tracking_enabled_;
 -- 
-2.34.1
+2.37.1
 

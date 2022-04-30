@@ -1,7 +1,7 @@
-From fd4a26d00cfc40d691d7d2b59a5b33574c2ed0ef Mon Sep 17 00:00:00 2001
+From 4ed4655699466ce5e6a36771098b323248bc26b4 Mon Sep 17 00:00:00 2001
 From: Daniel Norman <danielnorman@google.com>
 Date: Mon, 28 Oct 2019 14:51:40 -0700
-Subject: [PATCH 2/2] Revert "libhwbinder: restrict visibility"
+Subject: [PATCH] Revert "libhwbinder: restrict visibility"
 
 This reverts commit e8adbb1f9fabbb8812717c8e16780fa695cbea61.
 
@@ -32,5 +32,5 @@ index 6f2869c..63154e3 100644
  
  // Combined into libhidlbase for efficiency.
 -- 
-2.34.1
+2.37.1
 

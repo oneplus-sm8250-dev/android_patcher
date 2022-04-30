@@ -1,7 +1,7 @@
-From 4237bc5383c19b6ce7e8500c3e70cb0c9a0f9932 Mon Sep 17 00:00:00 2001
+From a8eeed6bbb4ad3a6c71c2b8551e8220a7291aeb6 Mon Sep 17 00:00:00 2001
 From: Vishalcj17 <vishalcj@aospa.co>
 Date: Wed, 20 Oct 2021 14:14:46 +0900
-Subject: [PATCH] power: Define AIDL library version.
+Subject: [PATCH 1/2] power: Define AIDL library version.
 
 Change-Id: If796e809bcfd1c0f4fc5c152bf09f4fd7a5ceba8
 ---
@@ -22,5 +22,5 @@ index 84b9e54..7be7a23 100644
  LOCAL_HEADER_LIBRARIES += libhardware_headers
  LOCAL_SRC_FILES := power-common.c metadata-parser.c utils.c list.c hint-data.c powerhintparser.c Power.cpp main.cpp
 -- 
-2.34.1
+2.37.1
 

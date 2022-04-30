@@ -1,7 +1,7 @@
-From 10fa22dbd4e74b79b3e61ac36aa3b063df4383eb Mon Sep 17 00:00:00 2001
+From e90f292cebccf2f806a55efd3a78d674355c646f Mon Sep 17 00:00:00 2001
 From: Jiakai Zhang <jiakaiz@google.com>
 Date: Thu, 6 Jan 2022 17:52:17 +0000
-Subject: [PATCH 19/31] Fix ReadMagicAndReset.
+Subject: [PATCH 19/33] Fix ReadMagicAndReset.
 
 ReadMagicAndReset is a function that is supposed to read a uint32_t
 from the beginning of a file. However, it cannot handle the case where
@@ -37,5 +37,5 @@ index 1471c59b73..21b762f6e0 100644
    if (n != sizeof(*magic)) {
      *error_msg = StringPrintf("Failed to find magic");
 -- 
-2.34.1
+2.37.1
 

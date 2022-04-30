@@ -1,7 +1,7 @@
-From b469d48eb9f2c36add1d36851e383222a3eabeb9 Mon Sep 17 00:00:00 2001
+From d52a070c27907d639829354df907b38eec1df0e3 Mon Sep 17 00:00:00 2001
 From: Florian Mayer <fmayer@google.com>
 Date: Mon, 10 Jan 2022 13:03:57 -0800
-Subject: [PATCH 21/31] Fix out of range in art compiler.
+Subject: [PATCH 21/33] Fix out of range in art compiler.
 
 We didn't check for zero offset before, and also we decremented by 4
 INSTRUCTIONS rather than 4 bytes (= one instruction), because we
@@ -35,5 +35,5 @@ index 378d7d0f31..47866922b9 100644
        ExactAssemblyScope scope(masm, kInstructionSize, CodeBufferCheckScope::kExactSize);
        __ nop();
 -- 
-2.34.1
+2.37.1
 

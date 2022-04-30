@@ -1,4 +1,4 @@
-From 81abd55daf0eaffc078db8041b4a759c2218bfaf Mon Sep 17 00:00:00 2001
+From ce059fa89563079d0b4c6b6a596f25fbff4efe7d Mon Sep 17 00:00:00 2001
 From: Edward Savage-Jones <edward.savage-jones@sony.com>
 Date: Fri, 18 Oct 2019 10:11:39 +0200
 Subject: [PATCH 4/8] translate="false" -> translatable="false"
@@ -34,5 +34,5 @@ index f263cce37..60b3dbd7d 100644
  
      <string name="bluetooth_a2dp_sink_queue_name">Now Playing</string>
 -- 
-2.34.1
+2.37.1
 

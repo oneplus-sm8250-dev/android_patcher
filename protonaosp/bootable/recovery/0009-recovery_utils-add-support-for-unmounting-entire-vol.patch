@@ -1,4 +1,4 @@
-From fc2bfe91515defa7c6afb2cebc38a54b0dcc26d4 Mon Sep 17 00:00:00 2001
+From 6731014e07a04357c80f52ca212f148a5a51ff27 Mon Sep 17 00:00:00 2001
 From: Simon Shields <simon@lineageos.org>
 Date: Wed, 2 Oct 2019 00:21:45 +1000
 Subject: [PATCH 09/63] recovery_utils: add support for unmounting entire
@@ -92,5 +92,5 @@ index 19484478..75b586d4 100644
    CHECK(!args.empty());
    auto argv = StringVectorToNullTerminatedArray(args);
 -- 
-2.34.1
+2.37.1
 

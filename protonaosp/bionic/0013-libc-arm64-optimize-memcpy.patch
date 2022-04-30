@@ -1,4 +1,4 @@
-From fa93ebae7603b8ea73f8aca34e4a7421bcb30725 Mon Sep 17 00:00:00 2001
+From 859ac4b67b18be345089b59d15c7de31b132ddca Mon Sep 17 00:00:00 2001
 From: Wilco Dijkstra <wdijkstr@arm.com>
 Date: Wed, 12 Feb 2020 12:22:37 +0000
 Subject: [PATCH 13/16] libc: arm64: optimize memcpy
@@ -264,5 +264,5 @@ index 3fb738b06..4d145a34a 100644
  	ldp	G_l, G_h, [src, 48]
  	stp	A_l, A_h, [dstend, -16]
 -- 
-2.34.1
+2.37.1
 

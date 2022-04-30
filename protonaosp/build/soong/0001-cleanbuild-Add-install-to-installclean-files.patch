@@ -1,7 +1,7 @@
-From c952bcbac4efb7ef3244304c836ad66cccfb4565 Mon Sep 17 00:00:00 2001
+From 27e68a0fe0a8103a9ece448d2797d1e4a6c3d630 Mon Sep 17 00:00:00 2001
 From: LuK1337 <priv.luk@gmail.com>
 Date: Fri, 13 Nov 2020 15:11:27 +0100
-Subject: [PATCH 1/8] cleanbuild: Add `install` to installclean files
+Subject: [PATCH 1/9] cleanbuild: Add `install` to installclean files
 
 Change-Id: Ib46d9638a2b3648d5e2ade1dfa864bc4e2ae695c
 ---
@@ -23,5 +23,5 @@ index 19b569069..15f9153bc 100644
  
  // Since products and build variants (unfortunately) shared the same
 -- 
-2.34.1
+2.37.1
 

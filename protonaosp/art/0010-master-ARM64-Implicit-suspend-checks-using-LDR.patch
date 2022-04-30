@@ -1,7 +1,7 @@
-From 542145f3021f1f00e28330e1da6a7c54a5c6799a Mon Sep 17 00:00:00 2001
+From ad5055ce11f81b9ec775f62f3155c40712ab7a9a Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Thu, 5 Apr 2018 17:59:39 +0100
-Subject: [PATCH 10/31] [master] ARM64: Implicit suspend checks using LDR.
+Subject: [PATCH 10/33] [master] ARM64: Implicit suspend checks using LDR.
 
 Implement implicit suspend checks in compiled managed code.
 Use a single instruction `ldr x21, [x21, #0]` for the check
@@ -589,5 +589,5 @@ index 4fee6df57d..2ab715dbfa 100644
             art::GetThreadOffset<art::kRuntimePointerSize>(art::kQuickAllocObjectInitialized)
                 .Int32Value())
 -- 
-2.34.1
+2.37.1
 

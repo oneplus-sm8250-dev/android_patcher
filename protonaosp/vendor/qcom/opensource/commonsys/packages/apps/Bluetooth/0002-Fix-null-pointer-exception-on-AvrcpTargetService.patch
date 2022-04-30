@@ -1,4 +1,4 @@
-From 2b2cb73fc27b46f473b6b754ea10feea5b8975db Mon Sep 17 00:00:00 2001
+From 7b1751870ca3a60bc90909d2080759bc4d77767c Mon Sep 17 00:00:00 2001
 From: "slki.shin" <slki.shin@samsung.com>
 Date: Thu, 25 Jul 2019 15:14:43 +0900
 Subject: [PATCH 2/8] Fix null pointer exception on AvrcpTargetService
@@ -42,5 +42,5 @@ index e7c89e907..8a5314270 100644
          }
      }
 -- 
-2.34.1
+2.37.1
 

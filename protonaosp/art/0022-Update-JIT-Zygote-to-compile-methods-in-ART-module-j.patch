@@ -1,7 +1,7 @@
-From b5441dc7f1ce1ce43fce4b379f773c154e329e94 Mon Sep 17 00:00:00 2001
+From 11aed297c42556c27c98a147dc986bd734d372aa Mon Sep 17 00:00:00 2001
 From: Jiakai Zhang <jiakaiz@google.com>
 Date: Thu, 6 Jan 2022 15:24:57 +0000
-Subject: [PATCH 22/31] Update JIT Zygote to compile methods in ART module
+Subject: [PATCH 22/33] Update JIT Zygote to compile methods in ART module
  jars.
 
 Also, add logging to show methods in profiles being processed by JIT
@@ -50,5 +50,5 @@ index 7cc614a1ad..4f188f889d 100644
      std::set<uint16_t> all_methods;
      if (!profile_info.GetClassesAndMethods(*dex_file,
 -- 
-2.34.1
+2.37.1
 

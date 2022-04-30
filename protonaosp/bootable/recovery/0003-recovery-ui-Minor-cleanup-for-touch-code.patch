@@ -1,4 +1,4 @@
-From 90eb9c8f1e9907dd402a3ae1a79c142770876169 Mon Sep 17 00:00:00 2001
+From 9bc584bc133a622a0ae136ec7212317a504fb9c0 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Thu, 24 Aug 2017 12:57:27 +0000
 Subject: [PATCH 03/63] recovery: ui: Minor cleanup for touch code
@@ -214,5 +214,5 @@ index f04786ab..8e5dd11b 100644
          break;
  
 -- 
-2.34.1
+2.37.1
 

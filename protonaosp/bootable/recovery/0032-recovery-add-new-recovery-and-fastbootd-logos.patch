@@ -1,4 +1,4 @@
-From 9ca9aeade6666b3e7fee4331dc1ff7d81fc8941e Mon Sep 17 00:00:00 2001
+From 416aad12ed2afe6008a33511af3b46a58a44c725 Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Sun, 29 Mar 2020 15:08:09 +0200
 Subject: [PATCH 32/63] recovery: add new recovery and fastbootd logos
@@ -6416,5 +6416,5 @@ zFtf$2U#M#<ZMv{qY+W<6?!ns)l2*=Kx<6(XjeeY7$5c~Omvbu`b?*a&PVM|6Lyep#
 xe11RMREp&5QVzU@eaZiO{oiv3BtNdLKM=V8*8V7+YWh{FD5%R9UNpJ${{dJ>J@)_r
 
 -- 
-2.34.1
+2.37.1
 

@@ -1,4 +1,4 @@
-From 2e4809ce2d5a57a7ecba003a9e688b4d7dd733d3 Mon Sep 17 00:00:00 2001
+From 1c28d27356584c02e2a64bbf07057425f687dc30 Mon Sep 17 00:00:00 2001
 From: "Christopher N. Hesse" <raymanfx@gmail.com>
 Date: Tue, 3 Apr 2018 21:57:30 +0200
 Subject: [PATCH 41/63] recovery: Add runtime checks for A/B vs traditional
@@ -47,5 +47,5 @@ index 6e74f80a..2eb5051c 100644
  
    const auto current_spl = android::base::GetProperty("ro.build.version.security_patch", "");
 -- 
-2.34.1
+2.37.1
 

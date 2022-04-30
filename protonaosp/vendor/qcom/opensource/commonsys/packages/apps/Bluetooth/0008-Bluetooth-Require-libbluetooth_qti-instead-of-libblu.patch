@@ -1,4 +1,4 @@
-From e2b6b7d2bd8fd3f3514d2b24cd074d305d512652 Mon Sep 17 00:00:00 2001
+From b2f615b911009c6f9e698426f046fdd886f6aea1 Mon Sep 17 00:00:00 2001
 From: Pig <pig.priv@gmail.com>
 Date: Fri, 13 Nov 2020 03:39:54 +0800
 Subject: [PATCH 8/8] Bluetooth: Require libbluetooth_qti instead of
@@ -23,5 +23,5 @@ index 0e8f46174..dde913bcf 100644
      proto: {
          type: "micro",
 -- 
-2.34.1
+2.37.1
 

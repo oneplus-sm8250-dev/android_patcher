@@ -1,4 +1,4 @@
-From cba0461f84eedb30416c25e120ac377b1d6095bf Mon Sep 17 00:00:00 2001
+From 5f12aaff1f93fb03db932453fecc60a705990365 Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mkbestas@lineageos.org>
 Date: Sat, 16 Jan 2021 18:16:47 +0200
 Subject: [PATCH 58/63] recovery: Add ability to unmount system
@@ -72,5 +72,5 @@ index 34c4ce93..a740fbdc 100644
    { "Enable ADB", Device::ENABLE_ADB },
    { "Run graphics test", Device::RUN_GRAPHICS_TEST },
 -- 
-2.34.1
+2.37.1
 

@@ -1,7 +1,7 @@
-From 98af875c421d1717eab70ae2d5cf19d9192f68cd Mon Sep 17 00:00:00 2001
+From 2f67e772291aeeda83193d2b264c20aa9071a255 Mon Sep 17 00:00:00 2001
 From: Marco Marinho <marcomarinho12@gmail.com>
 Date: Sun, 21 Nov 2021 18:39:48 +0000
-Subject: [PATCH 4/4] media: Update media QTI component path
+Subject: [PATCH 4/5] media: Update media QTI component path
 
 Change-Id: I1bacfedeee3a78f48deec09e510bb9c0aba2b939
 ---
@@ -11,7 +11,7 @@ Change-Id: I1bacfedeee3a78f48deec09e510bb9c0aba2b939
  3 files changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/conf_files/bengal/bengal.mk b/conf_files/bengal/bengal.mk
-index 7df7706d..bb93c47b 100644
+index 7df7706d0..bb93c47bb 100644
 --- a/conf_files/bengal/bengal.mk
 +++ b/conf_files/bengal/bengal.mk
 @@ -13,7 +13,7 @@ PRODUCT_COPY_FILES += \
@@ -24,7 +24,7 @@ index 7df7706d..bb93c47b 100644
  ifneq ($(strip $(TARGET_BOARD_SUFFIX)),)
  	PRODUCT_COPY_FILES += \
 diff --git a/conf_files/kona/kona.mk b/conf_files/kona/kona.mk
-index d51c5c73..a375e090 100644
+index d51c5c730..a375e090e 100644
 --- a/conf_files/kona/kona.mk
 +++ b/conf_files/kona/kona.mk
 @@ -29,12 +29,12 @@ ifeq ($(GENERIC_ODM_IMAGE),true)
@@ -43,7 +43,7 @@ index d51c5c73..a375e090 100644
  
  # Produce packages addition
 diff --git a/conf_files/lito/lito.mk b/conf_files/lito/lito.mk
-index a86f2987..721d9e27 100644
+index a86f29877..721d9e27a 100644
 --- a/conf_files/lito/lito.mk
 +++ b/conf_files/lito/lito.mk
 @@ -30,14 +30,14 @@ ifeq ($(GENERIC_ODM_IMAGE),true)
@@ -65,5 +65,5 @@ index a86f2987..721d9e27 100644
  endif
  
 -- 
-2.34.1
+2.37.1
 

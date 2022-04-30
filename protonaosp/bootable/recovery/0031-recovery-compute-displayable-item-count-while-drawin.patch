@@ -1,4 +1,4 @@
-From 8e7314f40fecf3b19d96fdfd3f36964ca3dbbf70 Mon Sep 17 00:00:00 2001
+From 57a3a0520cd3b4fc3c686f6578cef995e0bad053 Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Thu, 25 Jun 2020 19:54:18 +0200
 Subject: [PATCH 31/63] recovery: compute displayable item count while drawing
@@ -132,5 +132,5 @@ index 7aaf59b6..ecedc1cc 100644
  
    return nullptr;
 -- 
-2.34.1
+2.37.1
 

@@ -1,7 +1,7 @@
-From 1f625d7ef07e4667ca09ea8ec0b623003b0b7557 Mon Sep 17 00:00:00 2001
+From 9937799be6f51e7a283796e7a874e98c9a25a528 Mon Sep 17 00:00:00 2001
 From: Nicolas Geoffray <ngeoffray@google.com>
 Date: Wed, 19 Jan 2022 10:34:57 +0000
-Subject: [PATCH 26/31] Introduce FindSuperMethodToCall to find the target of a
+Subject: [PATCH 26/33] Introduce FindSuperMethodToCall to find the target of a
  super call.
 
 And use it across compiler/runtime/nterp. This also fixes an issue in
@@ -705,5 +705,5 @@ index f45e45c8ee..31b4cc574a 100644
  
    if (invoke_type == kInterface) {
 -- 
-2.34.1
+2.37.1
 

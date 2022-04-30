@@ -1,4 +1,4 @@
-From ab6fb37f2ab2f05b8efe19392caed9f455363c05 Mon Sep 17 00:00:00 2001
+From 0a49ae8d3ab77f273925feef36ef5a4e1d451413 Mon Sep 17 00:00:00 2001
 From: Bruno Martins <bgcngm@gmail.com>
 Date: Mon, 29 Oct 2018 13:48:35 +0000
 Subject: [PATCH 2/7] data-ipa-cfg-mgr: Use generated kernel headers
@@ -51,5 +51,5 @@ index b8ae6a4..4c5f5a7 100644
  LOCAL_MODULE := ipa_nat_test
  LOCAL_SRC_FILES := ipa_nat_test000.c \
 -- 
-2.34.1
+2.37.1
 

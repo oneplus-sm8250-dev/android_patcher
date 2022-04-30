@@ -1,0 +1,106 @@
+From 517482a87565e1b1b5fd225f4af945e2e0b34593 Mon Sep 17 00:00:00 2001
+From: Vladimir Marko <vmarko@google.com>
+Date: Tue, 12 Apr 2022 11:27:34 +0100
+Subject: [PATCH 32/33] [master] dex2oat: Faster class pruning.
+
+Test: m test-art-host-gtest
+Test: testrunner.py --host --optimizing
+Bug: 181943478
+Change-Id: I0f4facc13ded5e5a5755fe9bec1c32449049129a
+---
+ dex2oat/linker/image_writer.cc | 18 +++++++++++++-----
+ runtime/class_table.cc         | 13 -------------
+ runtime/class_table.h          |  5 -----
+ runtime/class_table_test.cc    |  5 -----
+ 4 files changed, 13 insertions(+), 28 deletions(-)
+
+diff --git a/dex2oat/linker/image_writer.cc b/dex2oat/linker/image_writer.cc
+index b69c750fd2..b6c8f62db0 100644
+--- a/dex2oat/linker/image_writer.cc
++++ b/dex2oat/linker/image_writer.cc
+@@ -1067,12 +1067,20 @@ class ImageWriter::PruneClassesVisitor : public ClassVisitor {
+   size_t Prune() REQUIRES_SHARED(Locks::mutator_lock_) {
+     ClassTable* class_table =
+         Runtime::Current()->GetClassLinker()->ClassTableForClassLoader(class_loader_);
++    WriterMutexLock mu(Thread::Current(), class_table->lock_);
+     for (mirror::Class* klass : classes_to_prune_) {
+-      std::string storage;
+-      const char* descriptor = klass->GetDescriptor(&storage);
+-      bool result = class_table->Remove(descriptor);
+-      DCHECK(result);
+-      DCHECK(!class_table->Remove(descriptor)) << descriptor;
++      uint32_t hash = ClassTable::TableSlot::HashDescriptor(klass);
++      DCHECK(!class_table->classes_.empty());
++      ClassTable::ClassSet& last_class_set = class_table->classes_.back();
++      auto it = last_class_set.FindWithHash(ClassTable::TableSlot(klass, hash), hash);
++      DCHECK(it != last_class_set.end());
++      last_class_set.erase(it);
++      DCHECK(std::none_of(class_table->classes_.begin(),
++                          class_table->classes_.end(),
++                          [klass, hash](ClassTable::ClassSet& class_set) {
++                            ClassTable::TableSlot slot(klass, hash);
++                            return class_set.FindWithHash(slot, hash) != class_set.end();
++                          }));
+     }
+     return defined_class_count_;
+   }
+diff --git a/runtime/class_table.cc b/runtime/class_table.cc
+index 03921a132a..af0fa058e1 100644
+--- a/runtime/class_table.cc
++++ b/runtime/class_table.cc
+@@ -120,19 +120,6 @@ void ClassTable::InsertWithHash(ObjPtr<mirror::Class> klass, size_t hash) {
+   classes_.back().InsertWithHash(TableSlot(klass, hash), hash);
+ }
+ 
+-bool ClassTable::Remove(const char* descriptor) {
+-  DescriptorHashPair pair(descriptor, ComputeModifiedUtf8Hash(descriptor));
+-  WriterMutexLock mu(Thread::Current(), lock_);
+-  for (ClassSet& class_set : classes_) {
+-    auto it = class_set.find(pair);
+-    if (it != class_set.end()) {
+-      class_set.erase(it);
+-      return true;
+-    }
+-  }
+-  return false;
+-}
+-
+ bool ClassTable::InsertStrongRoot(ObjPtr<mirror::Object> obj) {
+   WriterMutexLock mu(Thread::Current(), lock_);
+   DCHECK(obj != nullptr);
+diff --git a/runtime/class_table.h b/runtime/class_table.h
+index dfae1fd9e4..47d9775046 100644
+--- a/runtime/class_table.h
++++ b/runtime/class_table.h
+@@ -217,11 +217,6 @@ class ClassTable {
+       REQUIRES(!lock_)
+       REQUIRES_SHARED(Locks::mutator_lock_);
+ 
+-  // Returns true if the class was found and removed, false otherwise.
+-  bool Remove(const char* descriptor)
+-      REQUIRES(!lock_)
+-      REQUIRES_SHARED(Locks::mutator_lock_);
+-
+   // Return true if we inserted the strong root, false if it already exists.
+   bool InsertStrongRoot(ObjPtr<mirror::Object> obj)
+       REQUIRES(!lock_)
+diff --git a/runtime/class_table_test.cc b/runtime/class_table_test.cc
+index d9f53ed6a2..7dbeba51c0 100644
+--- a/runtime/class_table_test.cc
++++ b/runtime/class_table_test.cc
+@@ -137,12 +137,7 @@ TEST_F(ClassTableTest, ClassTable) {
+   });
+   EXPECT_EQ(classes.size(), 1u);
+ 
+-  // Test remove.
+-  table.Remove(descriptor_x);
+-  EXPECT_TRUE(table.LookupByDescriptor(h_X.Get()) == nullptr);
+-
+   // Test that reading a class set from memory works.
+-  table.Insert(h_X.Get());
+   ClassTable::ClassSet temp_set;
+   table.Visit([&temp_set](ObjPtr<mirror::Class> klass) REQUIRES_SHARED(Locks::mutator_lock_) {
+     temp_set.insert(ClassTable::TableSlot(klass));
+-- 
+2.37.1
+

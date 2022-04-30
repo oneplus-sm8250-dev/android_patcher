@@ -1,4 +1,4 @@
-From b3231b26072cc8ea7ee2fae1763af0d9d324166d Mon Sep 17 00:00:00 2001
+From 3c0d7f2f9c514c6da6279522001e88628b0bcb2e Mon Sep 17 00:00:00 2001
 From: Krzysztof Koch <krzysztof.koch@arm.com>
 Date: Fri, 25 Oct 2019 14:08:48 +0100
 Subject: [PATCH 11/16] aarch64: Increase small and medium cases for memcpy
@@ -253,5 +253,5 @@ index f85062408..979a1d792 100644
  	stp	A_l, A_h, [dst, 16]
  	ldp	A_l, A_h, [srcend, -48]
 -- 
-2.34.1
+2.37.1
 

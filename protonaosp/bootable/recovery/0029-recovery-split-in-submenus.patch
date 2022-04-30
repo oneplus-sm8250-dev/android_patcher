@@ -1,4 +1,4 @@
-From c3cd4eafa9b0b57ecf31643ea26301a6aa71dcb6 Mon Sep 17 00:00:00 2001
+From e4dc930b21642f915e48ee55dd41306d32ba8298 Mon Sep 17 00:00:00 2001
 From: Tom Marshall <tdm.code@gmail.com>
 Date: Sun, 29 Mar 2020 14:36:57 +0200
 Subject: [PATCH 29/63] recovery: split in submenus
@@ -243,5 +243,5 @@ index 67c4da06..f7ef7843 100644
    // selected menu item, or a non-negative value returned from HandleMenuKey(). The menu will be
    // hidden when this is called; implementations can call GetUI()->Print() to print information to
 -- 
-2.34.1
+2.37.1
 

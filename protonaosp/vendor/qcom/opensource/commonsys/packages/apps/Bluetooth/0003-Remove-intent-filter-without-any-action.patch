@@ -1,4 +1,4 @@
-From ba01c368d31b57a1180fcb91f6b608b08de067f4 Mon Sep 17 00:00:00 2001
+From 6e8a588b60ec40bbc326afaaa15d60c2321c47f5 Mon Sep 17 00:00:00 2001
 From: Bruno Martins <bgcngm@gmail.com>
 Date: Fri, 10 Jan 2020 22:17:08 +0000
 Subject: [PATCH 3/8] Remove intent filter without any action
@@ -13,10 +13,10 @@ Change-Id: I0074a6a18433e7c2f18ad8011084011372abcdfd
  1 file changed, 3 deletions(-)
 
 diff --git a/AndroidManifest.xml b/AndroidManifest.xml
-index c1ffea813..04f4396ad 100644
+index 2c578ac58..1c28ccefd 100644
 --- a/AndroidManifest.xml
 +++ b/AndroidManifest.xml
-@@ -249,9 +249,6 @@
+@@ -248,9 +248,6 @@
              android:excludeFromRecents="true"
              android:theme="@android:style/Theme.Material.Light.Dialog.Alert"
              android:enabled="@bool/profile_supported_pbap">
@@ -27,5 +27,5 @@ index c1ffea813..04f4396ad 100644
          <service
              android:process="@string/process"
 -- 
-2.34.1
+2.37.1
 

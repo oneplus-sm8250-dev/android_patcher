@@ -1,4 +1,4 @@
-From 118007521a928f2c165dfffb617024c28c33f4d6 Mon Sep 17 00:00:00 2001
+From b316259247df44cfc4b1e52add206e7d51e90f40 Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Thu, 1 Oct 2020 16:45:53 +0200
 Subject: [PATCH 46/63] recovery: Draw header lines with less padding
@@ -38,5 +38,5 @@ index bdcc36bf..25c84f9d 100644
  }
  
 -- 
-2.34.1
+2.37.1
 

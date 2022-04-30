@@ -1,7 +1,7 @@
-From 121e4c621be170c937665906f08be3ae615a23bb Mon Sep 17 00:00:00 2001
+From e745611fff96e6648b63874a0ab9c1cb5ccbc081 Mon Sep 17 00:00:00 2001
 From: Usama Arif <usama.arif@linaro.org>
 Date: Fri, 15 Nov 2019 10:53:29 +0000
-Subject: [PATCH 15/31] [master] ARM64: FP16 min and max intrinsic for ARMv8
+Subject: [PATCH 15/33] [master] ARM64: FP16 min and max intrinsic for ARMv8
 
 This CL implements intrinsics for min and max method with
 ARMv8.2 FP16 instructions.
@@ -442,5 +442,5 @@ index 6efaf7fde9..215584d356 100644
      }
  }
 -- 
-2.34.1
+2.37.1
 

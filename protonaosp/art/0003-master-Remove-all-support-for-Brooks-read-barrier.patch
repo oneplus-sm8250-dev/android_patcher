@@ -1,7 +1,7 @@
-From e9b1fe9ba99bcd81fd045b0820fc954d45ad77c5 Mon Sep 17 00:00:00 2001
+From 0c67c5b82e0e4ce7f99b340301fa6c1b92302dd4 Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Tue, 19 Oct 2021 07:54:13 +0100
-Subject: [PATCH 03/31] [master] Remove all support for Brooks read barrier.
+Subject: [PATCH 03/33] [master] Remove all support for Brooks read barrier.
 
 Test: m
 Bug: 177048505
@@ -221,5 +221,5 @@ index 7067f9b086..dc11d944da 100644
  // Debugging flag that forces the generation of read barriers, but
  // does not trigger the use of the concurrent copying GC.
 -- 
-2.34.1
+2.37.1
 

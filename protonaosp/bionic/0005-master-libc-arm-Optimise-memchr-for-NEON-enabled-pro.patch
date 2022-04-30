@@ -1,4 +1,4 @@
-From b61a54597b775c4ae910af80c84a9f320080cf42 Mon Sep 17 00:00:00 2001
+From e370fc30554551526601f9edcb33d964d27db70c Mon Sep 17 00:00:00 2001
 From: Prakhar Bahuguna <prakhar.bahuguna@arm.com>
 Date: Mon, 10 Apr 2017 00:41:23 +0200
 Subject: [PATCH 05/16] [master] libc: arm: Optimise memchr for NEON-enabled
@@ -281,5 +281,5 @@ index 000000000..5a78da280
 +
 +END(memchr)
 -- 
-2.34.1
+2.37.1
 

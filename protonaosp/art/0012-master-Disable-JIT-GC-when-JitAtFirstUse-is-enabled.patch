@@ -1,7 +1,7 @@
-From 65dd983db3e713222383f1234778b73a1ddc8fb0 Mon Sep 17 00:00:00 2001
+From fcfc1a8f1fb9243d6cce473857b582f63c643442 Mon Sep 17 00:00:00 2001
 From: Mythri Alle <mythria@google.com>
 Date: Thu, 18 Nov 2021 14:55:55 +0000
-Subject: [PATCH 12/31] [master] Disable JIT GC when JitAtFirstUse is enabled
+Subject: [PATCH 12/33] [master] Disable JIT GC when JitAtFirstUse is enabled
 
 JitAtFirstUse + JIT GC are causing few deadlocks, so disabling
 JITGC for now.
@@ -47,5 +47,5 @@ index 0caf83dc04..7cc614a1ad 100644
    if (is_system_server && HasImageWithProfile()) {
      // Disable garbage collection: we don't want it to delete methods we're compiling
 -- 
-2.34.1
+2.37.1
 

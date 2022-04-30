@@ -1,4 +1,4 @@
-From 1ee67240fb811ecab49b965807fc4e061f74650f Mon Sep 17 00:00:00 2001
+From 4c5764ed880b3150007768ea6e40f23d14f89a38 Mon Sep 17 00:00:00 2001
 From: Dyneteve <dyneteve@pixelexperience.org>
 Date: Sat, 27 Jun 2020 19:36:32 +0200
 Subject: [PATCH 62/63] recovery: Use ro.build.product to detect the device
@@ -69,5 +69,5 @@ index 0720e821..60237bf1 100644
  
      expect(android::base::GetProperty("ro.build.fingerprint", "").c_str(),
 -- 
-2.34.1
+2.37.1
 

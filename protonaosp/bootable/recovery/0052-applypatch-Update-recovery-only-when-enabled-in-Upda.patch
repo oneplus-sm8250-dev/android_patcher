@@ -1,4 +1,4 @@
-From 2811773ba3ad13106a8a5ae7493780f0940208b4 Mon Sep 17 00:00:00 2001
+From 79dcb9708043968ff95430fb3ee6e9ce9e850c32 Mon Sep 17 00:00:00 2001
 From: "Brint E. Kriebel" <bekit@cyngn.com>
 Date: Wed, 14 May 2014 18:13:00 -0700
 Subject: [PATCH 52/63] applypatch: Update recovery only when enabled in
@@ -23,5 +23,5 @@ index 37a7c2be..e4890c85 100644
 +on property:persist.vendor.recovery_update=true
 +    start vendor_flash_recovery
 -- 
-2.34.1
+2.37.1
 

@@ -1,7 +1,7 @@
-From 521149dc99b583a672c10f9a5e29f3bd772b377c Mon Sep 17 00:00:00 2001
+From f8695ee76e90f99d3fd2238d123992e8cad23dfa Mon Sep 17 00:00:00 2001
 From: Hans Boehm <hboehm@google.com>
 Date: Wed, 22 Sep 2021 13:28:35 -0700
-Subject: [PATCH 04/31] [master] Simplify IRTEntry
+Subject: [PATCH 04/33] [master] Simplify IRTEntry
 
 We previously stored the last several object references associated
 with indirect reference table entry. The old entries might once have
@@ -135,5 +135,5 @@ index 884e8d1a02..140b6c3be7 100644
    }
    static constexpr uint32_t DecodeSerial(uintptr_t uref) {
 -- 
-2.34.1
+2.37.1
 

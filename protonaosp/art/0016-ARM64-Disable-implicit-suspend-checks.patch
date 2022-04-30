@@ -1,7 +1,7 @@
-From 9ba346e4ac58e134a42c3dbb54a3ea31af8e875b Mon Sep 17 00:00:00 2001
+From 1f295e21c8bd176fad68ec7e05ac40029bd151c9 Mon Sep 17 00:00:00 2001
 From: Vladimir Marko <vmarko@google.com>
 Date: Tue, 4 Jan 2022 09:28:42 +0000
-Subject: [PATCH 16/31] ARM64: Disable implicit suspend checks.
+Subject: [PATCH 16/33] ARM64: Disable implicit suspend checks.
 
 Implicit suspend checks caused some unexpected regressions
 that we need to investigate. In the meantime, disable this
@@ -62,5 +62,5 @@ index bd9c00565b..68dc2bdbce 100644
      case InstructionSet::kArm:
      case InstructionSet::kThumb2:
 -- 
-2.34.1
+2.37.1
 

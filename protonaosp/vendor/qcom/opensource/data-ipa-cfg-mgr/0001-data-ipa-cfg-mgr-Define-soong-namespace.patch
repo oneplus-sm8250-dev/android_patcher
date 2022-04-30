@@ -1,4 +1,4 @@
-From 004796b8fade82133f001fb837f3c3cac0f40230 Mon Sep 17 00:00:00 2001
+From f12d992c317c8990d2775eee1494c74ecbd57274 Mon Sep 17 00:00:00 2001
 From: razorloves <razorloves@gmail.com>
 Date: Mon, 19 Oct 2020 00:34:36 -0500
 Subject: [PATCH 1/7] data-ipa-cfg-mgr: Define soong namespace
@@ -22,5 +22,5 @@ index 0000000..9515b25
 +soong_namespace {
 +}
 -- 
-2.34.1
+2.37.1
 

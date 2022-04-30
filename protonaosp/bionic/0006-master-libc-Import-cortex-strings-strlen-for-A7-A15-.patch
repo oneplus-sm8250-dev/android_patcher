@@ -1,4 +1,4 @@
-From d2f02fc782cf3e678197a3c71e657c30ddbc062a Mon Sep 17 00:00:00 2001
+From bfe80cf8e9034f73f6f345597647ca251b59d6dc Mon Sep 17 00:00:00 2001
 From: Bernhard Rosenkraenzer <Bernhard.Rosenkranzer@linaro.org>
 Date: Sat, 15 Feb 2014 20:43:47 +0100
 Subject: [PATCH 06/16] [master] libc: Import cortex-strings strlen for
@@ -338,5 +338,5 @@ index 9c5ed2911..c568ee05d 100644
 +    b       .L_start_realigned
  END(strlen_a15)
 -- 
-2.34.1
+2.37.1
 

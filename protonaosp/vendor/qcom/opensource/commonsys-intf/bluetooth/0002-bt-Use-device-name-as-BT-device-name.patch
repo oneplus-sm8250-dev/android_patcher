@@ -1,4 +1,4 @@
-From 5345ee6e144b3a5d9d8fdf3f0f4b0b85208ef665 Mon Sep 17 00:00:00 2001
+From f180e26af7ad2c6b40014da864c0a67b479dbfdb Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Mon, 27 Apr 2020 05:19:43 +0200
 Subject: [PATCH 2/4] bt: Use device name as BT device name.
@@ -25,5 +25,5 @@ index 6c7d51e..fb2ac69 100644
  #define MAX_ACL_CONNECTIONS   16
  #define MAX_L2CAP_CHANNELS    32
 -- 
-2.34.1
+2.37.1
 

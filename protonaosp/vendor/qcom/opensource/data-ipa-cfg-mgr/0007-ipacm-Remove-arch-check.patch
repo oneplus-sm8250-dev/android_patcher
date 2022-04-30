@@ -1,4 +1,4 @@
-From a22adeaf9d95ca5f62723ca0870dc593afb5d047 Mon Sep 17 00:00:00 2001
+From 5e9fbdd698138b8e114bcfb9beb338c06d234d12 Mon Sep 17 00:00:00 2001
 From: Alexander Koskovich <zvnexus@outlook.com>
 Date: Mon, 9 Nov 2020 12:04:33 -0700
 Subject: [PATCH 7/7] ipacm: Remove arch check.
@@ -28,5 +28,5 @@ index 969d537..74c64c3 100644
  endif
  endif
 -- 
-2.34.1
+2.37.1
 

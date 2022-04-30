@@ -1,4 +1,4 @@
-From 8acbdd88a80273a4fbb4dfb405a9aa4c5a1df394 Mon Sep 17 00:00:00 2001
+From 5877fe75945ad4fa1be7009a576a2c0ca269a521 Mon Sep 17 00:00:00 2001
 From: Richard Hansen <rhansen@rhansen.org>
 Date: Tue, 12 May 2020 18:08:56 -0400
 Subject: [PATCH 38/63] recovery: Display recovery version
@@ -124,5 +124,5 @@ index 56b75bef..bdcc36bf 100644
      menu_start_y_ = y + 12; // Skip horizontal rule and some margin
      menu_->SetMenuHeight(std::max(0, ScreenHeight() - menu_start_y_));
 -- 
-2.34.1
+2.37.1
 

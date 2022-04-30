@@ -1,7 +1,7 @@
-From 27a7c4a5986665a997a4257014997ee818f3e7d8 Mon Sep 17 00:00:00 2001
+From 21227a28bcaf1416a6101d9c877ea8d4d94b1b5e Mon Sep 17 00:00:00 2001
 From: dianlujitao <dianlujitao@lineageos.org>
 Date: Sun, 3 Oct 2021 10:45:31 +0200
-Subject: [PATCH 3/3] init.qcom.usb.rc: Don't apply persist.vendor.usb.config
+Subject: [PATCH 3/4] init.qcom.usb.rc: Don't apply persist.vendor.usb.config
 
  * Otherwise adb turns on after reboot every time.
 
@@ -33,5 +33,5 @@ index 8225ccc..600e26c 100644
          setprop sys.usb.configfs 1
  
 -- 
-2.34.1
+2.37.1
 

@@ -1,4 +1,4 @@
-From 2d8bfce235c7ed3ea5334883db3e54a1d39d2758 Mon Sep 17 00:00:00 2001
+From b8252468d3a5087741fa95c5a8fae8e696e5ba33 Mon Sep 17 00:00:00 2001
 From: dianlujitao <dianlujitao@lineageos.org>
 Date: Tue, 2 Jun 2020 11:11:39 +0800
 Subject: [PATCH 6/8] BT: Prefer LDAC over aptX family
@@ -36,10 +36,10 @@ index 0013b7aca..a248a3c56 100644
      <!-- Package that is responsible for user interaction on pairing request,
           success or cancel.
 diff --git a/src/com/android/bluetooth/a2dp/A2dpCodecConfig.java b/src/com/android/bluetooth/a2dp/A2dpCodecConfig.java
-index 3acdddfa9..ea990acf6 100644
+index b2593cdd8..0d334aeb7 100644
 --- a/src/com/android/bluetooth/a2dp/A2dpCodecConfig.java
 +++ b/src/com/android/bluetooth/a2dp/A2dpCodecConfig.java
-@@ -251,7 +251,8 @@ class A2dpCodecConfig {
+@@ -218,7 +218,8 @@ class A2dpCodecConfig {
                      if(a2dp_offload_cap.contains("aptxadaptiver2")) {
                          int aptxaa_r2_priority;
                          try {
@@ -50,5 +50,5 @@ index 3acdddfa9..ea990acf6 100644
                              aptxaa_r2_priority = value;
                          }
 -- 
-2.34.1
+2.37.1
 

@@ -1,4 +1,4 @@
-From 73d04b22919d54c6bf6522e8f682c66d5ab3b71c Mon Sep 17 00:00:00 2001
+From 1a67841348953e8d25c07776c904e534cb7c1a4d Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Mon, 1 Nov 2021 17:47:07 +0100
 Subject: [PATCH 61/63] recovery: Allow separating device asserts with a colon
@@ -41,5 +41,5 @@ index 5772b1ef..9dd21e83 100644
      return false;
    }
 -- 
-2.34.1
+2.37.1
 

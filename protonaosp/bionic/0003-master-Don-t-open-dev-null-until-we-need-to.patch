@@ -1,4 +1,4 @@
-From 7a974050a6aefc678d6156ed45daa463112a3621 Mon Sep 17 00:00:00 2001
+From 4633360c81e93006459d52c687e3e54eac79299b Mon Sep 17 00:00:00 2001
 From: Elliott Hughes <enh@google.com>
 Date: Tue, 26 Oct 2021 17:31:03 -0700
 Subject: [PATCH 03/16] [master] Don't open /dev/null until we need to.
@@ -86,5 +86,5 @@ index dd623a529..8084e73d1 100644
    }
  }
 -- 
-2.34.1
+2.37.1
 

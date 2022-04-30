@@ -1,4 +1,4 @@
-From 650134a7f3d38d3b5319a709532f85623ae0fd98 Mon Sep 17 00:00:00 2001
+From 3aa8a960e6447ff0a7bdba327c3ad222ddc73689 Mon Sep 17 00:00:00 2001
 From: Nicholas Lim <nicknitewolf@lineageos.org>
 Date: Sun, 21 Jun 2020 02:35:05 +0800
 Subject: [PATCH 33/63] recovery: Stop showing fastbootd logo for devices
@@ -4991,5 +4991,5 @@ literal 0
 HcmV?d00001
 
 -- 
-2.34.1
+2.37.1
 

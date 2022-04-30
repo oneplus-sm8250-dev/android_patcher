@@ -1,4 +1,4 @@
-From 89868a8ecccefb8f4d7b3a7bee926a9c9f969f97 Mon Sep 17 00:00:00 2001
+From 9451fb58d2291e9c0bc3a0b1a67d72364b234506 Mon Sep 17 00:00:00 2001
 From: Elliott Hughes <enh@google.com>
 Date: Tue, 16 Nov 2021 11:03:19 -0800
 Subject: [PATCH 02/16] [master] Optimize the mbs fast path slightly.
@@ -144,5 +144,5 @@ index 352115aa7..243b2201b 100644
    return
        (ps->__seq[2] != 0) ? 3 :
 -- 
-2.34.1
+2.37.1
 

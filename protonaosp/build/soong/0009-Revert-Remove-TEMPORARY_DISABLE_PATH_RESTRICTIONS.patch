@@ -1,0 +1,81 @@
+From f9512f21de779bb893a2ed73d5f41a71fe2acb0f Mon Sep 17 00:00:00 2001
+From: Vishalcj17 <vishalcj@aospa.co>
+Date: Mon, 18 Oct 2021 19:29:22 +0900
+Subject: [PATCH 9/9] Revert "Remove TEMPORARY_DISABLE_PATH_RESTRICTIONS"
+
+This reverts commit 347ba75679f4a2af4b602a274ad1e6acfe4dade0.
+
+CAF's toxic behaviour on the build system and kernel builds is horrendous.
+Rather than adding all the entries in build/soong and allowing them one by one,
+we can ignore it safely.
+
+Change-Id: I9b3c4cd8a65222555b981734a542609371872152
+---
+ cmd/path_interposer/main.go | 11 ++++++++++-
+ ui/build/path.go            |  6 ++----
+ 2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/cmd/path_interposer/main.go b/cmd/path_interposer/main.go
+index a4fe3e489..cd28b9608 100644
+--- a/cmd/path_interposer/main.go
++++ b/cmd/path_interposer/main.go
+@@ -53,7 +53,14 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 
++	disableError := false
++	if e, ok := os.LookupEnv("TEMPORARY_DISABLE_PATH_RESTRICTIONS"); ok {
++		disableError = e == "1" || e == "y" || e == "yes" || e == "on" || e == "true"
++	}
++
+ 	exitCode, err := Main(os.Stdout, os.Stderr, interposer, os.Args, mainOpts{
++		disableError: disableError,
++
+ 		sendLog:       paths.SendLog,
+ 		config:        paths.GetConfig,
+ 		lookupParents: lookupParents,
+@@ -72,6 +79,8 @@ If a tool isn't in the allowed list, a log will be posted to the unix domain
+ socket at <interposer>_log.`)
+ 
+ type mainOpts struct {
++	disableError bool
++
+ 	sendLog       func(logSocket string, entry *paths.LogEntry, done chan interface{})
+ 	config        func(name string) paths.PathConfig
+ 	lookupParents func() []paths.LogProcess
+@@ -122,7 +131,7 @@ func Main(stdout, stderr io.Writer, interposer string, args []string, opts mainO
+ 			}, waitForLog)
+ 			defer func() { <-waitForLog }()
+ 		}
+-		if config.Error {
++		if config.Error && !opts.disableError {
+ 			return 1, fmt.Errorf("%q is not allowed to be used. See https://android.googlesource.com/platform/build/+/master/Changes.md#PATH_Tools for more information.", base)
+ 		}
+ 	}
+diff --git a/ui/build/path.go b/ui/build/path.go
+index 86e61c0da..306382893 100644
+--- a/ui/build/path.go
++++ b/ui/build/path.go
+@@ -214,9 +214,7 @@ func SetupPath(ctx Context, config Config) {
+ 		execs = append(execs, parsePathDir(pathEntry)...)
+ 	}
+ 
+-	if config.Environment().IsEnvTrue("TEMPORARY_DISABLE_PATH_RESTRICTIONS") {
+-		ctx.Fatalln("TEMPORARY_DISABLE_PATH_RESTRICTIONS was a temporary migration method, and is now obsolete.")
+-	}
++	allowAllSymlinks := config.Environment().IsEnvTrue("TEMPORARY_DISABLE_PATH_RESTRICTIONS")
+ 
+ 	// Create symlinks from the path_interposer binary to all binaries for each
+ 	// directory in the original $PATH. This ensures that during the build,
+@@ -224,7 +222,7 @@ func SetupPath(ctx Context, config Config) {
+ 	// intercepted by the path_interposer binary, and validated with the
+ 	// LogEntry listener above at build time.
+ 	for _, name := range execs {
+-		if !paths.GetConfig(name).Symlink {
++		if !paths.GetConfig(name).Symlink && !allowAllSymlinks {
+ 			// Ignore host tools that shouldn't be symlinked.
+ 			continue
+ 		}
+-- 
+2.37.1
+

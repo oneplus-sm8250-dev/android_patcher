@@ -1,4 +1,4 @@
-From 2a20642c00899e520350a3d2d39a6655976b1076 Mon Sep 17 00:00:00 2001
+From 4e2cfc6035b275ed9f39db4f99e4f3fbc4d2dc69 Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Thu, 30 May 2019 11:43:07 -0500
 Subject: [PATCH 04/16] [master] libc: Set __bionic_asm_align to 64 for arm and
@@ -43,5 +43,5 @@ index ee51a8e78..c0b969cbd 100644
  #undef __bionic_asm_function_type
  #define __bionic_asm_function_type %function
 -- 
-2.34.1
+2.37.1
 

@@ -1,7 +1,7 @@
-From 76c564c07526c54378817ed0205301a0700794ce Mon Sep 17 00:00:00 2001
+From faad79f599582de9bd6c38d5ddbe9e8fb85bb9fa Mon Sep 17 00:00:00 2001
 From: Usama Arif <usama.arif@linaro.org>
 Date: Wed, 13 Nov 2019 13:32:54 +0000
-Subject: [PATCH 14/31] [master] ARM64: FP16.compare() intrinsic for ARMv8
+Subject: [PATCH 14/33] [master] ARM64: FP16.compare() intrinsic for ARMv8
 
 This CL implements an intrinsic for compare() method with
 ARMv8.2 FP16 instructions.
@@ -308,5 +308,5 @@ index 14b15f8358..6efaf7fde9 100644
      }
  }
 -- 
-2.34.1
+2.37.1
 

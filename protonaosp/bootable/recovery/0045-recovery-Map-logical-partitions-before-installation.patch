@@ -1,4 +1,4 @@
-From c4ff1b45c70a66ba60155bc2988246cabbd8403c Mon Sep 17 00:00:00 2001
+From 2bf28022bfa1996ee994e0d577e6941099c047d5 Mon Sep 17 00:00:00 2001
 From: Erfan Abdi <erfangplus@gmail.com>
 Date: Tue, 14 Apr 2020 23:07:33 +0430
 Subject: [PATCH 45/63] recovery: Map logical partitions before installation
@@ -81,5 +81,5 @@ index 00a4b01f..36deef51 100644
 +  return android::fs_mgr::LogicalPartitionsMapped() || logical_partitions_auto_mapped;
 +}
 -- 
-2.34.1
+2.37.1
 

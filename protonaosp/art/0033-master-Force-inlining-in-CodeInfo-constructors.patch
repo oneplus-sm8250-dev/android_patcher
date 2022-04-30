@@ -1,0 +1,42 @@
+From 9d2ade7ddcb9ef8bd2bb5e61ca4aaa85dc7f175b Mon Sep 17 00:00:00 2001
+From: Vladimir Marko <vmarko@google.com>
+Date: Thu, 7 Apr 2022 16:04:24 +0000
+Subject: [PATCH 33/33] [master] Force inlining in `CodeInfo` constructors.
+
+Test: m test-art-host-gtest
+Test: testrunner.py --host --optimizing
+Bug: 181943478
+Change-Id: I871ec7326b55c988d78b4481974e95c53ac7a9b1
+---
+ runtime/stack_map.cc | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/runtime/stack_map.cc b/runtime/stack_map.cc
+index c160e2b4b3..1bdba62a67 100644
+--- a/runtime/stack_map.cc
++++ b/runtime/stack_map.cc
+@@ -32,10 +32,10 @@ template<typename DecodeCallback>
+ CodeInfo::CodeInfo(const uint8_t* data, size_t* num_read_bits, DecodeCallback callback) {
+   BitMemoryReader reader(data);
+   std::array<uint32_t, kNumHeaders> header = reader.ReadInterleavedVarints<kNumHeaders>();
+-  ForEachHeaderField([this, &header](size_t i, auto member_pointer) {
++  ForEachHeaderField([this, &header](size_t i, auto member_pointer) ALWAYS_INLINE {
+     this->*member_pointer = header[i];
+   });
+-  ForEachBitTableField([this, &reader, &callback](size_t i, auto member_pointer) {
++  ForEachBitTableField([this, &reader, &callback](size_t i, auto member_pointer) ALWAYS_INLINE {
+     auto& table = this->*member_pointer;
+     if (LIKELY(HasBitTable(i))) {
+       if (UNLIKELY(IsBitTableDeduped(i))) {
+@@ -56,7 +56,7 @@ CodeInfo::CodeInfo(const uint8_t* data, size_t* num_read_bits, DecodeCallback ca
+ }
+ 
+ CodeInfo::CodeInfo(const uint8_t* data, size_t* num_read_bits)
+-    : CodeInfo(data, num_read_bits, [](size_t, auto*, BitMemoryRegion){}) {}
++    : CodeInfo(data, num_read_bits, [](size_t, auto*, BitMemoryRegion) ALWAYS_INLINE {}) {}
+ 
+ CodeInfo::CodeInfo(const OatQuickMethodHeader* header)
+     : CodeInfo(header->GetOptimizedCodeInfoPtr()) {}
+-- 
+2.37.1
+

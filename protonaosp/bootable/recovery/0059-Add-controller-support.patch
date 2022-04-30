@@ -1,4 +1,4 @@
-From bac0d366a8e9bc43c2096c77cc90299e91b2d2b1 Mon Sep 17 00:00:00 2001
+From b9d34e55c003a732f7c93de8731bfbc591adb289 Mon Sep 17 00:00:00 2001
 From: Aaron Kling <webgeek1234@gmail.com>
 Date: Mon, 22 Jul 2019 14:23:40 -0500
 Subject: [PATCH 59/63] Add controller support
@@ -38,5 +38,5 @@ index a740fbdc..e950ea65 100644
  
      case KEY_HOME:
 -- 
-2.34.1
+2.37.1
 

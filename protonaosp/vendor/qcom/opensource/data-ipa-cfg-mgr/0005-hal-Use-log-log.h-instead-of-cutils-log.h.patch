@@ -1,4 +1,4 @@
-From 15dd4e37810fb5867bc7e07289dcbd73ac4e415b Mon Sep 17 00:00:00 2001
+From 063e9a33c73a5c2fa47964393331bbe7e42665fb Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mkbestas@lineageos.org>
 Date: Tue, 19 Nov 2019 20:45:02 +0200
 Subject: [PATCH 5/7] hal: Use log/log.h instead of cutils/log.h
@@ -77,5 +77,5 @@ index f556e40..50fa91c 100644
  #include <string>
  #include <sys/types.h>
 -- 
-2.34.1
+2.37.1
 

@@ -1,4 +1,4 @@
-From 19a47d049bb70febfb543ee23b5912a0956a927e Mon Sep 17 00:00:00 2001
+From 1e3c52668e32f2c7931da5a2c0d1e7c92cde7166 Mon Sep 17 00:00:00 2001
 From: YumeMichi <do4suki@gmail.com>
 Date: Sun, 7 Nov 2021 19:45:37 +0800
 Subject: [PATCH] wlan: Don't include aosp wlan for qcom devices
@@ -21,5 +21,5 @@ index 200eb36..d16686a 100644
  endif
 +endif
 -- 
-2.34.1
+2.37.1
 

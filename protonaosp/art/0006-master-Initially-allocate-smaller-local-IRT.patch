@@ -1,7 +1,7 @@
-From c6e45963fb4163572bee35d25d4bd7c5aa9f0787 Mon Sep 17 00:00:00 2001
+From 1ca12cf0210fbbab8d477a643744c5387d579a14 Mon Sep 17 00:00:00 2001
 From: Hans Boehm <hboehm@google.com>
 Date: Thu, 23 Sep 2021 12:26:04 -0700
-Subject: [PATCH 06/31] [master] Initially allocate smaller local IRT
+Subject: [PATCH 06/33] [master] Initially allocate smaller local IRT
 
 Introduce a separate small object allocator to allocate tables for
 the initial local indirect reference tables, so they don't each
@@ -35,7 +35,7 @@ Change-Id: I297646acbdd9dbeab4af47461849fffa2fee23b1
  7 files changed, 137 insertions(+), 28 deletions(-)
 
 diff --git a/runtime/gc/heap.cc b/runtime/gc/heap.cc
-index f86ff33212..f3d041c54e 100644
+index d98d49c489..936068c8fd 100644
 --- a/runtime/gc/heap.cc
 +++ b/runtime/gc/heap.cc
 @@ -1536,6 +1536,7 @@ void Heap::TrimIndirectReferenceTables(Thread* self) {
@@ -377,5 +377,5 @@ index b2093a303c..18fbde0e28 100644
  
    std::unique_ptr<JavaVMExt> java_vm_;
 -- 
-2.34.1
+2.37.1
 

@@ -1,4 +1,4 @@
-From 623b7df3a6f8f9cd009d6733badda2c3a46a42be Mon Sep 17 00:00:00 2001
+From 10272aee1e760179a731a7d8412a0e97c3a233d0 Mon Sep 17 00:00:00 2001
 From: Alessandro Astone <ales.astone@gmail.com>
 Date: Tue, 17 Mar 2020 23:06:52 +0100
 Subject: [PATCH 50/63] recovery: allow A/B updater to downgrade
@@ -136,5 +136,5 @@ index fe2ea3ec..86354410 100644
    std::vector<std::string> headers{ "Format user data?", "This includes internal storage.", "THIS CANNOT BE UNDONE!" };
    std::vector<std::string> items{ " Cancel", " Format data" };
 -- 
-2.34.1
+2.37.1
 

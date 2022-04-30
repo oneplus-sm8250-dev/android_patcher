@@ -1,4 +1,4 @@
-From 2a2e1a5d8008c7a0d13c39fed0b78907e9a48db5 Mon Sep 17 00:00:00 2001
+From ec030920232669f54e3fc72352d2d0b24a563c68 Mon Sep 17 00:00:00 2001
 From: weichinweng <weichinweng@google.com>
 Date: Fri, 1 Nov 2019 17:56:40 +0800
 Subject: [PATCH 7/8] Use component flag to configure profile support flag.
@@ -63,5 +63,5 @@ index 733eefafb..fd97e2a38 100644
                  if (!addAudioProfiles(config.mClass.getSimpleName())) {
                      Log.i(TAG, " Profile " + config.mClass.getSimpleName() + " Not added ");
 -- 
-2.34.1
+2.37.1
 

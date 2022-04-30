@@ -1,4 +1,4 @@
-From 3678b200a75e1d92fb884c5d114c85208f2f7f5f Mon Sep 17 00:00:00 2001
+From ec92d953914c8103a5db9dfa49d125291e99f9bf Mon Sep 17 00:00:00 2001
 From: Richard Hansen <rhansen@rhansen.org>
 Date: Wed, 13 May 2020 10:07:36 -0400
 Subject: [PATCH 36/63] recovery: Clarify help text
@@ -26,5 +26,5 @@ index 7f80ac95..f2720b6d 100644
    static std::vector<std::string> LONG_PRESS_HELP{
      "Any button cycles highlight.",
 -- 
-2.34.1
+2.37.1
 

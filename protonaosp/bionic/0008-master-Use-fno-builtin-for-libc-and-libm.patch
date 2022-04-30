@@ -1,4 +1,4 @@
-From 23e8cf4f81ed68a5ad4b065a3e73bf8689be88be Mon Sep 17 00:00:00 2001
+From 387af1f3b038415158280f6054e2bd3dfa361882 Mon Sep 17 00:00:00 2001
 From: Elliott Hughes <enh@google.com>
 Date: Thu, 2 Dec 2021 14:42:16 -0800
 Subject: [PATCH 08/16] [master] Use -fno-builtin for libc and libm.
@@ -50,5 +50,5 @@ index 6c3abd129..cbd105bdf 100644
          "-Wall",
          "-Werror",
 -- 
-2.34.1
+2.37.1
 

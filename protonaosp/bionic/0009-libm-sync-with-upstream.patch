@@ -1,4 +1,4 @@
-From 35efb94a0ffbc817fc37614da7b6ff064a38e3d6 Mon Sep 17 00:00:00 2001
+From 6b51965533a55e6531b68a677a8770717e602545 Mon Sep 17 00:00:00 2001
 From: Elliott Hughes <enh@google.com>
 Date: Wed, 12 Jan 2022 17:51:20 -0800
 Subject: [PATCH 09/16] libm: sync with upstream.
@@ -2451,5 +2451,5 @@ index 000000000..858459a5f
 +__weak_reference(sinpi, sinpil);
 +#endif
 -- 
-2.34.1
+2.37.1
 

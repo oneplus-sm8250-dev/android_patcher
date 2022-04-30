@@ -1,4 +1,4 @@
-From 019ad6b3c126ea1a82cd35ad8ad95e9c1b4d8e8c Mon Sep 17 00:00:00 2001
+From 7984afc1c8729a819b1f885b2b97d39a42b2aa48 Mon Sep 17 00:00:00 2001
 From: Han Wang <416810799@qq.com>
 Date: Fri, 2 Nov 2018 13:02:38 +0200
 Subject: [PATCH 2/3] librmnetctl: Use generated kernel headers
@@ -22,5 +22,5 @@ index a99d91f..d51e33e 100644
      srcs: ["src/librmnetctl.c"],
  }
 -- 
-2.34.1
+2.37.1
 

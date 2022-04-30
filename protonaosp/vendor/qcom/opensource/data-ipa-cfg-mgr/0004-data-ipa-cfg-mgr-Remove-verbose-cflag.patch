@@ -1,4 +1,4 @@
-From e86c681d5d324d55a3911536b96dedfc90f249ed Mon Sep 17 00:00:00 2001
+From a1b0cf27e748ce40c4fbc6bb9f8e01f9330c8874 Mon Sep 17 00:00:00 2001
 From: Luca Stefani <luca020400@lineageos.org>
 Date: Tue, 18 Jul 2017 18:23:59 +0200
 Subject: [PATCH 4/7] data-ipa-cfg-mgr: Remove verbose cflag
@@ -22,5 +22,5 @@ index c2d25a2..eb03000 100644
  	"-DDEBUG",
          "-Wall",
 -- 
-2.34.1
+2.37.1
 

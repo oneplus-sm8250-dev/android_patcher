@@ -1,4 +1,4 @@
-From 55559730cf5448e29474eb6c8c907718ed19bf4f Mon Sep 17 00:00:00 2001
+From 9e6dadf16224ac5501419db50c1dffa3aaed3d49 Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Fri, 10 May 2019 01:15:08 -0500
 Subject: [PATCH 14/16] Revert "Revert "arm64: Use builtin for
@@ -64,5 +64,5 @@ index 3b9228c61..8d431e2c2 100644
  double rint(double x) { return __builtin_rint(x); }
  
 -- 
-2.34.1
+2.37.1
 
