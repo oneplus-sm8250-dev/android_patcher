@@ -1,4 +1,4 @@
-From 012686bd9e581706b74a3c140a3397bf1bf11919 Mon Sep 17 00:00:00 2001
+From 6c78e57155d987c62839b448f11f5a5bec266a45 Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Fri, 1 May 2020 00:27:03 +0200
 Subject: [PATCH 1/4] bt: Only build test apps on eng builds.
@@ -7,14 +7,14 @@ Subject: [PATCH 1/4] bt: Only build test apps on eng builds.
 
 Change-Id: I9340cac236d1ed5abbab09be84c6b88334e794a2
 ---
- bt-system-opensource-product.mk | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ bt-system-opensource-product.mk | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/bt-system-opensource-product.mk b/bt-system-opensource-product.mk
-index db9fb60..64fbddf 100644
+index f82a67a..8df3564 100644
 --- a/bt-system-opensource-product.mk
 +++ b/bt-system-opensource-product.mk
-@@ -44,15 +44,15 @@ PRODUCT_PACKAGE_OVERLAYS += vendor/qcom/opensource/commonsys-intf/bluetooth/over
+@@ -44,14 +44,14 @@ PRODUCT_PACKAGE_OVERLAYS += vendor/qcom/opensource/commonsys-intf/bluetooth/over
  BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := vendor/qcom/opensource/commonsys-intf/bluetooth/build/qva/config
  
  # BT Related Test app & Tools
@@ -31,12 +31,10 @@ index db9fb60..64fbddf 100644
  
  ifneq ($(TARGET_HAS_LOW_RAM), true)
 -PRODUCT_PACKAGES_DEBUG += BTTestApp
--PRODUCT_PACKAGES_DEBUG += BATestApp
 +PRODUCT_PACKAGES_ENG += BTTestApp
-+PRODUCT_PACKAGES_ENG += BATestApp
  endif #TARGET_HAS_LOW_RAM
  
  else
 -- 
-2.34.1
+2.36.0
 

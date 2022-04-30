@@ -1,4 +1,4 @@
-From 576712f22cbf70f15dad979216ec553e2a2b4694 Mon Sep 17 00:00:00 2001
+From b9268e442adde6b49bfdf4dc5d11a000a37e2bbb Mon Sep 17 00:00:00 2001
 From: Jake Weinstein <jake@aospa.co>
 Date: Sun, 6 Dec 2020 08:12:36 +0100
 Subject: [PATCH 4/4] bt: Allow TARGET_USE_QTI_BT_STACK to be overridden
@@ -9,7 +9,7 @@ Change-Id: Idb04ad64a54fd28af9cf5ddd700ecefc36da35e0
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/bt-system-opensource-product.mk b/bt-system-opensource-product.mk
-index 64fbddf..8330b1c 100644
+index 8df3564..08036ad 100644
 --- a/bt-system-opensource-product.mk
 +++ b/bt-system-opensource-product.mk
 @@ -16,7 +16,7 @@ PRODUCT_PACKAGES += Bluetooth
@@ -22,5 +22,5 @@ index 64fbddf..8330b1c 100644
  
  ifeq ($(TARGET_USE_QTI_BT_STACK),true)
 -- 
-2.34.1
+2.36.0
 
