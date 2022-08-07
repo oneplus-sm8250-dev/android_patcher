@@ -1,0 +1,53 @@
+From c982dca85fc62ea767c8535bb317b0c575886e73 Mon Sep 17 00:00:00 2001
+From: Roopa Sattiraju <sattiraju@google.com>
+Date: Wed, 25 May 2022 21:00:01 +0000
+Subject: [PATCH 4/4] Removing bonded device when auth fails due to missing
+ keys
+
+Bug: 231161832
+Test: Test against trying to connect using the same address
+Change-Id: I2a23440303758faf281989abdb2a614708f05d36
+Merged-In: I2a23440303758faf281989abdb2a614708f05d36
+(cherry picked from commit 21df1076a4b9c1d1bbe3f5ecb475fe0b7c1b8c2a)
+Merged-In: I2a23440303758faf281989abdb2a614708f05d36
+---
+ btif/src/btif_dm.cc | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/btif/src/btif_dm.cc b/btif/src/btif_dm.cc
+index 2e5e3d063b..74e4bd293d 100644
+--- a/btif/src/btif_dm.cc
++++ b/btif/src/btif_dm.cc
+@@ -1448,13 +1448,11 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
+         break;
+ 
+       case HCI_ERR_PAIRING_NOT_ALLOWED:
+-        btif_storage_remove_bonded_device(&bd_addr);
+         status = BT_STATUS_AUTH_REJECTED;
+         break;
+ 
+       /* Dont fail the bonding for key missing error as stack retry security */
+       case HCI_ERR_KEY_MISSING:
+-        btif_storage_remove_bonded_device(&bd_addr);
+         if (p_auth_cmpl->is_sm4_dev) {
+           return;
+         } else {
+@@ -1464,7 +1462,6 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
+       /* map the auth failure codes, so we can retry pairing if necessary */
+         FALLTHROUGH;
+       case HCI_ERR_AUTH_FAILURE:
+-        btif_storage_remove_bonded_device(&bd_addr);
+         FALLTHROUGH;
+       case HCI_ERR_HOST_REJECT_SECURITY:
+         FALLTHROUGH;
+@@ -1505,7 +1502,6 @@ static void btif_dm_auth_cmpl_evt(tBTA_DM_AUTH_CMPL* p_auth_cmpl) {
+       /* Remove Device as bonded in nvram as authentication failed */
+       BTIF_TRACE_DEBUG("%s(): removing hid pointing device from nvram",
+                        __func__);
+-      btif_storage_remove_bonded_device(&bd_addr);
+     }
+     BTA_DmResetPairingflag(bd_addr);
+ 
+-- 
+2.37.1
+

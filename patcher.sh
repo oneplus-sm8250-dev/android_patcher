@@ -41,6 +41,17 @@ ASB0705=(
     'packages/providers/ContactsProvider'
 )
 
+ASB0805=(
+    'build/make'
+    'frameworks/av'
+    'frameworks/base'
+    'frameworks/native'
+    'packages/apps/Settings'
+    'packages/providers/ContactsProvider'
+    'system/bt'
+    'vendor/qcom/opensource/commonsys/system/bt'
+)
+
 for repository in "${PROTONAOSP[@]}"; do
     cd "${ROOT}/${repository}"
 
@@ -53,6 +64,14 @@ for repository in "${ASB0705[@]}"; do
     cd "${ROOT}/${repository}"
 
     git am --keep-cr "${ROOT}/patcher/asb_0705/${repository}"/*
+
+    cd "${ROOT}"
+done
+
+for repository in "${ASB0805[@]}"; do
+    cd "${ROOT}/${repository}"
+
+    git am --keep-cr "${ROOT}/patcher/asb_0805/${repository}"/*
 
     cd "${ROOT}"
 done
