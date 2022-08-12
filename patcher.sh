@@ -30,17 +30,6 @@ PROTONAOSP=(
     'vendor/qcom/opensource/vibrator'
 )
 
-ASB0705=(
-    'build/make'
-    'frameworks/av'
-    'frameworks/base'
-    'frameworks/opt/telephony'
-    'system/bt'
-    'packages/apps/KeyChain'
-    'packages/apps/Settings'
-    'packages/providers/ContactsProvider'
-)
-
 ASB0805=(
     'build/make'
     'frameworks/av'
@@ -56,14 +45,6 @@ for repository in "${PROTONAOSP[@]}"; do
     cd "${ROOT}/${repository}"
 
     git am --keep-cr "${ROOT}/patcher/protonaosp/${repository}"/*
-
-    cd "${ROOT}"
-done
-
-for repository in "${ASB0705[@]}"; do
-    cd "${ROOT}/${repository}"
-
-    git am --keep-cr "${ROOT}/patcher/asb_0705/${repository}"/*
 
     cd "${ROOT}"
 done
