@@ -1,33 +1,23 @@
-From b212a87b7452d3ca607b3089eaf6ac7285c1302b Mon Sep 17 00:00:00 2001
-From: Steve Kondik <steve@cyngn.com>
-Date: Mon, 19 Oct 2015 14:43:39 -0700
-Subject: [PATCH 2/2] power: Add support for tap-to-wake feature control
+From 410d1a3c43f4628aec080b26f2963c3bf08a847a Mon Sep 17 00:00:00 2001
+From: Yuan Si <do4suki@gmail.com>
+Date: Sat, 13 Aug 2022 16:22:34 +0800
+Subject: [PATCH] Revert "Revert "power: Add support for tap-to-wake feature
+ control""
 
-Squashed into this commit:
+This reverts commit 933a6b19eb50d30f0b5f043a37eefdb3af3db61f.
 
-Author: LuK1337 <priv.luk@gmail.com>
-Date:   Sat Dec 7 23:51:29 2019 +0100
-
-    power: Follow symlinks when writing to dt2w toggle path
-
-    * Some devices tend to symlink touchpanel related toggles
-      to common path due to having to deal with different panels.
-
-    Change-Id: I429e4c5acfbcd3ff26a019f919fbe880692160bd
-
-[ArianK16a]: Adapt to AIDL HAL
-
-Change-Id: I545902b29f4828c127bc32def6e30b67ce4a3aa7
+Signed-off-by: Yuan Si <do4suki@gmail.com>
+Change-Id: I63d0621bf952cb07ffbcebfe908c4fc421fca437
 ---
  Android.mk |  4 ++++
  Power.cpp  | 10 ++++++++++
  2 files changed, 14 insertions(+)
 
 diff --git a/Android.mk b/Android.mk
-index 7be7a23..d6967dc 100644
+index 68bc0e0..9fa1830 100644
 --- a/Android.mk
 +++ b/Android.mk
-@@ -81,6 +81,10 @@ ifeq ($(call is-board-platform-in-list,msmnile), true)
+@@ -77,6 +77,10 @@ ifeq ($(call is-board-platform-in-list,msmnile), true)
  LOCAL_SRC_FILES += power-msmnile.c
  endif
  
@@ -39,7 +29,7 @@ index 7be7a23..d6967dc 100644
      LOCAL_CFLAGS += -DINTERACTION_BOOST
  endif
 diff --git a/Power.cpp b/Power.cpp
-index 260ad4c..a28df32 100644
+index 300e8e1..734246b 100644
 --- a/Power.cpp
 +++ b/Power.cpp
 @@ -31,6 +31,7 @@
@@ -50,9 +40,9 @@ index 260ad4c..a28df32 100644
  #include <android-base/logging.h>
  
  #include <aidl/android/hardware/power/BnPower.h>
-@@ -60,7 +61,13 @@ void setInteractive(bool interactive) {
- ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
-     LOG(INFO) << "Power setMode: " << static_cast<int32_t>(type) << " to: " << enabled;
+@@ -72,7 +73,13 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
+ #endif
+ 
      switch(type){
 +#ifdef TAP_TO_WAKE_NODE
          case Mode::DOUBLE_TAP_TO_WAKE:
@@ -64,8 +54,8 @@ index 260ad4c..a28df32 100644
          case Mode::LOW_POWER:
          case Mode::LAUNCH:
          case Mode::EXPENSIVE_RENDERING:
-@@ -93,6 +100,9 @@ ndk::ScopedAStatus Power::isModeSupported(Mode type, bool* _aidl_return) {
-     LOG(INFO) << "Power isModeSupported: " << static_cast<int32_t>(type);
+@@ -111,6 +118,9 @@ ndk::ScopedAStatus Power::isModeSupported(Mode type, bool* _aidl_return) {
+ #endif
  
      switch(type){
 +#ifdef TAP_TO_WAKE_NODE
