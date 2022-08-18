@@ -31,7 +31,6 @@ PROTONAOSP=(
 )
 
 ASB0805=(
-    'build/make'
     'frameworks/av'
     'frameworks/base'
     'frameworks/native'
